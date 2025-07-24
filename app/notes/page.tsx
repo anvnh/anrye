@@ -1010,17 +1010,48 @@ export default function NotesPage() {
                       remarkPlugins={[remarkMath]}
                       rehypePlugins={[rehypeKatex]}
                       components={{
+                        // Handle headers
+                        h1: ({children, ...props}) => (
+                          <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({children, ...props}) => (
+                          <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({children, ...props}) => (
+                          <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
+                            {children}
+                          </h3>
+                        ),
+                        h4: ({children, ...props}) => (
+                          <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
+                            {children}
+                          </h4>
+                        ),
+                        h5: ({children, ...props}) => (
+                          <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
+                            {children}
+                          </h5>
+                        ),
+                        h6: ({children, ...props}) => (
+                          <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
+                            {children}
+                          </h6>
+                        ),
                         // Handle code blocks
                         code: ({children, className, ...props}) => {
                           const match = /language-(\w+)/.exec(className || '');
                           const isInline = !match;
                           return isInline ? (
-                            <code className={className} {...props}>
+                            <code className="bg-gray-700 text-pink-300 px-1 rounded text-sm" {...props}>
                               {children}
                             </code>
                           ) : (
-                            <pre className="bg-gray-800 rounded p-4 overflow-x-auto">
-                              <code className={className} {...props}>
+                            <pre className="bg-gray-800 rounded p-4 overflow-x-auto my-4">
+                              <code className="text-gray-300" {...props}>
                                 {children}
                               </code>
                             </pre>
@@ -1028,12 +1059,52 @@ export default function NotesPage() {
                         },
                         // Handle paragraphs to preserve LaTeX
                         p: ({children, ...props}) => {
-                          return <p className="mb-4" {...props}>{children}</p>;
+                          return <p className="mb-4 text-gray-300 leading-relaxed" {...props}>{children}</p>;
                         },
+                        // Handle lists
+                        ul: ({children, ...props}) => (
+                          <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({children, ...props}) => (
+                          <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
+                            {children}
+                          </ol>
+                        ),
+                        li: ({children, ...props}) => (
+                          <li className="text-gray-300" {...props}>{children}</li>
+                        ),
+                        // Handle blockquotes
+                        blockquote: ({children, ...props}) => (
+                          <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4" {...props}>
+                            {children}
+                          </blockquote>
+                        ),
+                        // Handle links
+                        a: ({children, href, ...props}) => (
+                          <a 
+                            href={href} 
+                            className="text-blue-400 hover:text-blue-300 underline" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            {...props}
+                          >
+                            {children}
+                          </a>
+                        ),
+                        // Handle strong/bold
+                        strong: ({children, ...props}) => (
+                          <strong className="font-bold text-white" {...props}>{children}</strong>
+                        ),
+                        // Handle emphasis/italic
+                        em: ({children, ...props}) => (
+                          <em className="italic text-gray-300" {...props}>{children}</em>
+                        ),
                         // Handle math blocks
                         div: ({children, className, ...props}) => {
                           if (className === 'math math-display') {
-                            return <div className="math-display my-4 text-center" {...props}>{children}</div>;
+                            return <div className="math-display my-6 text-center" {...props}>{children}</div>;
                           }
                           return <div className={className} {...props}>{children}</div>;
                         },
