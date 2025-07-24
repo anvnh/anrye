@@ -7,6 +7,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
@@ -1044,17 +1046,28 @@ export default function NotesPage() {
                         // Handle code blocks
                         code: ({children, className, ...props}) => {
                           const match = /language-(\w+)/.exec(className || '');
+                          const language = match ? match[1] : '';
                           const isInline = !match;
+                          
                           return isInline ? (
                             <code className="bg-gray-700 text-pink-300 px-1 rounded text-sm" {...props}>
                               {children}
                             </code>
                           ) : (
-                            <pre className="bg-gray-800 rounded p-4 overflow-x-auto my-4">
-                              <code className="text-gray-300" {...props}>
-                                {children}
-                              </code>
-                            </pre>
+                            <SyntaxHighlighter
+                              style={vscDarkPlus}
+                              language={language}
+                              PreTag="div"
+                              className="my-4 rounded-lg"
+                              customStyle={{
+                                margin: '1rem 0',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.875rem',
+                                backgroundColor: '#1f2937'
+                              }}
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
                           );
                         },
                         // Handle paragraphs to preserve LaTeX
