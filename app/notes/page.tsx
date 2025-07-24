@@ -51,11 +51,20 @@ export default function NotesPage() {
   const [draggedItem, setDraggedItem] = useState<{type: 'note' | 'folder', id: string} | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number, y: number, type: 'note' | 'folder' | 'empty', id?: string} | null>(null);
+  
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
+  const [isResizing, setIsResizing] = useState(false);
+  
+  // Track if we've already synced with Drive
+  const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
 
   // Load data from localStorage on mount
   useEffect(() => {
     const savedNotes = localStorage.getItem('notes-drive');
     const savedFolders = localStorage.getItem('folders-new');
+    const savedSidebarWidth = localStorage.getItem('sidebar-width');
+    const savedHasSynced = localStorage.getItem('has-synced-drive');
     
     if (savedNotes) {
       setNotes(JSON.parse(savedNotes));
@@ -64,10 +73,21 @@ export default function NotesPage() {
     if (savedFolders) {
       setFolders(JSON.parse(savedFolders));
     }
+    
+    if (savedSidebarWidth) {
+      setSidebarWidth(parseInt(savedSidebarWidth));
+    }
+    
+    if (savedHasSynced) {
+      setHasSyncedWithDrive(JSON.parse(savedHasSynced));
+    }
 
-    // Sync with Drive if signed in
-    if (isSignedIn) {
+    // Sync with Drive if signed in and haven't synced yet
+    if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
       syncWithDrive();
+    } else if (!isSignedIn) {
+      // Reset sync flag when signed out
+      setHasSyncedWithDrive(false);
     }
   }, [isSignedIn]);
 
@@ -79,6 +99,16 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('folders-new', JSON.stringify(folders));
   }, [folders]);
+  
+  // Save sidebar width to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar-width', sidebarWidth.toString());
+  }, [sidebarWidth]);
+  
+  // Save sync status to localStorage
+  useEffect(() => {
+    localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
+  }, [hasSyncedWithDrive]);
 
   // Close context menu on click outside
   useEffect(() => {
@@ -86,6 +116,39 @@ export default function NotesPage() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+  
+  // Handle sidebar resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const newWidth = e.clientX;
+      if (newWidth >= 200 && newWidth <= 600) { // Min 200px, Max 600px
+        setSidebarWidth(newWidth);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // Drag & Drop handlers
   const handleDragStart = (e: React.DragEvent, type: 'note' | 'folder', id: string) => {
@@ -95,6 +158,7 @@ export default function NotesPage() {
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent
     e.dataTransfer.dropEffect = 'move';
     setDragOver(targetId);
   };
@@ -105,6 +169,7 @@ export default function NotesPage() {
 
   const handleDrop = async (e: React.DragEvent, targetFolderId: string) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent
     setDragOver(null);
     
     if (!draggedItem) return;
@@ -422,15 +487,18 @@ export default function NotesPage() {
       setIsLoading(true);
       const notesFolderId = await driveService.findOrCreateNotesFolder();
       
-      // Update root folder with Drive ID
+      // Update root folder with Drive ID if not already set
       setFolders(prev => prev.map(folder => 
-        folder.id === 'root' 
+        folder.id === 'root' && !folder.driveFolderId
           ? { ...folder, driveFolderId: notesFolderId }
           : folder
       ));
 
-      // Load files and folders from Drive
-      await loadFromDrive(notesFolderId, '');
+      // Only load from Drive if we haven't synced yet
+      if (!hasSyncedWithDrive) {
+        await loadFromDrive(notesFolderId, '');
+        setHasSyncedWithDrive(true);
+      }
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
     } finally {
@@ -446,7 +514,7 @@ export default function NotesPage() {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
           // It's a folder
           const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
-          const existingFolder = folders.find(f => f.path === folderPath);
+          const existingFolder = folders.find(f => f.driveFolderId === file.id);
           
           if (!existingFolder) {
             const newFolder: Folder = {
@@ -576,7 +644,7 @@ export default function NotesPage() {
     try {
       setIsLoading(true);
       
-      const updatedNote = {
+      let updatedNote = {
         ...selectedNote,
         title: editTitle,
         content: editContent,
@@ -584,8 +652,50 @@ export default function NotesPage() {
       };
       
       // Update in Drive if signed in
-      if (isSignedIn && selectedNote.driveFileId) {
-        await driveService.updateFile(selectedNote.driveFileId, editContent);
+      if (isSignedIn) {
+        try {
+          if (selectedNote.driveFileId) {
+            // Try to update existing file
+            await driveService.updateFile(selectedNote.driveFileId, editContent);
+          } else {
+            // No Drive file ID, create new file
+            const parentFolder = folders.find(f => f.path === selectedNote.path);
+            const parentDriveId = parentFolder?.driveFolderId;
+            
+            if (parentDriveId) {
+              const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
+              updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
+            }
+          }
+        } catch (driveError: any) {
+          console.error('Drive error:', driveError);
+          
+          // If file not found (404), create new file
+          if (driveError.status === 404 || (driveError.result && driveError.result.error && driveError.result.error.code === 404)) {
+            console.log('File not found on Drive, creating new file...');
+            
+            const parentFolder = folders.find(f => f.path === selectedNote.path);
+            const parentDriveId = parentFolder?.driveFolderId;
+            
+            if (parentDriveId) {
+              try {
+                const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
+                updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
+                console.log('Created new file with ID:', newDriveFileId);
+              } catch (createError) {
+                console.error('Failed to create new file:', createError);
+                // Remove the invalid driveFileId
+                updatedNote = { ...updatedNote, driveFileId: undefined };
+              }
+            } else {
+              // Remove the invalid driveFileId
+              updatedNote = { ...updatedNote, driveFileId: undefined };
+            }
+          } else {
+            // Other Drive errors, remove the invalid driveFileId
+            updatedNote = { ...updatedNote, driveFileId: undefined };
+          }
+        }
       }
       
       setNotes(notes.map(note => 
@@ -755,25 +865,22 @@ export default function NotesPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#222831' }}>
+    <div className="h-screen flex flex-col" style={{ backgroundColor: '#222831' }}>
       <Navbar />
       
-      <div className="flex h-screen">
+      <div className="flex flex-1 overflow-hidden">
         {/* File Explorer Sidebar */}
         <div 
-          className={`w-80 border-r border-gray-600 flex flex-col ${
+          className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${
             dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
           }`}
-          style={{ backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F' }}
-          onContextMenu={(e) => handleContextMenu(e, 'empty')}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver('root');
+          style={{ 
+            width: `${sidebarWidth}px`,
+            backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F' 
           }}
-          onDragLeave={() => setDragOver(null)}
-          onDrop={(e) => handleDrop(e, 'root')}
+          onContextMenu={(e) => handleContextMenu(e, 'empty')}
         >
-          <div className="px-4 py-3 border-b border-gray-600">
+          <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
             <h2 className="text-lg font-semibold text-white">
               Notes
             </h2>
@@ -786,22 +893,49 @@ export default function NotesPage() {
             
             {isLoading && (
               <div className="text-xs text-blue-400 mt-2">
-                🔄 Syncing with Drive...
+                Syncing...
               </div>
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4"
+            onDragOver={(e) => {
+              e.preventDefault();
+              // Only set to root if we're not over a specific folder
+              if (e.target === e.currentTarget) {
+                setDragOver('root');
+              }
+            }}
+            onDragLeave={(e) => {
+              // Only clear if we're leaving the container itself
+              if (e.target === e.currentTarget) {
+                setDragOver(null);
+              }
+            }}
+            onDrop={(e) => {
+              // Only handle drop to root if we're dropping on empty space
+              if (e.target === e.currentTarget) {
+                handleDrop(e, 'root');
+              }
+            }}
+          >
             {renderFileTree()}
           </div>
+          
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-500 transition-colors"
+            onMouseDown={() => setIsResizing(true)}
+            title="Drag to resize sidebar"
+          />
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {selectedNote ? (
             <>
               {/* Note Header */}
-              <div className="border-b border-gray-600 px-6 py-4" style={{ backgroundColor: '#31363F' }}>
+              <div className="border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
                 <div className="flex items-center justify-between">
                   {isEditing ? (
                     <input
@@ -846,7 +980,7 @@ export default function NotesPage() {
               </div>
 
               {/* Note Content */}
-              <div className="flex-1 p-6" style={{ backgroundColor: '#222831' }}>
+              <div className="flex-1 px-20 py-6 overflow-y-auto" style={{ backgroundColor: '#222831' }}>
                 {isEditing ? (
                   <textarea
                     value={editContent}
