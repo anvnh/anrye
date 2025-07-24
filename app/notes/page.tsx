@@ -8,7 +8,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import ThemeManager from '../lib/themeManager';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
@@ -60,6 +60,10 @@ export default function NotesPage() {
   
   // Track if we've already synced with Drive
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
+  
+  // Theme manager instance
+  const themeManager = ThemeManager.getInstance();
+  const [syntaxTheme, setSyntaxTheme] = useState(themeManager.getCurrentThemeId());
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -83,6 +87,9 @@ export default function NotesPage() {
     if (savedHasSynced) {
       setHasSyncedWithDrive(JSON.parse(savedHasSynced));
     }
+    
+    // Load theme from ThemeManager
+    setSyntaxTheme(themeManager.getCurrentThemeId());
 
     // Sync with Drive if signed in and haven't synced yet
     if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
@@ -111,6 +118,13 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
   }, [hasSyncedWithDrive]);
+  
+  // Handle theme changes
+  const handleThemeChange = (newThemeId: string) => {
+    if (themeManager.setTheme(newThemeId)) {
+      setSyntaxTheme(newThemeId);
+    }
+  };
 
   // Close context menu on click outside
   useEffect(() => {
@@ -951,6 +965,20 @@ export default function NotesPage() {
                   )}
                   
                   <div className="flex items-center space-x-2">
+                    {/* Theme Selector */}
+                    <select
+                      value={syntaxTheme}
+                      onChange={(e) => handleThemeChange(e.target.value)}
+                      className="px-2 py-1 text-xs bg-gray-700 text-gray-300 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                      title="Code theme"
+                    >
+                      {themeManager.getAllThemes().map((theme) => (
+                        <option key={theme.id} value={theme.id}>
+                          {theme.name}
+                        </option>
+                      ))}
+                    </select>
+                    
                     {isEditing ? (
                       <>
                         <button
@@ -1055,7 +1083,7 @@ export default function NotesPage() {
                             </code>
                           ) : (
                             <SyntaxHighlighter
-                              style={vscDarkPlus}
+                              style={themeManager.getCurrentTheme().style}
                               language={language}
                               PreTag="div"
                               className="my-4 rounded-lg"
