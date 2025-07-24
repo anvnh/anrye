@@ -990,8 +990,27 @@ export default function NotesPage() {
                   />
                 ) : (
                   <div className="prose prose-invert max-w-none">
+                    <style jsx>{`
+                      .katex { 
+                        color: #e5e7eb !important; 
+                      }
+                      .katex-display {
+                        margin: 1em 0 !important;
+                        text-align: center !important;
+                      }
+                      .math-display {
+                        overflow-x: auto;
+                        padding: 0.5rem;
+                      }
+                      .math-inline {
+                        display: inline;
+                      }
+                    `}</style>
                     <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                       components={{
+                        // Handle code blocks
                         code: ({children, className, ...props}) => {
                           const match = /language-(\w+)/.exec(className || '');
                           const isInline = !match;
@@ -1006,6 +1025,24 @@ export default function NotesPage() {
                               </code>
                             </pre>
                           );
+                        },
+                        // Handle paragraphs to preserve LaTeX
+                        p: ({children, ...props}) => {
+                          return <p className="mb-4" {...props}>{children}</p>;
+                        },
+                        // Handle math blocks
+                        div: ({children, className, ...props}) => {
+                          if (className === 'math math-display') {
+                            return <div className="math-display my-4 text-center" {...props}>{children}</div>;
+                          }
+                          return <div className={className} {...props}>{children}</div>;
+                        },
+                        // Handle inline math
+                        span: ({children, className, ...props}) => {
+                          if (className === 'math math-inline') {
+                            return <span className="math-inline" {...props}>{children}</span>;
+                          }
+                          return <span className={className} {...props}>{children}</span>;
                         }
                       }}
                     >
