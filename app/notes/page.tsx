@@ -1,14 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '../components/Navbar';
 import { FileText, Plus, FolderPlus, Folder, FolderOpen, ChevronRight, ChevronDown, Edit, Trash2, Save, X, Cloud, CloudOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import ThemeManager from '../lib/themeManager';
+import remarkGfm from 'remark-gfm';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
@@ -48,6 +44,7 @@ export default function NotesPage() {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   
   // Drag & Drop and Context Menu states
   const [draggedItem, setDraggedItem] = useState<{type: 'note' | 'folder', id: string} | null>(null);
@@ -60,10 +57,6 @@ export default function NotesPage() {
   
   // Track if we've already synced with Drive
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
-  
-  // Theme manager instance
-  const themeManager = ThemeManager.getInstance();
-  const [syntaxTheme, setSyntaxTheme] = useState(themeManager.getCurrentThemeId());
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -87,9 +80,6 @@ export default function NotesPage() {
     if (savedHasSynced) {
       setHasSyncedWithDrive(JSON.parse(savedHasSynced));
     }
-    
-    // Load theme from ThemeManager
-    setSyntaxTheme(themeManager.getCurrentThemeId());
 
     // Sync with Drive if signed in and haven't synced yet
     if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
@@ -118,13 +108,6 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
   }, [hasSyncedWithDrive]);
-  
-  // Handle theme changes
-  const handleThemeChange = (newThemeId: string) => {
-    if (themeManager.setTheme(newThemeId)) {
-      setSyntaxTheme(newThemeId);
-    }
-  };
 
   // Close context menu on click outside
   useEffect(() => {
@@ -501,8 +484,10 @@ export default function NotesPage() {
   const syncWithDrive = async () => {
     try {
       setIsLoading(true);
+      setSyncProgress(10);
       const notesFolderId = await driveService.findOrCreateNotesFolder();
       
+      setSyncProgress(30);
       // Update root folder with Drive ID if not already set
       setFolders(prev => prev.map(folder => 
         folder.id === 'root' && !folder.driveFolderId
@@ -510,15 +495,19 @@ export default function NotesPage() {
           : folder
       ));
 
+      setSyncProgress(50);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
         await loadFromDrive(notesFolderId, '');
+        setSyncProgress(90);
         setHasSyncedWithDrive(true);
       }
+      setSyncProgress(100);
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
     } finally {
       setIsLoading(false);
+      setSyncProgress(0);
     }
   };
 
@@ -623,7 +612,34 @@ export default function NotesPage() {
       const parentFolder = folders.find(f => f.path === selectedPath);
       const parentDriveId = parentFolder?.driveFolderId;
       
-      const initialContent = `# ${newNoteName}\n\nStart writing your note here...\n\n## Math Example\n$$E = mc^2$$\n\n## Code Example\n\`\`\`javascript\nconsole.log("Hello World!");\n\`\`\``;
+      const initialContent = `# ${newNoteName}
+
+Start writing your note here...
+
+## Features Supported
+
+- **Bold text** and *italic text*
+- [Links](https://example.com)
+- \`inline code\`
+- Lists and checkboxes
+- Tables
+- Blockquotes
+- And much more!
+
+## Code Example
+
+\`\`\`javascript
+console.log("Hello World!");
+\`\`\`
+
+## Table Example
+
+| Column 1 | Column 2 | Column 3 |
+|----------|----------|----------|
+| Data 1   | Data 2   | Data 3   |
+| Data 4   | Data 5   | Data 6   |
+
+> This is a blockquote example. Great for highlighting important information.`;
       
       let driveFileId;
       if (isSignedIn && parentDriveId) {
@@ -807,6 +823,156 @@ export default function NotesPage() {
     });
   };
 
+  // Optimized markdown rendering - memoized to prevent re-renders on large files
+  const memoizedMarkdown = useMemo(() => {
+    if (!selectedNote || isEditing) return null;
+    
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml={true} // Security: skip HTML for performance
+        components={{
+          // Optimized headers
+          h1: ({ children, ...props }) => (
+            <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
+              {children}
+            </h1>
+          ),
+          h2: ({ children, ...props }) => (
+            <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
+              {children}
+            </h2>
+          ),
+          h3: ({ children, ...props }) => (
+            <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
+              {children}
+            </h3>
+          ),
+          h4: ({ children, ...props }) => (
+            <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
+              {children}
+            </h4>
+          ),
+          h5: ({ children, ...props }) => (
+            <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
+              {children}
+            </h5>
+          ),
+          h6: ({ children, ...props }) => (
+            <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
+              {children}
+            </h6>
+          ),
+          // Optimized paragraphs
+          p: ({ children, ...props }) => (
+            <p className="mb-4 text-gray-300 leading-relaxed" {...props}>
+              {children}
+            </p>
+          ),
+          // Code blocks with syntax highlighting
+          code: ({ children, className, ...props }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const isInline = !match;
+            
+            return isInline ? (
+              <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+                {children}
+              </code>
+            ) : (
+              <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 my-4 overflow-x-auto">
+                <code className={`text-sm font-mono text-gray-300 ${className}`} {...props}>
+                  {children}
+                </code>
+              </pre>
+            );
+          },
+          // Lists
+          ul: ({ children, ...props }) => (
+            <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children, ...props }) => (
+            <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
+              {children}
+            </ol>
+          ),
+          li: ({ children, ...props }) => (
+            <li className="text-gray-300" {...props}>{children}</li>
+          ),
+          // Blockquotes
+          blockquote: ({ children, ...props }) => (
+            <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
+              {children}
+            </blockquote>
+          ),
+          // Links
+          a: ({ children, href, ...props }) => (
+            <a 
+              href={href} 
+              className="text-blue-400 hover:text-blue-300 underline transition-colors" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              {...props}
+            >
+              {children}
+            </a>
+          ),
+          // Bold and italic
+          strong: ({ children, ...props }) => (
+            <strong className="font-bold text-white" {...props}>{children}</strong>
+          ),
+          em: ({ children, ...props }) => (
+            <em className="italic text-gray-300" {...props}>{children}</em>
+          ),
+          // Tables (GitHub Flavored Markdown)
+          table: ({ children, ...props }) => (
+            <div className="overflow-x-auto my-4">
+              <table className="min-w-full border border-gray-600 rounded-lg" {...props}>
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children, ...props }) => (
+            <thead className="bg-gray-700" {...props}>
+              {children}
+            </thead>
+          ),
+          tbody: ({ children, ...props }) => (
+            <tbody className="bg-gray-800" {...props}>
+              {children}
+            </tbody>
+          ),
+          tr: ({ children, ...props }) => (
+            <tr className="border-b border-gray-600" {...props}>
+              {children}
+            </tr>
+          ),
+          th: ({ children, ...props }) => (
+            <th className="px-4 py-2 text-left text-white font-semibold border-r border-gray-600 last:border-r-0" {...props}>
+              {children}
+            </th>
+          ),
+          td: ({ children, ...props }) => (
+            <td className="px-4 py-2 text-gray-300 border-r border-gray-600 last:border-r-0" {...props}>
+              {children}
+            </td>
+          ),
+          // Horizontal rule
+          hr: ({ ...props }) => (
+            <hr className="border-gray-600 my-8" {...props} />
+          ),
+          // Strikethrough (GitHub Flavored Markdown)
+          del: ({ children, ...props }) => (
+            <del className="line-through text-gray-400" {...props}>{children}</del>
+          ),
+        }}
+      >
+        {selectedNote.content}
+      </ReactMarkdown>
+    );
+  }, [selectedNote?.content, selectedNote?.id, isEditing]);
+
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
     const subfolders = getSubfolders(parentPath);
     const notesInPath = getNotesInPath(parentPath);
@@ -909,7 +1075,7 @@ export default function NotesPage() {
             
             {isLoading && (
               <div className="text-xs text-blue-400 mt-2">
-                Syncing...
+                Syncing {syncProgress}%...
               </div>
             )}
           </div>
@@ -965,19 +1131,6 @@ export default function NotesPage() {
                   )}
                   
                   <div className="flex items-center space-x-2">
-                    {/* Theme Selector */}
-                    <select
-                      value={syntaxTheme}
-                      onChange={(e) => handleThemeChange(e.target.value)}
-                      className="px-2 py-1 text-xs bg-gray-700 text-gray-300 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                      title="Code theme"
-                    >
-                      {themeManager.getAllThemes().map((theme) => (
-                        <option key={theme.id} value={theme.id}>
-                          {theme.name}
-                        </option>
-                      ))}
-                    </select>
                     
                     {isEditing ? (
                       <>
@@ -1020,146 +1173,7 @@ export default function NotesPage() {
                   />
                 ) : (
                   <div className="prose prose-invert max-w-none">
-                    <style jsx>{`
-                      .katex { 
-                        color: #e5e7eb !important; 
-                      }
-                      .katex-display {
-                        margin: 1em 0 !important;
-                        text-align: center !important;
-                      }
-                      .math-display {
-                        overflow-x: auto;
-                        padding: 0.5rem;
-                      }
-                      .math-inline {
-                        display: inline;
-                      }
-                    `}</style>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={{
-                        // Handle headers
-                        h1: ({children, ...props}) => (
-                          <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({children, ...props}) => (
-                          <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({children, ...props}) => (
-                          <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
-                            {children}
-                          </h3>
-                        ),
-                        h4: ({children, ...props}) => (
-                          <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
-                            {children}
-                          </h4>
-                        ),
-                        h5: ({children, ...props}) => (
-                          <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
-                            {children}
-                          </h5>
-                        ),
-                        h6: ({children, ...props}) => (
-                          <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
-                            {children}
-                          </h6>
-                        ),
-                        // Handle code blocks
-                        code: ({children, className, ...props}) => {
-                          const match = /language-(\w+)/.exec(className || '');
-                          const language = match ? match[1] : '';
-                          const isInline = !match;
-                          
-                          return isInline ? (
-                            <code className="bg-gray-700 text-pink-300 px-1 rounded text-sm" {...props}>
-                              {children}
-                            </code>
-                          ) : (
-                            <SyntaxHighlighter
-                              style={themeManager.getCurrentTheme().style}
-                              language={language}
-                              PreTag="div"
-                              className="my-4 rounded-lg"
-                              customStyle={{
-                                margin: '1rem 0',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.875rem',
-                                backgroundColor: '#1f2937'
-                              }}
-                            >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                          );
-                        },
-                        // Handle paragraphs to preserve LaTeX
-                        p: ({children, ...props}) => {
-                          return <p className="mb-4 text-gray-300 leading-relaxed" {...props}>{children}</p>;
-                        },
-                        // Handle lists
-                        ul: ({children, ...props}) => (
-                          <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
-                            {children}
-                          </ul>
-                        ),
-                        ol: ({children, ...props}) => (
-                          <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
-                            {children}
-                          </ol>
-                        ),
-                        li: ({children, ...props}) => (
-                          <li className="text-gray-300" {...props}>{children}</li>
-                        ),
-                        // Handle blockquotes
-                        blockquote: ({children, ...props}) => (
-                          <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4" {...props}>
-                            {children}
-                          </blockquote>
-                        ),
-                        // Handle links
-                        a: ({children, href, ...props}) => (
-                          <a 
-                            href={href} 
-                            className="text-blue-400 hover:text-blue-300 underline" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            {...props}
-                          >
-                            {children}
-                          </a>
-                        ),
-                        // Handle strong/bold
-                        strong: ({children, ...props}) => (
-                          <strong className="font-bold text-white" {...props}>{children}</strong>
-                        ),
-                        // Handle emphasis/italic
-                        em: ({children, ...props}) => (
-                          <em className="italic text-gray-300" {...props}>{children}</em>
-                        ),
-                        // Handle math blocks
-                        div: ({children, className, ...props}) => {
-                          if (className === 'math math-display') {
-                            return <div className="math-display my-6 text-center" {...props}>{children}</div>;
-                          }
-                          return <div className={className} {...props}>{children}</div>;
-                        },
-                        // Handle inline math
-                        span: ({children, className, ...props}) => {
-                          if (className === 'math math-inline') {
-                            return <span className="math-inline" {...props}>{children}</span>;
-                          }
-                          return <span className={className} {...props}>{children}</span>;
-                        }
-                      }}
-                    >
-                      {selectedNote.content}
-                    </ReactMarkdown>
+                    {memoizedMarkdown}
                   </div>
                 )}
               </div>

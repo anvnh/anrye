@@ -151,9 +151,16 @@ class GoogleDriveService {
   }
 
   private setupTokenClient(): void {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    
+    if (!clientId) {
+      console.error('Google Client ID not found. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment variables.');
+      return;
+    }
+    
     if (window.google?.accounts?.oauth2) {
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: (response: any) => {
           if (response.access_token) {
@@ -175,6 +182,13 @@ class GoogleDriveService {
       if (this.accessToken) {
         console.log('Already signed in with saved token');
         return true;
+      }
+
+      // Check if Google Client ID is configured
+      if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+        console.error('Google Client ID not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env.local file.');
+        alert('Google Drive integration is not configured. Please check the console for details.');
+        return false;
       }
 
       await this.loadGoogleAPI();
