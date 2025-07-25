@@ -104,9 +104,115 @@ export default function NotesPage() {
               {children}
             </ol>
           ),
-          li: ({ children, ...props }) => (
-            <li className="text-gray-300" {...props}>{children}</li>
-          ),
+          li: ({ children, ...props }) => {
+            // Check if this is a task list item (checkbox)
+            if (Array.isArray(children) && children.length > 0) {
+              const firstChild = children[0];
+              
+              // Check if first child is a checkbox input
+              if (typeof firstChild === 'object' && firstChild !== null && 
+                  'type' in firstChild && firstChild.type === 'input' &&
+                  'props' in firstChild && firstChild.props && 
+                  typeof firstChild.props === 'object' &&
+                  'type' in firstChild.props && firstChild.props.type === 'checkbox') {
+                
+                const checkboxProps = firstChild.props as any;
+                const isChecked = checkboxProps.checked;
+                const restOfContent = children.slice(1);
+                
+                // Extract the text content for matching
+                const getTextContent = (node: any): string => {
+                  if (typeof node === 'string') return node;
+                  if (Array.isArray(node)) return node.map(getTextContent).join('');
+                  if (typeof node === 'object' && node !== null && 'props' in node && node.props && 'children' in node.props) {
+                    return getTextContent(node.props.children);
+                  }
+                  return '';
+                };
+                
+                const textContent = getTextContent(restOfContent).trim();
+                
+                return (
+                  <li className="text-gray-300 flex items-start gap-2 list-none" {...props}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const newChecked = e.target.checked;
+                        console.log('Checkbox clicked:', { textContent, isChecked, newChecked });
+                        
+                        const updateContent = (content: string) => {
+                          const lines = content.split('\n');
+                          let updated = false;
+                          
+                          const updatedLines = lines.map(line => {
+                            if (updated) return line;
+                            
+                            // Match checkbox line with exact text
+                            const checkboxMatch = line.match(/^(\s*)-\s+\[([ x])\]\s*(.*)$/i);
+                            if (checkboxMatch) {
+                              const [, indent, currentState, text] = checkboxMatch;
+                              const currentChecked = currentState.toLowerCase() === 'x';
+                              
+                              // Match by text content and current checkbox state
+                              if (text.trim() === textContent && currentChecked === isChecked) {
+                                updated = true;
+                                const newState = newChecked ? 'x' : ' ';
+                                return `${indent}- [${newState}] ${text}`;
+                              }
+                            }
+                            return line;
+                          });
+                          
+                          return updatedLines.join('\n');
+                        };
+                        
+                        if (isEditing) {
+                          // Update edit content
+                          const updatedContent = updateContent(editContent);
+                          console.log('Updating edit content');
+                          setEditContent(updatedContent);
+                        } else if (selectedNote) {
+                          // Update note content directly
+                          const updatedContent = updateContent(selectedNote.content);
+                          console.log('Updating note content');
+                          
+                          const updatedNote = {
+                            ...selectedNote,
+                            content: updatedContent,
+                            updatedAt: new Date().toISOString()
+                          };
+                          
+                          // Update state
+                          setNotes(prev => prev.map(note => 
+                            note.id === selectedNote.id ? updatedNote : note
+                          ));
+                          setSelectedNote(updatedNote);
+                          
+                          // Update Drive if connected
+                          if (isSignedIn && selectedNote.driveFileId) {
+                            driveService.updateFile(selectedNote.driveFileId, updatedContent)
+                              .catch(error => console.error('Failed to update checkbox in Drive:', error));
+                          }
+                        }
+                      }}
+                      className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
+                    />
+                    <span className="flex-1">
+                      {restOfContent}
+                    </span>
+                  </li>
+                );
+              }
+            }
+            
+            return (
+              <li className="text-gray-300" {...props}>{children}</li>
+            );
+          },
           blockquote: ({ children, ...props }) => (
             <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
               {children}
@@ -223,19 +329,58 @@ export default function NotesPage() {
   // Split-screen mode state
   const [isSplitMode, setIsSplitMode] = useState(false);
 
+  // Utility function to clear all localStorage data (for debugging)
+  const clearAllData = () => {
+    localStorage.removeItem('notes-new');
+    localStorage.removeItem('folders-new');
+    localStorage.removeItem('has-synced-drive');
+    localStorage.removeItem('sidebar-width');
+    setNotes([]);
+    setFolders([{ id: 'root', name: 'Notes', path: '', expanded: true }]);
+    setHasSyncedWithDrive(false);
+    console.log('All data cleared');
+  };
+
+  // Add to window for debugging (remove in production)
+  if (typeof window !== 'undefined') {
+    (window as any).clearAllData = clearAllData;
+  }
+
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedNotes = localStorage.getItem('notes-drive');
+    const savedNotes = localStorage.getItem('notes-new'); // Đổi từ 'notes-drive' thành 'notes-new' để thống nhất
     const savedFolders = localStorage.getItem('folders-new');
     const savedSidebarWidth = localStorage.getItem('sidebar-width');
     const savedHasSynced = localStorage.getItem('has-synced-drive');
     
     if (savedNotes) {
-      setNotes(JSON.parse(savedNotes));
+      const parsedNotes = JSON.parse(savedNotes);
+      // Remove duplicate notes based on driveFileId or id
+      const uniqueNotes = parsedNotes.filter((note: Note, index: number, array: Note[]) => {
+        if (note.driveFileId) {
+          // If note has driveFileId, use that for uniqueness
+          return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
+        } else {
+          // If no driveFileId, use regular id
+          return array.findIndex(n => n.id === note.id) === index;
+        }
+      });
+      setNotes(uniqueNotes);
     }
     
     if (savedFolders) {
-      setFolders(JSON.parse(savedFolders));
+      const parsedFolders = JSON.parse(savedFolders);
+      // Remove duplicate folders based on driveFolderId or id
+      const uniqueFolders = parsedFolders.filter((folder: Folder, index: number, array: Folder[]) => {
+        if (folder.driveFolderId) {
+          // If folder has driveFolderId, use that for uniqueness
+          return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
+        } else {
+          // If no driveFolderId, use regular id
+          return array.findIndex(f => f.id === folder.id) === index;
+        }
+      });
+      setFolders(uniqueFolders);
     }
     
     if (savedSidebarWidth) {
@@ -257,11 +402,39 @@ export default function NotesPage() {
 
   // Save data to localStorage
   useEffect(() => {
-    localStorage.setItem('notes-new', JSON.stringify(notes));
+    // Remove duplicates before saving
+    const uniqueNotes = notes.filter((note, index, array) => {
+      if (note.driveFileId) {
+        return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
+      } else {
+        return array.findIndex(n => n.id === note.id) === index;
+      }
+    });
+    
+    // Only save if there are changes to avoid infinite loops
+    if (uniqueNotes.length !== notes.length) {
+      setNotes(uniqueNotes);
+    } else {
+      localStorage.setItem('notes-new', JSON.stringify(uniqueNotes));
+    }
   }, [notes]);
 
   useEffect(() => {
-    localStorage.setItem('folders-new', JSON.stringify(folders));
+    // Remove duplicates before saving
+    const uniqueFolders = folders.filter((folder, index, array) => {
+      if (folder.driveFolderId) {
+        return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
+      } else {
+        return array.findIndex(f => f.id === folder.id) === index;
+      }
+    });
+    
+    // Only save if there are changes to avoid infinite loops
+    if (uniqueFolders.length !== folders.length) {
+      setFolders(uniqueFolders);
+    } else {
+      localStorage.setItem('folders-new', JSON.stringify(uniqueFolders));
+    }
   }, [folders]);
   
   // Save sidebar width to localStorage
@@ -712,42 +885,63 @@ export default function NotesPage() {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
           // It's a folder
           const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
-          const existingFolder = folders.find(f => f.driveFolderId === file.id);
           
-          if (!existingFolder) {
-            const newFolder: Folder = {
-              id: Date.now().toString() + Math.random(),
-              name: file.name,
-              path: folderPath,
-              parentId: folders.find(f => f.driveFolderId === parentDriveId)?.id || 'root',
-              driveFolderId: file.id,
-              expanded: false
-            };
+          // Check if folder already exists using callback to get latest state
+          setFolders(prevFolders => {
+            const existingFolder = prevFolders.find(f => f.driveFolderId === file.id);
             
-            setFolders(prev => [...prev, newFolder]);
-          }
+            if (!existingFolder) {
+              const newFolder: Folder = {
+                id: Date.now().toString() + Math.random(),
+                name: file.name,
+                path: folderPath,
+                parentId: prevFolders.find(f => f.driveFolderId === parentDriveId)?.id || 'root',
+                driveFolderId: file.id,
+                expanded: false
+              };
+              
+              return [...prevFolders, newFolder];
+            }
+            return prevFolders; // No change if folder already exists
+          });
           
           // Recursively load subfolders
           await loadFromDrive(file.id, folderPath);
         } else if (file.name.endsWith('.md')) {
           // It's a markdown file
           const notePath = parentPath;
-          const existingNote = notes.find(n => n.driveFileId === file.id);
           
-          if (!existingNote) {
-            const content = await driveService.getFile(file.id);
-            const newNote: Note = {
-              id: Date.now().toString() + Math.random(),
-              title: file.name.replace('.md', ''),
-              content: content,
-              path: notePath,
-              driveFileId: file.id,
-              createdAt: file.createdTime,
-              updatedAt: file.modifiedTime
-            };
+          // Check if note already exists using callback to get latest state
+          setNotes(prevNotes => {
+            const existingNote = prevNotes.find(n => n.driveFileId === file.id);
             
-            setNotes(prev => [...prev, newNote]);
-          }
+            if (!existingNote) {
+              // Load content and create new note
+              driveService.getFile(file.id).then(content => {
+                const newNote: Note = {
+                  id: Date.now().toString() + Math.random(),
+                  title: file.name.replace('.md', ''),
+                  content: content,
+                  path: notePath,
+                  driveFileId: file.id,
+                  createdAt: file.createdTime,
+                  updatedAt: file.modifiedTime
+                };
+                
+                setNotes(currentNotes => {
+                  // Double check to avoid race condition
+                  const stillNotExists = !currentNotes.find(n => n.driveFileId === file.id);
+                  if (stillNotExists) {
+                    return [...currentNotes, newNote];
+                  }
+                  return currentNotes;
+                });
+              }).catch(error => {
+                console.error('Failed to load file content:', error);
+              });
+            }
+            return prevNotes; // No immediate change
+          });
         }
       }
     } catch (error) {
@@ -819,6 +1013,26 @@ Start writing your note here...
 - Blockquotes
 - **LaTeX Math Support**
 - And much more!
+
+## Task Lists / Checkboxes
+
+You can create interactive checkboxes that can be toggled:
+
+- [ ] Unchecked task
+- [x] Checked task
+- [ ] Another unchecked task
+- [x] Another checked task
+
+### Project Tasks Example
+
+- [ ] Research project requirements
+- [x] Set up development environment
+- [ ] Implement core features
+  - [x] User authentication
+  - [ ] Data persistence
+  - [ ] API integration
+- [ ] Write documentation
+- [ ] Deploy to production
 
 ## Math Examples
 
@@ -1650,9 +1864,9 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
           <div className="rounded-lg p-6 w-96 shadow-xl border border-gray-600" style={{ backgroundColor: '#31363F' }}>
             <h3 className="text-lg font-semibold text-white mb-2">Create New Note</h3>
             {selectedPath ? (
-              <p className="text-sm text-gray-400 mb-4">📝 Creating in: /{selectedPath}</p>
+              <p className="text-sm text-gray-400 mb-4">Creating in: /{selectedPath}</p>
             ) : (
-              <p className="text-sm text-gray-400 mb-4">📝 Creating in: Root</p>
+              <p className="text-sm text-gray-400 mb-4">Creating in: Root</p>
             )}
             <input
               type="text"
