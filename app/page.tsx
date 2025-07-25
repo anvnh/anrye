@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Link from "next/link";
-import Image from "next/image";
-import Navbar from "./components/Navbar";
-import { Clock, ImageIcon, Code, FileText, User } from "lucide-react";
+import Navbar from "./components/NavBar";
 
 export default function Home() {
   const [loveTime, setLoveTime] = useState({

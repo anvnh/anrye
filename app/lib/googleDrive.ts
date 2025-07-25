@@ -1,3 +1,5 @@
+import './types';
+
 interface DriveFile {
   id: string;
   name: string;
@@ -12,9 +14,20 @@ interface TokenData {
   expires_at: number;
 }
 
+interface GoogleAuth {
+  access_token: string;
+  error?: string;
+  expires_in?: number;
+}
+
+interface GoogleTokenClient {
+  callback?: (response: GoogleAuth) => void;
+  requestAccessToken: () => void;
+}
+
 class GoogleDriveService {
   private accessToken: string | null = null;
-  private tokenClient: any = null;
+  private tokenClient: GoogleTokenClient | null = null;
   private readonly TOKEN_KEY = 'google_drive_token';
 
   constructor() {
@@ -162,7 +175,7 @@ class GoogleDriveService {
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: (response: any) => {
+        callback: (response: GoogleAuth) => {
           if (response.access_token) {
             this.accessToken = response.access_token;
             this.saveToken(response.access_token);
@@ -200,20 +213,24 @@ class GoogleDriveService {
 
       return new Promise((resolve) => {
         // Update callback to resolve promise
-        this.tokenClient.callback = (response: any) => {
-          if (response.access_token) {
-            this.accessToken = response.access_token;
-            this.saveToken(response.access_token);
-            console.log('Sign-in successful and token saved');
-            resolve(true);
-          } else {
-            console.error('No access token received');
-            resolve(false);
-          }
-        };
-        
-        // Request access token
-        this.tokenClient.requestAccessToken();
+        if (this.tokenClient) {
+          this.tokenClient.callback = (response: GoogleAuth) => {
+            if (response.access_token) {
+              this.accessToken = response.access_token;
+              this.saveToken(response.access_token);
+              console.log('Sign-in successful and token saved');
+              resolve(true);
+            } else {
+              console.error('No access token received');
+              resolve(false);
+            }
+          };
+          
+          // Request access token
+          this.tokenClient.requestAccessToken();
+        } else {
+          resolve(false);
+        }
       });
     } catch (error) {
       console.error('Sign in failed:', error);
@@ -248,7 +265,7 @@ class GoogleDriveService {
     }
   }
 
-  private async handleApiError(error: any): Promise<boolean> {
+  private async handleApiError(error: { status?: number }): Promise<boolean> {
     // Check if error is due to invalid/expired token
     if (error.status === 401 || error.status === 403) {
       console.log('Token expired or invalid, clearing saved token');
@@ -262,8 +279,8 @@ class GoogleDriveService {
   private async makeApiCall<T>(apiCall: () => Promise<T>): Promise<T> {
     try {
       return await apiCall();
-    } catch (error: any) {
-      const needsRefresh = await this.handleApiError(error);
+    } catch (error: unknown) {
+      const needsRefresh = await this.handleApiError(error as { status?: number });
       if (needsRefresh) {
         throw new Error('TOKEN_EXPIRED');
       }

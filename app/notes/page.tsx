@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
-import Navbar from '../components/Navbar';
-import { FileText, Plus, FolderPlus, Folder, FolderOpen, ChevronRight, ChevronDown, Edit, Trash2, Save, X, Cloud, CloudOff, Split } from 'lucide-react';
+import Navbar from '../components/NavBar';
+import { FileText, FolderPlus, Folder, FolderOpen, ChevronRight, ChevronDown, Edit, Trash2, Save, X, Cloud, Split } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -189,6 +189,8 @@ export default function NotesPage() {
       </ReactMarkdown>
     );
   });
+  
+  MemoizedMarkdown.displayName = 'MemoizedMarkdown';
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([
@@ -220,8 +222,6 @@ export default function NotesPage() {
   
   // Split-screen mode state
   const [isSplitMode, setIsSplitMode] = useState(false);
-  const [rawScrollTop, setRawScrollTop] = useState(0);
-  const [previewScrollTop, setPreviewScrollTop] = useState(0);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function NotesPage() {
       // Reset sync flag when signed out
       setHasSyncedWithDrive(false);
     }
-  }, [isSignedIn]);
+  }, [isSignedIn]); // syncWithDrive is defined below, dependency not needed here
 
   // Save data to localStorage
   useEffect(() => {
@@ -674,7 +674,7 @@ export default function NotesPage() {
     });
   };
 
-  const syncWithDrive = async () => {
+  const syncWithDrive = useCallback(async () => {
     try {
       setIsLoading(true);
       setSyncProgress(10);
@@ -702,7 +702,7 @@ export default function NotesPage() {
       setIsLoading(false);
       setSyncProgress(0);
     }
-  };
+  }, [hasSyncedWithDrive]); // loadFromDrive is defined below, using internal function
 
   const loadFromDrive = async (parentDriveId: string, parentPath: string) => {
     try {
@@ -925,11 +925,12 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
               updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
             }
           }
-        } catch (driveError: any) {
+        } catch (driveError: unknown) {
           console.error('Drive error:', driveError);
           
           // If file not found (404), create new file
-          if (driveError.status === 404 || (driveError.result && driveError.result.error && driveError.result.error.code === 404)) {
+          const error = driveError as { status?: number; result?: { error?: { code?: number } } };
+          if (error.status === 404 || (error.result?.error?.code === 404)) {
             console.log('File not found on Drive, creating new file...');
             
             const parentFolder = folders.find(f => f.path === selectedNote.path);
@@ -1127,18 +1128,14 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
   const memoizedMarkdown = useMemo(() => {
     if (!selectedNote || isEditing) return null;
     
-    // For performance with large files containing lots of math
-    const isLargeFile = selectedNote.content.length > 5000;
-    const hasMath = selectedNote.content.includes('$') || selectedNote.content.includes('\\(') || selectedNote.content.includes('\\[');
-    
     return <MemoizedMarkdown content={selectedNote.content} />;
-  }, [selectedNote?.content, selectedNote?.id, isEditing]);
+  }, [selectedNote, isEditing, MemoizedMarkdown]);
 
   // Real-time preview for split mode
   const realtimePreview = useMemo(() => {
     if (!isEditing || !isSplitMode) return null;
     return <MemoizedMarkdown content={editContent} />;
-  }, [editContent, isEditing, isSplitMode]);
+  }, [editContent, isEditing, isSplitMode, MemoizedMarkdown]);
 
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
     const subfolders = getSubfolders(parentPath);

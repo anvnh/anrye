@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import { Clock, ImageIcon } from 'lucide-react';
+import { useState } from 'react';
+import Navbar from '../components/NavBar';
+import { ImageIcon } from 'lucide-react';
 
 export default function UtilsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
