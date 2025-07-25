@@ -20,11 +20,11 @@ export default function Navbar({ user }: NavbarProps) {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <nav style={{ backgroundColor: '#31363F' }} className="shadow-sm border-b border-gray-600">
+    <nav className="bg-secondary shadow-sm border-b border-gray-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-white" style={{ color: '#EEEEEE' }}>
+            <Link href="/" className="text-2xl font-bold text-primary">
               AnRye
             </Link>
           </div>

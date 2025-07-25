@@ -26,6 +26,23 @@ body {
   color: var(--foreground);
 }
 
+/* Custom theme colors to avoid hydration issues */
+.bg-main {
+  background-color: #222831 !important;
+}
+
+.bg-secondary {
+  background-color: #31363F !important;
+}
+
+.text-primary {
+  color: #EEEEEE !important;
+}
+
+.bg-gradient-main {
+  background: linear-gradient(to right, #31363F, #222831) !important;
+}
+
 /* Custom KaTeX styles for dark theme */
 .katex {
   color: #e5e7eb;

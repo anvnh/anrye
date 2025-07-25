@@ -59,12 +59,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#222831' }}>
+    <div className="min-h-screen bg-main">
       {/* Navigation */}
       <Navbar />
 
       {/* Hero Section */}
-      <div className="text-white" style={{ background: 'linear-gradient(to right, #31363F, #222831)' }}>
+      <div className="text-white bg-gradient-main">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -78,7 +78,7 @@ export default function Home() {
       </div>
 
       {/* Love Timer Section */}
-      <div className="py-20" style={{ backgroundColor: '#31363F' }}>
+      <div className="py-20 bg-secondary">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="text-2xl font-bold text-white">
@@ -86,7 +86,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="rounded-xl p-8" style={{ backgroundColor: '#222831' }}>
+          <div className="rounded-xl p-8 bg-main">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold mb-2 text-white">
@@ -139,7 +139,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="text-white py-12" style={{ backgroundColor: '#31363F' }}>
+      <footer className="text-white py-12 bg-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>

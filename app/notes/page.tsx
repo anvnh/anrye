@@ -1094,6 +1094,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
     if (!isSplitMode || isScrollingSynced) return;
     const rawElement = e.currentTarget;
     const previewElement = document.querySelector('.preview-content') as HTMLElement;
+    
     if (previewElement) {
       syncScroll(rawElement, previewElement, 'raw');
     }
@@ -1349,10 +1350,6 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                     <div className="flex h-full w-full">
                       {/* Raw Editor Side */}
                       <div className="w-1/2 flex flex-col border-r border-gray-600">
-                        <div className="px-4 py-2 border-b border-gray-600 bg-gray-800 flex items-center justify-between">
-                          <span className="text-sm text-gray-300 font-medium">✏️ Raw Markdown</span>
-                          <span className="text-xs text-green-400 font-medium">LIVE EDIT</span>
-                        </div>
                         <div className="flex-1 px-4 py-4 overflow-hidden">
                           <textarea
                             value={editContent}
@@ -1367,10 +1364,6 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                       
                       {/* Preview Side */}
                       <div className="w-1/2 flex flex-col">
-                        <div className="px-4 py-2 border-b border-gray-600 bg-gray-800 flex items-center justify-between">
-                          <span className="text-sm text-gray-300 font-medium">👁️ Live Preview</span>
-                          <span className="text-xs text-blue-400 font-medium">SYNCED</span>
-                        </div>
                         <div 
                           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
                           onScroll={handlePreviewScroll}
