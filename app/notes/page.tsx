@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import Navbar from '../components/Navbar';
-import { FileText, Plus, FolderPlus, Folder, FolderOpen, ChevronRight, ChevronDown, Edit, Trash2, Save, X, Cloud, CloudOff } from 'lucide-react';
+import { FileText, Plus, FolderPlus, Folder, FolderOpen, ChevronRight, ChevronDown, Edit, Trash2, Save, X, Cloud, CloudOff, Split } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
@@ -30,6 +33,163 @@ interface Folder {
 
 export default function NotesPage() {
   const { isSignedIn } = useDrive();
+  
+  // Performance optimization: memoize heavy operations
+  const MemoizedMarkdown = memo(({ content }: { content: string }) => {
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        skipHtml={true}
+        components={{
+          // All the existing components...
+          h1: ({ children, ...props }) => (
+            <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
+              {children}
+            </h1>
+          ),
+          h2: ({ children, ...props }) => (
+            <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
+              {children}
+            </h2>
+          ),
+          h3: ({ children, ...props }) => (
+            <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
+              {children}
+            </h3>
+          ),
+          h4: ({ children, ...props }) => (
+            <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
+              {children}
+            </h4>
+          ),
+          h5: ({ children, ...props }) => (
+            <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
+              {children}
+            </h5>
+          ),
+          h6: ({ children, ...props }) => (
+            <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
+              {children}
+            </h6>
+          ),
+          p: ({ children, ...props }) => (
+            <p className="mb-4 text-gray-300 leading-relaxed" {...props}>
+              {children}
+            </p>
+          ),
+          code: ({ children, className, ...props }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const isInline = !match;
+            
+            return isInline ? (
+              <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+                {children}
+              </code>
+            ) : (
+              <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 my-4 overflow-x-auto">
+                <code className={`text-sm font-mono text-gray-300 ${className}`} {...props}>
+                  {children}
+                </code>
+              </pre>
+            );
+          },
+          ul: ({ children, ...props }) => (
+            <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children, ...props }) => (
+            <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
+              {children}
+            </ol>
+          ),
+          li: ({ children, ...props }) => (
+            <li className="text-gray-300" {...props}>{children}</li>
+          ),
+          blockquote: ({ children, ...props }) => (
+            <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
+              {children}
+            </blockquote>
+          ),
+          a: ({ children, href, ...props }) => (
+            <a 
+              href={href} 
+              className="text-blue-400 hover:text-blue-300 underline transition-colors" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              {...props}
+            >
+              {children}
+            </a>
+          ),
+          strong: ({ children, ...props }) => (
+            <strong className="font-bold text-white" {...props}>{children}</strong>
+          ),
+          em: ({ children, ...props }) => (
+            <em className="italic text-gray-300" {...props}>{children}</em>
+          ),
+          table: ({ children, ...props }) => (
+            <div className="overflow-x-auto my-4">
+              <table className="min-w-full border border-gray-600 rounded-lg" {...props}>
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children, ...props }) => (
+            <thead className="bg-gray-700" {...props}>
+              {children}
+            </thead>
+          ),
+          tbody: ({ children, ...props }) => (
+            <tbody className="bg-gray-800" {...props}>
+              {children}
+            </tbody>
+          ),
+          tr: ({ children, ...props }) => (
+            <tr className="border-b border-gray-600" {...props}>
+              {children}
+            </tr>
+          ),
+          th: ({ children, ...props }) => (
+            <th className="px-4 py-2 text-left text-white font-semibold border-r border-gray-600 last:border-r-0" {...props}>
+              {children}
+            </th>
+          ),
+          td: ({ children, ...props }) => (
+            <td className="px-4 py-2 text-gray-300 border-r border-gray-600 last:border-r-0" {...props}>
+              {children}
+            </td>
+          ),
+          hr: ({ ...props }) => (
+            <hr className="border-gray-600 my-8" {...props} />
+          ),
+          del: ({ children, ...props }) => (
+            <del className="line-through text-gray-400" {...props}>{children}</del>
+          ),
+          div: ({ children, className, ...props }) => {
+            if (className === 'math math-display') {
+              return (
+                <div className="math-display my-6 text-center overflow-x-auto" {...props}>
+                  <div className="inline-block">{children}</div>
+                </div>
+              );
+            }
+            return <div className={className} {...props}>{children}</div>;
+          },
+          span: ({ children, className, ...props }) => {
+            if (className === 'math math-inline') {
+              return <span className="math-inline" {...props}>{children}</span>;
+            }
+            return <span className={className} {...props}>{children}</span>;
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
+  });
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([
     { id: 'root', name: 'Notes', path: '', expanded: true }
@@ -57,6 +217,11 @@ export default function NotesPage() {
   
   // Track if we've already synced with Drive
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
+  
+  // Split-screen mode state
+  const [isSplitMode, setIsSplitMode] = useState(false);
+  const [rawScrollTop, setRawScrollTop] = useState(0);
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -115,6 +280,34 @@ export default function NotesPage() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+  
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      if (scrollThrottleRef.current) {
+        clearTimeout(scrollThrottleRef.current);
+      }
+    };
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + S to toggle split mode
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        if (isEditing) {
+          setIsSplitMode(!isSplitMode);
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, isSplitMode]);
   
   // Handle sidebar resize
   useEffect(() => {
@@ -624,7 +817,32 @@ Start writing your note here...
 - Lists and checkboxes
 - Tables
 - Blockquotes
+- **LaTeX Math Support**
 - And much more!
+
+## Math Examples
+
+### Inline Math
+Here's an inline math example: $E = mc^2$ and another one $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+### Display Math
+$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$
+
+$$\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}$$
+
+$$\\begin{pmatrix}
+a & b \\\\
+c & d
+\\end{pmatrix}
+\\begin{pmatrix}
+x \\\\
+y
+\\end{pmatrix}
+=
+\\begin{pmatrix}
+ax + by \\\\
+cx + dy
+\\end{pmatrix}$$
 
 ## Code Example
 
@@ -639,7 +857,15 @@ console.log("Hello World!");
 | Data 1   | Data 2   | Data 3   |
 | Data 4   | Data 5   | Data 6   |
 
-> This is a blockquote example. Great for highlighting important information.`;
+> This is a blockquote example. Great for highlighting important information.
+
+## More Math
+
+Complex equations work too:
+
+$$f(x) = \\int_{-\\infty}^x e^{-t^2} dt$$
+
+$$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
       
       let driveFileId;
       if (isSignedIn && parentDriveId) {
@@ -735,6 +961,8 @@ console.log("Hello World!");
       ));
       setSelectedNote(updatedNote);
       setIsEditing(false);
+      // Disable split mode when saving
+      setIsSplitMode(false);
     } catch (error) {
       console.error('Failed to save note:', error);
     } finally {
@@ -801,13 +1029,84 @@ console.log("Hello World!");
     setIsEditing(true);
     setEditTitle(selectedNote.title);
     setEditContent(selectedNote.content);
+    // Auto-enable split mode when starting to edit
+    setIsSplitMode(true);
   };
 
   const cancelEdit = () => {
     setIsEditing(false);
     setEditTitle('');
     setEditContent('');
+    // Disable split mode when canceling
+    setIsSplitMode(false);
   };
+
+  // Scroll synchronization state and functions for split mode
+  const [isScrollingSynced, setIsScrollingSynced] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrollSource = useRef<'raw' | 'preview' | null>(null);
+  const scrollThrottleRef = useRef<NodeJS.Timeout | null>(null);
+
+  const syncScroll = useCallback((sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
+    if (!sourceElement || !targetElement || isScrollingSynced) return;
+    
+    // Throttle scroll events to improve performance
+    if (scrollThrottleRef.current) {
+      clearTimeout(scrollThrottleRef.current);
+    }
+    
+    scrollThrottleRef.current = setTimeout(() => {
+      if (lastScrollSource.current === source) return;
+      
+      setIsScrollingSynced(true);
+      lastScrollSource.current = source;
+      
+      const sourceScrollHeight = sourceElement.scrollHeight - sourceElement.clientHeight;
+      const targetScrollHeight = targetElement.scrollHeight - targetElement.clientHeight;
+      
+      if (sourceScrollHeight <= 0 || targetScrollHeight <= 0) {
+        setIsScrollingSynced(false);
+        lastScrollSource.current = null;
+        return;
+      }
+      
+      const scrollPercentage = Math.max(0, Math.min(1, sourceElement.scrollTop / sourceScrollHeight));
+      const targetScrollTop = scrollPercentage * targetScrollHeight;
+      
+      // Smooth scroll sync
+      targetElement.style.scrollBehavior = 'auto';
+      targetElement.scrollTop = targetScrollTop;
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Reset sync flag after a short delay
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrollingSynced(false);
+        lastScrollSource.current = null;
+      }, 150);
+    }, 16); // ~60fps throttling
+  }, [isScrollingSynced]);
+
+  const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (!isSplitMode || isScrollingSynced) return;
+    const rawElement = e.currentTarget;
+    const previewElement = document.querySelector('.preview-content') as HTMLElement;
+    if (previewElement) {
+      syncScroll(rawElement, previewElement, 'raw');
+    }
+  }, [isSplitMode, syncScroll, isScrollingSynced]);
+
+  const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (!isSplitMode || isScrollingSynced) return;
+    const previewElement = e.currentTarget;
+    const rawElement = document.querySelector('.raw-content') as HTMLTextAreaElement;
+    if (rawElement) {
+      syncScroll(previewElement, rawElement, 'preview');
+    }
+  }, [isSplitMode, syncScroll, isScrollingSynced]);
 
   const getNotesInPath = (path: string) => {
     return notes.filter(note => note.path === path);
@@ -827,151 +1126,18 @@ console.log("Hello World!");
   const memoizedMarkdown = useMemo(() => {
     if (!selectedNote || isEditing) return null;
     
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        skipHtml={true} // Security: skip HTML for performance
-        components={{
-          // Optimized headers
-          h1: ({ children, ...props }) => (
-            <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
-              {children}
-            </h1>
-          ),
-          h2: ({ children, ...props }) => (
-            <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
-              {children}
-            </h2>
-          ),
-          h3: ({ children, ...props }) => (
-            <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
-              {children}
-            </h3>
-          ),
-          h4: ({ children, ...props }) => (
-            <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
-              {children}
-            </h4>
-          ),
-          h5: ({ children, ...props }) => (
-            <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
-              {children}
-            </h5>
-          ),
-          h6: ({ children, ...props }) => (
-            <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
-              {children}
-            </h6>
-          ),
-          // Optimized paragraphs
-          p: ({ children, ...props }) => (
-            <p className="mb-4 text-gray-300 leading-relaxed" {...props}>
-              {children}
-            </p>
-          ),
-          // Code blocks with syntax highlighting
-          code: ({ children, className, ...props }) => {
-            const match = /language-(\w+)/.exec(className || '');
-            const isInline = !match;
-            
-            return isInline ? (
-              <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
-                {children}
-              </code>
-            ) : (
-              <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 my-4 overflow-x-auto">
-                <code className={`text-sm font-mono text-gray-300 ${className}`} {...props}>
-                  {children}
-                </code>
-              </pre>
-            );
-          },
-          // Lists
-          ul: ({ children, ...props }) => (
-            <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
-              {children}
-            </ul>
-          ),
-          ol: ({ children, ...props }) => (
-            <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
-              {children}
-            </ol>
-          ),
-          li: ({ children, ...props }) => (
-            <li className="text-gray-300" {...props}>{children}</li>
-          ),
-          // Blockquotes
-          blockquote: ({ children, ...props }) => (
-            <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
-              {children}
-            </blockquote>
-          ),
-          // Links
-          a: ({ children, href, ...props }) => (
-            <a 
-              href={href} 
-              className="text-blue-400 hover:text-blue-300 underline transition-colors" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              {...props}
-            >
-              {children}
-            </a>
-          ),
-          // Bold and italic
-          strong: ({ children, ...props }) => (
-            <strong className="font-bold text-white" {...props}>{children}</strong>
-          ),
-          em: ({ children, ...props }) => (
-            <em className="italic text-gray-300" {...props}>{children}</em>
-          ),
-          // Tables (GitHub Flavored Markdown)
-          table: ({ children, ...props }) => (
-            <div className="overflow-x-auto my-4">
-              <table className="min-w-full border border-gray-600 rounded-lg" {...props}>
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({ children, ...props }) => (
-            <thead className="bg-gray-700" {...props}>
-              {children}
-            </thead>
-          ),
-          tbody: ({ children, ...props }) => (
-            <tbody className="bg-gray-800" {...props}>
-              {children}
-            </tbody>
-          ),
-          tr: ({ children, ...props }) => (
-            <tr className="border-b border-gray-600" {...props}>
-              {children}
-            </tr>
-          ),
-          th: ({ children, ...props }) => (
-            <th className="px-4 py-2 text-left text-white font-semibold border-r border-gray-600 last:border-r-0" {...props}>
-              {children}
-            </th>
-          ),
-          td: ({ children, ...props }) => (
-            <td className="px-4 py-2 text-gray-300 border-r border-gray-600 last:border-r-0" {...props}>
-              {children}
-            </td>
-          ),
-          // Horizontal rule
-          hr: ({ ...props }) => (
-            <hr className="border-gray-600 my-8" {...props} />
-          ),
-          // Strikethrough (GitHub Flavored Markdown)
-          del: ({ children, ...props }) => (
-            <del className="line-through text-gray-400" {...props}>{children}</del>
-          ),
-        }}
-      >
-        {selectedNote.content}
-      </ReactMarkdown>
-    );
+    // For performance with large files containing lots of math
+    const isLargeFile = selectedNote.content.length > 5000;
+    const hasMath = selectedNote.content.includes('$') || selectedNote.content.includes('\\(') || selectedNote.content.includes('\\[');
+    
+    return <MemoizedMarkdown content={selectedNote.content} />;
   }, [selectedNote?.content, selectedNote?.id, isEditing]);
+
+  // Real-time preview for split mode
+  const realtimePreview = useMemo(() => {
+    if (!isEditing || !isSplitMode) return null;
+    return <MemoizedMarkdown content={editContent} />;
+  }, [editContent, isEditing, isSplitMode]);
 
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
     const subfolders = getSubfolders(parentPath);
@@ -1131,6 +1297,19 @@ console.log("Hello World!");
                   )}
                   
                   <div className="flex items-center space-x-2">
+                    {/* Split Mode Toggle */}
+                    <button
+                      onClick={() => setIsSplitMode(!isSplitMode)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
+                        isSplitMode 
+                          ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30' 
+                          : 'bg-gray-600 text-white hover:bg-gray-700'
+                      }`}
+                      title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+Shift+S)`}
+                    >
+                      <Split size={16} />
+                      <span className="hidden sm:inline">{isSplitMode ? 'Exit Split' : 'Split View'}</span>
+                    </button>
                     
                     {isEditing ? (
                       <>
@@ -1163,17 +1342,161 @@ console.log("Hello World!");
               </div>
 
               {/* Note Content */}
-              <div className="flex-1 px-20 py-6 overflow-y-auto" style={{ backgroundColor: '#222831' }}>
+              <div className="flex-1 overflow-hidden" style={{ backgroundColor: '#222831' }}>
                 {isEditing ? (
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm"
-                    placeholder="Write your note in Markdown..."
-                  />
+                  isSplitMode ? (
+                    /* Split Mode: Raw + Preview */
+                    <div className="flex h-full w-full">
+                      {/* Raw Editor Side */}
+                      <div className="w-1/2 flex flex-col border-r border-gray-600">
+                        <div className="px-4 py-2 border-b border-gray-600 bg-gray-800 flex items-center justify-between">
+                          <span className="text-sm text-gray-300 font-medium">✏️ Raw Markdown</span>
+                          <span className="text-xs text-green-400 font-medium">LIVE EDIT</span>
+                        </div>
+                        <div className="flex-1 px-4 py-4 overflow-hidden">
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            onScroll={handleRawScroll}
+                            className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
+                            placeholder="Write your note in Markdown..."
+                            style={{ scrollBehavior: 'auto' }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Preview Side */}
+                      <div className="w-1/2 flex flex-col">
+                        <div className="px-4 py-2 border-b border-gray-600 bg-gray-800 flex items-center justify-between">
+                          <span className="text-sm text-gray-300 font-medium">👁️ Live Preview</span>
+                          <span className="text-xs text-blue-400 font-medium">SYNCED</span>
+                        </div>
+                        <div 
+                          className="preview-content flex-1 px-4 py-4 overflow-y-auto"
+                          onScroll={handlePreviewScroll}
+                          style={{ scrollBehavior: 'auto' }}
+                        >
+                          <div className="prose prose-invert max-w-none w-full">
+                            <style jsx>{`
+                              .katex { 
+                                color: #e5e7eb !important;
+                                font-size: 1.1em !important;
+                              }
+                              .katex-display {
+                                margin: 1.5em 0 !important;
+                                text-align: center !important;
+                                overflow-x: auto !important;
+                                overflow-y: hidden !important;
+                              }
+                              .katex-display > .katex {
+                                display: inline-block !important;
+                                white-space: nowrap !important;
+                              }
+                              .math-display {
+                                overflow-x: auto;
+                                padding: 0.5rem 0;
+                                text-align: center;
+                              }
+                              .math-inline {
+                                display: inline;
+                              }
+                              /* Dark theme adjustments for KaTeX */
+                              .katex .accent {
+                                color: #e5e7eb !important;
+                              }
+                              .katex .mord {
+                                color: #e5e7eb !important;
+                              }
+                              /* Scroll optimization */
+                              .preview-content {
+                                scroll-behavior: auto !important;
+                              }
+                              .raw-content {
+                                scroll-behavior: auto !important;
+                              }
+                              /* Force equal width split */
+                              .prose {
+                                width: 100% !important;
+                                max-width: none !important;
+                              }
+                              .katex .mbin, .katex .mrel {
+                                color: #93c5fd !important;
+                              }
+                              .katex .mopen, .katex .mclose {
+                                color: #fbbf24 !important;
+                              }
+                              .katex .mfrac > span {
+                                border-color: #6b7280 !important;
+                              }
+                              .katex .sqrt > .sqrt-line {
+                                border-top-color: #6b7280 !important;
+                              }
+                            `}</style>
+                            {realtimePreview}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Regular Edit Mode */
+                    <div className="px-20 py-6 h-full">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm"
+                        placeholder="Write your note in Markdown..."
+                      />
+                    </div>
+                  )
                 ) : (
-                  <div className="prose prose-invert max-w-none">
-                    {memoizedMarkdown}
+                  /* Preview Only Mode */
+                  <div className="px-72 py-6 overflow-y-auto h-full">
+                    <div className="prose prose-invert max-w-none">
+                      <style jsx>{`
+                        .katex { 
+                          color: #e5e7eb !important;
+                          font-size: 1.1em !important;
+                        }
+                        .katex-display {
+                          margin: 1.5em 0 !important;
+                          text-align: center !important;
+                          overflow-x: auto !important;
+                          overflow-y: hidden !important;
+                        }
+                        .katex-display > .katex {
+                          display: inline-block !important;
+                          white-space: nowrap !important;
+                        }
+                        .math-display {
+                          overflow-x: auto;
+                          padding: 0.5rem 0;
+                          text-align: center;
+                        }
+                        .math-inline {
+                          display: inline;
+                        }
+                        /* Dark theme adjustments for KaTeX */
+                        .katex .accent {
+                          color: #e5e7eb !important;
+                        }
+                        .katex .mord {
+                          color: #e5e7eb !important;
+                        }
+                        .katex .mbin, .katex .mrel {
+                          color: #93c5fd !important;
+                        }
+                        .katex .mopen, .katex .mclose {
+                          color: #fbbf24 !important;
+                        }
+                        .katex .mfrac > span {
+                          border-color: #6b7280 !important;
+                        }
+                        .katex .sqrt > .sqrt-line {
+                          border-top-color: #6b7280 !important;
+                        }
+                      `}</style>
+                      {memoizedMarkdown}
+                    </div>
                   </div>
                 )}
               </div>
