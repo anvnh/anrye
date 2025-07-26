@@ -13,6 +13,7 @@ import { driveService } from '../lib/googleDrive';
 import '../lib/types';
 import { NoteSidebar } from './_components';
 import { Note, Folder } from './_components/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 export default function NotesPage() {
   const { isSignedIn } = useDrive();
@@ -1549,16 +1550,23 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
         </div>
       </div>
 
-      {/* Create Folder Modal */}
-      {isCreatingFolder && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="rounded-lg p-6 w-96 shadow-xl border border-gray-600" style={{ backgroundColor: '#31363F' }}>
-            <h3 className="text-lg font-semibold text-white mb-2">Create New Folder</h3>
-            {selectedPath ? (
-              <p className="text-sm text-gray-400 mb-4">📁 Creating in: /{selectedPath}</p>
-            ) : (
-              <p className="text-sm text-gray-400 mb-4">📁 Creating in: Root</p>
-            )}
+      {/* Create Folder Dialog */}
+      <Dialog open={isCreatingFolder} onOpenChange={(open) => {
+        setIsCreatingFolder(open);
+        if (!open) setNewFolderName('');
+      }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">Create New Folder</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedPath ? (
+                <>📁 Creating in: /{selectedPath}</>
+              ) : (
+                <>📁 Creating in: Root</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <input
               type="text"
               value={newFolderName}
@@ -1567,38 +1575,55 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
               className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: '#222831' }}
               autoFocus
-            />
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => {
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createFolder();
+                } else if (e.key === 'Escape') {
                   setIsCreatingFolder(false);
                   setNewFolderName('');
-                }}
-                className="px-4 py-2 text-gray-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createFolder}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create
-              </button>
-            </div>
+                }
+              }}
+            />
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              onClick={() => {
+                setIsCreatingFolder(false);
+                setNewFolderName('');
+              }}
+              className="px-4 py-2 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={createFolder}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Create Note Modal */}
-      {isCreatingNote && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="rounded-lg p-6 w-96 shadow-xl border border-gray-600" style={{ backgroundColor: '#31363F' }}>
-            <h3 className="text-lg font-semibold text-white mb-2">Create New Note</h3>
-            {selectedPath ? (
-              <p className="text-sm text-gray-400 mb-4">Creating in: /{selectedPath}</p>
-            ) : (
-              <p className="text-sm text-gray-400 mb-4">Creating in: Root</p>
-            )}
+      {/* Create Note Dialog */}
+      <Dialog open={isCreatingNote} onOpenChange={(open) => {
+        setIsCreatingNote(open);
+        if (!open) setNewNoteName('');
+      }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Create New Note
+              </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedPath ? (
+                <>Creating in: /{selectedPath}</>
+              ) : (
+                <>Creating in: Root</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <input
               type="text"
               value={newNoteName}
@@ -1607,27 +1632,35 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
               className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: '#222831' }}
               autoFocus
-            />
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => {
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createNote();
+                } else if (e.key === 'Escape') {
                   setIsCreatingNote(false);
                   setNewNoteName('');
-                }}
-                className="px-4 py-2 text-gray-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createNote}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create
-              </button>
-            </div>
+                }
+              }}
+            />
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              onClick={() => {
+                setIsCreatingNote(false);
+                setNewNoteName('');
+              }}
+              className="px-4 py-2 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={createNote}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
