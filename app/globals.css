@@ -182,3 +182,75 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Context Menu Dark Theme */
+[data-radix-context-menu-content] {
+  background-color: #31363F !important;
+  border: 1px solid #4B5563 !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+  z-index: 9999 !important;
+}
+
+[data-radix-context-menu-item] {
+  color: #D1D5DB !important;
+  background-color: transparent !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-radix-context-menu-item]:hover,
+[data-radix-context-menu-item]:focus,
+[data-radix-context-menu-item][data-highlighted] {
+  background-color: #374151 !important;
+  color: #FFFFFF !important;
+  outline: none !important;
+}
+
+[data-radix-context-menu-item][data-variant="destructive"] {
+  color: #FCA5A5 !important;
+}
+
+[data-radix-context-menu-item][data-variant="destructive"]:hover,
+[data-radix-context-menu-item][data-variant="destructive"]:focus,
+[data-radix-context-menu-item][data-variant="destructive"][data-highlighted] {
+  background-color: rgba(127, 29, 29, 0.2) !important;
+  color: #FEE2E2 !important;
+}
+
+[data-radix-context-menu-separator] {
+  background-color: #4B5563 !important;
+  height: 1px !important;
+  margin: 4px 0 !important;
+}
+
+/* Custom animation for context menu */
+[data-radix-context-menu-content][data-state="open"] {
+  animation: context-menu-fade-in 0.15s ease-out !important;
+}
+
+[data-radix-context-menu-content][data-state="closed"] {
+  animation: context-menu-fade-out 0.1s ease-in !important;
+}
+
+@keyframes context-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes context-menu-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}

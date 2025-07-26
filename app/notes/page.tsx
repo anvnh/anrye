@@ -11,6 +11,13 @@ import 'katex/dist/katex.min.css';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 
 interface Note {
   id: string;
@@ -317,7 +324,6 @@ export default function NotesPage() {
   // Drag & Drop and Context Menu states
   const [draggedItem, setDraggedItem] = useState<{type: 'note' | 'folder', id: string} | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{x: number, y: number, type: 'note' | 'folder' | 'empty', id?: string} | null>(null);
   
   // Sidebar resize state
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
@@ -446,14 +452,6 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
   }, [hasSyncedWithDrive]);
-
-  // Close context menu on click outside
-  useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-  
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -823,28 +821,6 @@ export default function NotesPage() {
       setDraggedItem(null);
       setIsLoading(false);
     }
-  };
-
-  // Context menu handlers
-  const handleContextMenu = (e: React.MouseEvent, type: 'note' | 'folder' | 'empty', id?: string) => {
-    e.preventDefault();
-    
-    // Set selectedPath based on context menu target
-    if (type === 'folder' && id) {
-      const folder = folders.find(f => f.id === id);
-      if (folder) {
-        setSelectedPath(folder.path);
-      }
-    } else if (type === 'empty') {
-      setSelectedPath(''); // Root level
-    }
-    
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      type,
-      id
-    });
   };
 
   const syncWithDrive = useCallback(async () => {
@@ -1360,64 +1336,118 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
         {/* Render subfolders */}
         {subfolders.map(folder => (
           <div key={folder.id} className="mb-1">
-            <div 
-              className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
-                dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''
-              }`}
-              draggable={folder.id !== 'root'}
-              onDragStart={(e) => handleDragStart(e, 'folder', folder.id)}
-              onDragOver={(e) => handleDragOver(e, folder.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, folder.id)}
-              onContextMenu={(e) => {
-                e.stopPropagation();
-                handleContextMenu(e, 'folder', folder.id);
-              }}
-              onClick={() => {
-                toggleFolder(folder.id);
-                setSelectedPath(folder.path);
-              }}
-            >
-              {folder.expanded ? (
-                <ChevronDown size={16} className="text-gray-400 mr-1" />
-              ) : (
-                <ChevronRight size={16} className="text-gray-400 mr-1" />
-              )}
-              {folder.expanded ? (
-                <FolderOpen size={16} className="text-blue-400 mr-2" />
-              ) : (
-                <Folder size={16} className="text-blue-400 mr-2" />
-              )}
-              <span className="text-gray-300 text-sm flex-1">{folder.name}</span>
-              {folder.driveFolderId && (
-                <Cloud size={12} className="text-green-400 mr-1" />
-              )}
-            </div>
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div 
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
+                    dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''
+                  }`}
+                  draggable={folder.id !== 'root'}
+                  onDragStart={(e) => handleDragStart(e, 'folder', folder.id)}
+                  onDragOver={(e) => handleDragOver(e, folder.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, folder.id)}
+                  onClick={() => {
+                    toggleFolder(folder.id);
+                    setSelectedPath(folder.path);
+                  }}
+                >
+                  {folder.expanded ? (
+                    <ChevronDown size={16} className="text-gray-400 mr-1" />
+                  ) : (
+                    <ChevronRight size={16} className="text-gray-400 mr-1" />
+                  )}
+                  {folder.expanded ? (
+                    <FolderOpen size={16} className="text-blue-400 mr-2" />
+                  ) : (
+                    <Folder size={16} className="text-blue-400 mr-2" />
+                  )}
+                  <span className="text-gray-300 text-sm flex-1">{folder.name}</span>
+                  {folder.driveFolderId && (
+                    <Cloud size={12} className="text-green-400 mr-1" />
+                  )}
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+                <ContextMenuItem 
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  onClick={() => {
+                    setSelectedPath(folder.path);
+                    setIsCreatingFolder(true);
+                  }}
+                >
+                  <FolderPlus size={16} className="mr-2" />
+                  New Folder
+                </ContextMenuItem>
+                <ContextMenuItem 
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  onClick={() => {
+                    setSelectedPath(folder.path);
+                    setIsCreatingNote(true);
+                  }}
+                >
+                  <FileText size={16} className="mr-2" />
+                  New Note
+                </ContextMenuItem>
+                {folder.id !== 'root' && (
+                  <>
+                    <ContextMenuSeparator className="bg-gray-600" />
+                    <ContextMenuItem 
+                      variant="destructive"
+                      className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
+                      onClick={() => deleteFolder(folder.id)}
+                    >
+                      <Trash2 size={16} className="mr-2" />
+                      Delete Folder
+                    </ContextMenuItem>
+                  </>
+                )}
+              </ContextMenuContent>
+            </ContextMenu>
             {folder.expanded && renderFileTree(folder.path, level + 1)}
           </div>
         ))}
         
         {/* Render notes */}
         {notesInPath.map(note => (
-          <div 
-            key={note.id}
-            className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
-              selectedNote?.id === note.id ? 'bg-gray-700' : ''
-            }`}
-            draggable
-            onDragStart={(e) => handleDragStart(e, 'note', note.id)}
-            onContextMenu={(e) => {
-              e.stopPropagation();
-              handleContextMenu(e, 'note', note.id);
-            }}
-            onClick={() => setSelectedNote(note)}
-          >
-            <div className="w-4 mr-1"></div>
-            <FileText size={16} className="text-gray-400 mr-2" />
-            <span className="text-gray-300 text-sm flex-1 truncate">{note.title}</span>
-            {note.driveFileId && (
-              <Cloud size={12} className="text-green-400 mr-1" />
-            )}
+          <div key={note.id} className="mb-1">
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div 
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
+                    selectedNote?.id === note.id ? 'bg-gray-700' : ''
+                  }`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, 'note', note.id)}
+                  onClick={() => setSelectedNote(note)}
+                >
+                  <div className="w-4 mr-1"></div>
+                  <FileText size={16} className="text-gray-400 mr-2" />
+                  <span className="text-gray-300 text-sm flex-1 truncate">{note.title}</span>
+                  {note.driveFileId && (
+                    <Cloud size={12} className="text-green-400 mr-1" />
+                  )}
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+                <ContextMenuItem 
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  onClick={() => setSelectedNote(note)}
+                >
+                  <Edit size={16} className="mr-2" />
+                  Open Note
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-gray-600" />
+                <ContextMenuItem 
+                  variant="destructive"
+                  className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
+                  onClick={() => deleteNote(note.id)}
+                >
+                  <Trash2 size={16} className="mr-2" />
+                  Delete Note
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           </div>
         ))}
       </div>
@@ -1430,65 +1460,90 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
       
       <div className="flex flex-1 overflow-hidden">
         {/* File Explorer Sidebar */}
-        <div 
-          className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${
-            dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
-          }`}
-          style={{ 
-            width: `${sidebarWidth}px`,
-            backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F' 
-          }}
-          onContextMenu={(e) => handleContextMenu(e, 'empty')}
-        >
-          <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
-            <h2 className="text-lg font-semibold text-white">
-              Notes
-            </h2>
-            
-            {!isSignedIn && (
-              <div className="text-xs text-yellow-400 mt-2">
-                💡 Sign in to Google Drive to sync notes
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div 
+              className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${
+                dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
+              }`}
+              style={{ 
+                width: `${sidebarWidth}px`,
+                backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F' 
+              }}
+            >
+              <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
+                <h2 className="text-lg font-semibold text-white">
+                  Notes
+                </h2>
+                
+                {!isSignedIn && (
+                  <div className="text-xs text-yellow-400 mt-2">
+                    💡 Sign in to Google Drive to sync notes
+                  </div>
+                )}
+                
+                {isLoading && (
+                  <div className="text-xs text-blue-400 mt-2">
+                    Syncing {syncProgress}%...
+                  </div>
+                )}
               </div>
-            )}
-            
-            {isLoading && (
-              <div className="text-xs text-blue-400 mt-2">
-                Syncing {syncProgress}%...
+              
+              <div className="flex-1 overflow-y-auto p-4"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  // Only set to root if we're not over a specific folder
+                  if (e.target === e.currentTarget) {
+                    setDragOver('root');
+                  }
+                }}
+                onDragLeave={(e) => {
+                  // Only clear if we're leaving the container itself
+                  if (e.target === e.currentTarget) {
+                    setDragOver(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  // Only handle drop to root if we're dropping on empty space
+                  if (e.target === e.currentTarget) {
+                    handleDrop(e, 'root');
+                  }
+                }}
+              >
+                {renderFileTree()}
               </div>
-            )}
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-4"
-            onDragOver={(e) => {
-              e.preventDefault();
-              // Only set to root if we're not over a specific folder
-              if (e.target === e.currentTarget) {
-                setDragOver('root');
-              }
-            }}
-            onDragLeave={(e) => {
-              // Only clear if we're leaving the container itself
-              if (e.target === e.currentTarget) {
-                setDragOver(null);
-              }
-            }}
-            onDrop={(e) => {
-              // Only handle drop to root if we're dropping on empty space
-              if (e.target === e.currentTarget) {
-                handleDrop(e, 'root');
-              }
-            }}
-          >
-            {renderFileTree()}
-          </div>
-          
-          {/* Resize Handle */}
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-500 transition-colors"
-            onMouseDown={() => setIsResizing(true)}
-            title="Drag to resize sidebar"
-          />
-        </div>
+              
+              {/* Resize Handle */}
+              <div
+                className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-500 transition-colors"
+                onMouseDown={() => setIsResizing(true)}
+                title="Drag to resize sidebar"
+              />
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+            <ContextMenuItem 
+              className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+              onClick={() => {
+                setSelectedPath('');
+                setIsCreatingFolder(true);
+              }}
+            >
+              <FolderPlus size={16} className="mr-2" />
+              New Folder
+            </ContextMenuItem>
+            <ContextMenuItem 
+              className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+              onClick={() => {
+                setSelectedPath('');
+                setIsCreatingNote(true);
+              }}
+            >
+              <FileText size={16} className="mr-2" />
+              New Note
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -1716,107 +1771,6 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
           )}
         </div>
       </div>
-
-      {/* Context Menu */}
-      {contextMenu && (
-        <div 
-          className="fixed bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 py-1"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {contextMenu.type === 'empty' && (
-            <>
-              <button
-                onClick={() => {
-                  setIsCreatingFolder(true);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center"
-              >
-                <FolderPlus size={16} className="mr-2" />
-                New Folder
-              </button>
-              <button
-                onClick={() => {
-                  setIsCreatingNote(true);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center"
-              >
-                <FileText size={16} className="mr-2" />
-                New Note
-              </button>
-            </>
-          )}
-          
-          {(contextMenu.type === 'folder') && (
-            <>
-              <button
-                onClick={() => {
-                  setIsCreatingFolder(true);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center"
-              >
-                <FolderPlus size={16} className="mr-2" />
-                New Folder
-              </button>
-              <button
-                onClick={() => {
-                  setIsCreatingNote(true);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center"
-              >
-                <FileText size={16} className="mr-2" />
-                New Note
-              </button>
-              {contextMenu.id !== 'root' && (
-                <>
-                  <hr className="border-gray-600 my-1" />
-                  <button
-                    onClick={() => {
-                      deleteFolder(contextMenu.id!);
-                      setContextMenu(null);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 flex items-center"
-                  >
-                    <Trash2 size={16} className="mr-2" />
-                    Delete Folder
-                  </button>
-                </>
-              )}
-            </>
-          )}
-          
-          {contextMenu.type === 'note' && (
-            <>
-              <button
-                onClick={() => {
-                  const note = notes.find(n => n.id === contextMenu.id);
-                  if (note) setSelectedNote(note);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center"
-              >
-                <Edit size={16} className="mr-2" />
-                Open Note
-              </button>
-              <hr className="border-gray-600 my-1" />
-              <button
-                onClick={() => {
-                  deleteNote(contextMenu.id!);
-                  setContextMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 flex items-center"
-              >
-                <Trash2 size={16} className="mr-2" />
-                Delete Note
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Create Folder Modal */}
       {isCreatingFolder && (
