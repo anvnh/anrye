@@ -41,6 +41,17 @@ export default function Navbar({ user }: NavbarProps) {
             </Link>
             
             <Link 
+              href="/editor" 
+              className={`transition-colors ${
+                isActive('/editor') 
+                  ? 'font-semibold text-white' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Editor
+            </Link>
+            
+            <Link 
               href="/notes" 
               className={`transition-colors ${
                 isActive('/notes') 
