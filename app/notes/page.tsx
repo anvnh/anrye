@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Navbar from '../components/NavBar';
 import { FileText, Edit, Save, X, Split } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../lib/driveContext';
 import { driveService } from '../lib/googleDrive';
 import '../lib/types';
-import { NoteSidebar } from './_components';
+import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
 import { Note, Folder } from './_components/types';
-import { MemoizedMarkdown } from './utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 export default function NotesPage() {
@@ -942,112 +941,11 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
     setIsSplitMode(false);
   };
 
-  // Scroll synchronization state and functions for split mode
+  // Scroll synchronization state for split mode (passed to components)
   const [isScrollingSynced, setIsScrollingSynced] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScrollSource = useRef<'raw' | 'preview' | null>(null);
   const scrollThrottleRef = useRef<NodeJS.Timeout | null>(null);
-
-  const syncScroll = useCallback((sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
-    if (!sourceElement || !targetElement || isScrollingSynced) return;
-    
-    // Throttle scroll events to improve performance
-    if (scrollThrottleRef.current) {
-      clearTimeout(scrollThrottleRef.current);
-    }
-    
-    scrollThrottleRef.current = setTimeout(() => {
-      if (lastScrollSource.current === source) return;
-      
-      setIsScrollingSynced(true);
-      lastScrollSource.current = source;
-      
-      const sourceScrollHeight = sourceElement.scrollHeight - sourceElement.clientHeight;
-      const targetScrollHeight = targetElement.scrollHeight - targetElement.clientHeight;
-      
-      if (sourceScrollHeight <= 0 || targetScrollHeight <= 0) {
-        setIsScrollingSynced(false);
-        lastScrollSource.current = null;
-        return;
-      }
-      
-      const scrollPercentage = Math.max(0, Math.min(1, sourceElement.scrollTop / sourceScrollHeight));
-      const targetScrollTop = scrollPercentage * targetScrollHeight;
-      
-      // Smooth scroll sync
-      targetElement.style.scrollBehavior = 'auto';
-      targetElement.scrollTop = targetScrollTop;
-      
-      // Clear existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      
-      // Reset sync flag after a short delay
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrollingSynced(false);
-        lastScrollSource.current = null;
-      }, 150);
-    }, 16); // ~60fps throttling
-  }, [isScrollingSynced]);
-
-  const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (!isSplitMode || isScrollingSynced) return;
-    const rawElement = e.currentTarget;
-    const previewElement = document.querySelector('.preview-content') as HTMLElement;
-    
-    if (previewElement) {
-      syncScroll(rawElement, previewElement, 'raw');
-    }
-  }, [isSplitMode, syncScroll, isScrollingSynced]);
-
-  const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (!isSplitMode || isScrollingSynced) return;
-    const previewElement = e.currentTarget;
-    const rawElement = document.querySelector('.raw-content') as HTMLTextAreaElement;
-    if (rawElement) {
-      syncScroll(previewElement, rawElement, 'preview');
-    }
-  }, [isSplitMode, syncScroll, isScrollingSynced]);
-
-  // Optimized markdown rendering - memoized to prevent re-renders on large files
-  const memoizedMarkdown = useMemo(() => {
-    if (!selectedNote || isEditing) return null;
-    
-    return (
-      <MemoizedMarkdown 
-        content={selectedNote.content}
-        notes={notes}
-        selectedNote={selectedNote}
-        isEditing={isEditing}
-        editContent={editContent}
-        setEditContent={setEditContent}
-        setNotes={setNotes}
-        setSelectedNote={setSelectedNote}
-        isSignedIn={isSignedIn}
-        driveService={driveService}
-      />
-    );
-  }, [selectedNote, isEditing, notes, editContent, isSignedIn]);
-
-  // Real-time preview for split mode
-  const realtimePreview = useMemo(() => {
-    if (!isEditing || !isSplitMode) return null;
-    return (
-      <MemoizedMarkdown 
-        content={editContent}
-        notes={notes}
-        selectedNote={selectedNote}
-        isEditing={isEditing}
-        editContent={editContent}
-        setEditContent={setEditContent}
-        setNotes={setNotes}
-        setSelectedNote={setSelectedNote}
-        isSignedIn={isSignedIn}
-        driveService={driveService}
-      />
-    );
-  }, [editContent, isEditing, isSplitMode, notes, selectedNote, isSignedIn]);
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#222831' }}>
@@ -1148,150 +1046,38 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                 {isEditing ? (
                   isSplitMode ? (
                     /* Split Mode: Raw + Preview */
-                    <div className="flex h-full w-full">
-                      {/* Raw Editor Side */}
-                      <div className="w-1/2 flex flex-col border-r border-gray-600">
-                        <div className="flex-1 px-4 py-4 overflow-hidden">
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            onScroll={handleRawScroll}
-                            className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
-                            placeholder="Write your note in Markdown..."
-                            style={{ scrollBehavior: 'auto' }}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Preview Side */}
-                      <div className="w-1/2 flex flex-col">
-                        <div 
-                          className="preview-content flex-1 px-4 py-4 overflow-y-auto"
-                          onScroll={handlePreviewScroll}
-                          style={{ scrollBehavior: 'auto' }}
-                        >
-                          <div className="prose prose-invert max-w-none w-full">
-                            <style jsx>{`
-                              .katex { 
-                                color: #e5e7eb !important;
-                                font-size: 1.1em !important;
-                              }
-                              .katex-display {
-                                margin: 1.5em 0 !important;
-                                text-align: center !important;
-                                overflow-x: auto !important;
-                                overflow-y: hidden !important;
-                              }
-                              .katex-display > .katex {
-                                display: inline-block !important;
-                                white-space: nowrap !important;
-                              }
-                              .math-display {
-                                overflow-x: auto;
-                                padding: 0.5rem 0;
-                                text-align: center;
-                              }
-                              .math-inline {
-                                display: inline;
-                              }
-                              /* Dark theme adjustments for KaTeX */
-                              .katex .accent {
-                                color: #e5e7eb !important;
-                              }
-                              .katex .mord {
-                                color: #e5e7eb !important;
-                              }
-                              /* Scroll optimization */
-                              .preview-content {
-                                scroll-behavior: auto !important;
-                              }
-                              .raw-content {
-                                scroll-behavior: auto !important;
-                              }
-                              /* Force equal width split */
-                              .prose {
-                                width: 100% !important;
-                                max-width: none !important;
-                              }
-                              .katex .mbin, .katex .mrel {
-                                color: #93c5fd !important;
-                              }
-                              .katex .mopen, .katex .mclose {
-                                color: #fbbf24 !important;
-                              }
-                              .katex .mfrac > span {
-                                border-color: #6b7280 !important;
-                              }
-                              .katex .sqrt > .sqrt-line {
-                                border-top-color: #6b7280 !important;
-                              }
-                            `}</style>
-                            {realtimePreview}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <NoteSplitEditor
+                      editContent={editContent}
+                      setEditContent={setEditContent}
+                      notes={notes}
+                      selectedNote={selectedNote}
+                      setNotes={setNotes}
+                      setSelectedNote={setSelectedNote}
+                      isSignedIn={isSignedIn}
+                      driveService={driveService}
+                      isScrollingSynced={isScrollingSynced}
+                      setIsScrollingSynced={setIsScrollingSynced}
+                      scrollTimeoutRef={scrollTimeoutRef}
+                      scrollThrottleRef={scrollThrottleRef}
+                      lastScrollSource={lastScrollSource}
+                    />
                   ) : (
                     /* Regular Edit Mode */
-                    <div className="px-20 py-6 h-full">
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm"
-                        placeholder="Write your note in Markdown..."
-                      />
-                    </div>
+                    <NoteRegularEditor
+                      editContent={editContent}
+                      setEditContent={setEditContent}
+                    />
                   )
                 ) : (
                   /* Preview Only Mode */
-                  <div className="px-72 py-6 overflow-y-auto h-full">
-                    <div className="prose prose-invert max-w-none">
-                      <style jsx>{`
-                        .katex { 
-                          color: #e5e7eb !important;
-                          font-size: 1.1em !important;
-                        }
-                        .katex-display {
-                          margin: 1.5em 0 !important;
-                          text-align: center !important;
-                          overflow-x: auto !important;
-                          overflow-y: hidden !important;
-                        }
-                        .katex-display > .katex {
-                          display: inline-block !important;
-                          white-space: nowrap !important;
-                        }
-                        .math-display {
-                          overflow-x: auto;
-                          padding: 0.5rem 0;
-                          text-align: center;
-                        }
-                        .math-inline {
-                          display: inline;
-                        }
-                        /* Dark theme adjustments for KaTeX */
-                        .katex .accent {
-                          color: #e5e7eb !important;
-                        }
-                        .katex .mord {
-                          color: #e5e7eb !important;
-                        }
-                        .katex .mbin, .katex .mrel {
-                          color: #93c5fd !important;
-                        }
-                        .katex .mopen, .katex .mclose {
-                          color: #fbbf24 !important;
-                        }
-                        .katex .mfrac > span {
-                          border-color: #6b7280 !important;
-                        }
-                        .katex .sqrt > .sqrt-line {
-                          border-top-color: #6b7280 !important;
-                        }
-                      `}</style>
-                      {memoizedMarkdown}
-                    </div>
-                  </div>
+                  <NotePreview
+                    selectedNote={selectedNote}
+                    notes={notes}
+                    setNotes={setNotes}
+                    setSelectedNote={setSelectedNote}
+                    isSignedIn={isSignedIn}
+                    driveService={driveService}
+                  />
                 )}
               </div>
             </>

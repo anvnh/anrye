@@ -1,0 +1,94 @@
+'use client';
+
+import { useMemo } from 'react';
+import { Note } from './types';
+import { MemoizedMarkdown } from '../utils';
+
+interface NotePreviewProps {
+  selectedNote: Note;
+  notes: Note[];
+  setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
+  setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
+  isSignedIn: boolean;
+  driveService: {
+    updateFile: (fileId: string, content: string) => Promise<void>;
+  };
+}
+
+export const NotePreview: React.FC<NotePreviewProps> = ({
+  selectedNote,
+  notes,
+  setNotes,
+  setSelectedNote,
+  isSignedIn,
+  driveService
+}) => {
+  // Optimized markdown rendering - memoized to prevent re-renders on large files
+  const memoizedMarkdown = useMemo(() => {
+    return (
+      <MemoizedMarkdown 
+        content={selectedNote.content}
+        notes={notes}
+        selectedNote={selectedNote}
+        isEditing={false}
+        editContent=""
+        setEditContent={() => {}}
+        setNotes={setNotes}
+        setSelectedNote={setSelectedNote}
+        isSignedIn={isSignedIn}
+        driveService={driveService}
+      />
+    );
+  }, [selectedNote, notes, setNotes, setSelectedNote, isSignedIn, driveService]);
+
+  return (
+    <div className="px-72 py-6 overflow-y-auto h-full">
+      <div className="prose prose-invert max-w-none">
+        <style jsx>{`
+          .katex { 
+            color: #e5e7eb !important;
+            font-size: 1.1em !important;
+          }
+          .katex-display {
+            margin: 1.5em 0 !important;
+            text-align: center !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+          }
+          .katex-display > .katex {
+            display: inline-block !important;
+            white-space: nowrap !important;
+          }
+          .math-display {
+            overflow-x: auto;
+            padding: 0.5rem 0;
+            text-align: center;
+          }
+          .math-inline {
+            display: inline;
+          }
+          /* Dark theme adjustments for KaTeX */
+          .katex .accent {
+            color: #e5e7eb !important;
+          }
+          .katex .mord {
+            color: #e5e7eb !important;
+          }
+          .katex .mbin, .katex .mrel {
+            color: #93c5fd !important;
+          }
+          .katex .mopen, .katex .mclose {
+            color: #fbbf24 !important;
+          }
+          .katex .mfrac > span {
+            border-color: #6b7280 !important;
+          }
+          .katex .sqrt > .sqrt-line {
+            border-top-color: #6b7280 !important;
+          }
+        `}</style>
+        {memoizedMarkdown}
+      </div>
+    </div>
+  );
+};
