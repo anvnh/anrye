@@ -206,7 +206,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     }}
                     className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
                   />
-                  <span className="flex-1">
+                  <span className="flex-1 text-gray-300">
                     {restOfContent}
                   </span>
                 </li>
