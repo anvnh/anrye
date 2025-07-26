@@ -4,17 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/NavBar';
 import {
     Play,
-    Save,
     Download,
-    Upload,
     Settings,
     Code2,
     FileText,
-    FolderOpen,
     Plus,
     X,
-    ChevronRight,
-    ChevronDown,
     Terminal
 } from 'lucide-react';
 
@@ -33,8 +28,14 @@ import { cpp } from '@codemirror/lang-cpp';
 // Pyodide import
 declare global {
     interface Window {
-        loadPyodide: any;
-        pyodide: any;
+        loadPyodide: (config?: { indexURL?: string }) => Promise<{ 
+            runPython: (code: string) => string; 
+            globals: { get: (name: string) => unknown };
+        }>;
+        pyodide: { 
+            runPython: (code: string) => string; 
+            globals: { get: (name: string) => unknown };
+        };
     }
 }
 
@@ -690,14 +691,16 @@ output
                 } else {
                     setOutput('Python code executed successfully (no output).');
                 }
-            } catch (pythonError: any) {
+            } catch (pythonError: unknown) {
                 // Restore stdout even if there was an error
                 window.pyodide.runPython(`
 sys.stdout = old_stdout
 builtins.input = input  # Restore original input
                 `);
 
-                let errorMessage = pythonError.toString();
+                let errorMessage = pythonError instanceof Error 
+                    ? pythonError.toString() 
+                    : String(pythonError);
 
                 // Provide helpful error messages for common issues
                 if (errorMessage.includes('I/O error') || errorMessage.includes('OSError')) {
