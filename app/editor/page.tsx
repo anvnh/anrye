@@ -623,45 +623,45 @@ console.log("Hello from Markdown!");
     };
 
     // Run JavaScript code (fallback for browser-only execution)
-    const runJavaScript = async () => {
-        if (!activeFile) return;
+    // const runJavaScript = async () => {
+    //     if (!activeFile) return;
 
-        try {
-            // Create a safe execution environment
-            const originalConsole = console.log;
-            const originalError = console.error;
-            let outputBuffer = '';
+    //     try {
+    //         // Create a safe execution environment
+    //         const originalConsole = console.log;
+    //         const originalError = console.error;
+    //         let outputBuffer = '';
 
-            // Override console methods to capture output
-            console.log = (...args) => {
-                outputBuffer += args.join(' ') + '\n';
-            };
-            console.error = (...args) => {
-                outputBuffer += 'ERROR: ' + args.join(' ') + '\n';
-            };
+    //         // Override console methods to capture output
+    //         console.log = (...args) => {
+    //             outputBuffer += args.join(' ') + '\n';
+    //         };
+    //         console.error = (...args) => {
+    //             outputBuffer += 'ERROR: ' + args.join(' ') + '\n';
+    //         };
 
-            // Execute the code
-            const func = new Function(activeFile.content);
-            func();
+    //         // Execute the code
+    //         const func = new Function(activeFile.content);
+    //         func();
 
-            // Restore console methods
-            console.log = originalConsole;
-            console.error = originalError;
+    //         // Restore console methods
+    //         console.log = originalConsole;
+    //         console.error = originalError;
 
-            setOutput(outputBuffer || 'Code executed successfully (no output)');
-        } catch (error) {
-            setOutput(`JavaScript Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
+    //         setOutput(outputBuffer || 'Code executed successfully (no output)');
+    //     } catch (error) {
+    //         setOutput(`JavaScript Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    //     }
+    // };
 
     // Run C/C++ code - Now uses Docker
-    const runCpp = async () => {
-        if (!activeFile) return;
+    // const runCpp = async () => {
+    //     if (!activeFile) return;
 
-        // This function is kept for backward compatibility
-        // but actual execution now happens through runCodeWithDocker
-        await runCodeWithDocker();
-    };
+    //     // This function is kept for backward compatibility
+    //     // but actual execution now happens through runCodeWithDocker
+    //     await runCodeWithDocker();
+    // };
 
     // Run HTML code by opening in a new window
     const runHTML = () => {

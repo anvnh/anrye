@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { List } from 'lucide-react';
+import { List, X } from 'lucide-react';
 
 interface OutlineItem {
   id: string;
@@ -16,6 +16,7 @@ interface NoteOutlineProps {
 
 const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
   const [activeHeading, setActiveHeading] = useState<string>('');
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
   // Extract headings from markdown content
   const outline = useMemo(() => {

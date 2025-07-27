@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, readFile, unlink } from 'fs/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -98,33 +96,35 @@ EOF'`;
                 stderr: finalStderr || undefined
             });
 
-        } catch (execError: any) {
+        } catch (execError: unknown) {
             console.error('Execution error:', execError);
             
             let errorMessage = 'Execution failed';
+            const err = execError as { code?: string; message?: string; stdout?: string; stderr?: string };
             
-            if (execError.code === 'TIMEOUT') {
+            if (err.code === 'TIMEOUT') {
                 errorMessage = 'Code execution timed out (15 seconds limit)';
-            } else if (execError.message?.includes('docker')) {
+            } else if (err.message?.includes('docker')) {
                 errorMessage = 'Docker container not available. Please start the code-runner container.';
             } else {
-                errorMessage = execError.message || 'Unknown execution error';
+                errorMessage = err.message || 'Unknown execution error';
             }
 
             return NextResponse.json({
                 success: false,
                 error: errorMessage,
-                output: execError.stdout || '',
-                stderr: execError.stderr || ''
+                output: err.stdout || '',
+                stderr: err.stderr || ''
             });
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('API error:', error);
+        const err = error as { message?: string };
         return NextResponse.json(
             { 
                 success: false, 
-                error: 'Internal server error: ' + (error.message || 'Unknown error')
+                error: 'Internal server error: ' + (err.message || 'Unknown error')
             },
             { status: 500 }
         );
@@ -143,7 +143,7 @@ export async function GET() {
             dockerContainer: isRunning ? 'running' : 'not running',
             timestamp: new Date().toISOString()
         });
-    } catch (error) {
+    } catch {
         return NextResponse.json({
             status: 'error',
             dockerContainer: 'not available',
