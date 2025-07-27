@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -78,42 +78,113 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   isSignedIn = false,
   driveService
 }) => {
+  // Pre-process content to get all headings with consistent IDs
+  const headingIds = useMemo(() => {
+    const lines = content.split('\n');
+    const ids: { [lineIndex: number]: string } = {};
+    const titleCounts: { [key: string]: number } = {};
+    
+    lines.forEach((line, index) => {
+      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      if (match) {
+        const title = match[2].trim();
+        const baseId = title.toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .trim();
+        
+        titleCounts[baseId] = (titleCounts[baseId] || 0) + 1;
+        const id = titleCounts[baseId] === 1 ? baseId : `${baseId}-${titleCounts[baseId]}`;
+        ids[index] = id;
+      }
+    });
+    
+    return ids;
+  }, [content]);
+
+  // Track current heading index for consistent ID assignment
+  let currentHeadingIndex = 0;
+  const getHeadingId = (text: string) => {
+    const lines = content.split('\n');
+    const headingLines = lines.map((line, index) => ({ line, index }))
+      .filter(({ line }) => line.match(/^(#{1,6})\s+(.+)$/));
+    
+    if (currentHeadingIndex < headingLines.length) {
+      const lineIndex = headingLines[currentHeadingIndex].index;
+      currentHeadingIndex++;
+      return headingIds[lineIndex] || text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+    }
+    
+    return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+  };
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeKatex]}
       skipHtml={true}
       components={{
-        h1: ({ children, ...props }) => (
-          <h1 className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
-            {children}
-          </h1>
-        ),
-        h2: ({ children, ...props }) => (
-          <h2 className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
-            {children}
-          </h2>
-        ),
-        h3: ({ children, ...props }) => (
-          <h3 className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
-            {children}
-          </h3>
-        ),
-        h4: ({ children, ...props }) => (
-          <h4 className="text-lg font-medium text-white mb-2 mt-4" {...props}>
-            {children}
-          </h4>
-        ),
-        h5: ({ children, ...props }) => (
-          <h5 className="text-base font-medium text-white mb-2 mt-3" {...props}>
-            {children}
-          </h5>
-        ),
-        h6: ({ children, ...props }) => (
-          <h6 className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
-            {children}
-          </h6>
-        ),
+        h1: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h1 id={id} className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
+              {children}
+            </h1>
+          );
+        },
+        h2: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h2 id={id} className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
+              {children}
+            </h2>
+          );
+        },
+        h3: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h3 id={id} className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
+              {children}
+            </h3>
+          );
+        },
+        h4: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h4 id={id} className="text-lg font-medium text-white mb-2 mt-4" {...props}>
+              {children}
+            </h4>
+          );
+        },
+        h5: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h5 id={id} className="text-base font-medium text-white mb-2 mt-3" {...props}>
+              {children}
+            </h5>
+          );
+        },
+        h6: ({ children, ...props }) => {
+          const text = getTextContent(children);
+          const id = getHeadingId(text);
+          
+          return (
+            <h6 id={id} className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
+              {children}
+            </h6>
+          );
+        },
         p: ({ children, ...props }) => (
           <p className="mb-4 text-gray-300 leading-relaxed" {...props}>
             {children}

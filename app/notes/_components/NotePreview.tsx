@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../utils';
+import NoteOutlineSidebar from './NoteOutlineSidebar';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -42,8 +43,17 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   }, [selectedNote, notes, setNotes, setSelectedNote, isSignedIn, driveService]);
 
   return (
-    <div className="px-72 py-6 overflow-y-auto h-full">
-      <div className="prose prose-invert max-w-none">
+    <div className="relative h-full">
+      {/* Note Content */}
+      <div className="flex h-full">
+        {/* Outline Sidebar */}
+        <div className="w-60 flex-shrink-0 hidden lg:block">
+          <NoteOutlineSidebar content={selectedNote.content} />
+        </div>
+        
+        {/* Main Content */}
+        <div className="flex-1 px-12 py-6 overflow-y-auto">
+          <div className="prose prose-invert max-w-none">
         <style jsx>{`
           .katex { 
             color: #e5e7eb !important;
@@ -88,6 +98,8 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
           }
         `}</style>
         {memoizedMarkdown}
+          </div>
+        </div>
       </div>
     </div>
   );
