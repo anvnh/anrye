@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../utils';
 
@@ -38,6 +38,17 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   scrollThrottleRef,
   lastScrollSource
 }) => {
+  
+  // Debounced content for markdown rendering to reduce lag
+  const [debouncedContent, setDebouncedContent] = useState(editContent);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContent(editContent);
+    }, 300); // 300ms debounce for markdown rendering
+    
+    return () => clearTimeout(timer);
+  }, [editContent]);
   
   const syncScroll = useCallback((sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
     if (!sourceElement || !targetElement || isScrollingSynced) return;
@@ -78,8 +89,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       scrollTimeoutRef.current = setTimeout(() => {
         setIsScrollingSynced(false);
         lastScrollSource.current = null;
-      }, 150);
-    }, 16); // ~60fps throttling
+      }, 50); // Reduced from 150ms to 50ms for better responsiveness
+    }, 32); // Reduced from 16ms to 32ms (~30fps instead of 60fps) for better performance
   }, [isScrollingSynced, setIsScrollingSynced, scrollTimeoutRef, scrollThrottleRef, lastScrollSource]);
 
   const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -101,15 +112,20 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }
   }, [syncScroll, isScrollingSynced]);
 
-  // Real-time preview for split mode
+  // Optimized onChange handler
+  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditContent(e.target.value);
+  }, [setEditContent]);
+
+  // Optimized real-time preview with debounced content
   const realtimePreview = useMemo(() => {
     return (
       <MemoizedMarkdown 
-        content={editContent}
+        content={debouncedContent}
         notes={notes}
         selectedNote={selectedNote}
         isEditing={true}
-        editContent={editContent}
+        editContent={debouncedContent}
         setEditContent={setEditContent}
         setNotes={setNotes}
         setSelectedNote={setSelectedNote}
@@ -117,7 +133,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         driveService={driveService}
       />
     );
-  }, [editContent, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
+  }, [debouncedContent, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
   return (
     <div className="flex h-full w-full">
@@ -126,11 +142,20 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         <div className="flex-1 px-4 py-4 overflow-hidden">
           <textarea
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
+            onChange={handleContentChange}
             onScroll={handleRawScroll}
             className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
             placeholder="Write your note in Markdown..."
-            style={{ scrollBehavior: 'auto' }}
+            style={{ 
+              scrollBehavior: 'auto',
+              // Performance optimizations
+              willChange: 'scroll-position',
+              containIntrinsicSize: '1px 1000px'
+            }}
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
           />
         </div>
       </div>
@@ -140,7 +165,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         <div 
           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
           onScroll={handlePreviewScroll}
-          style={{ scrollBehavior: 'auto' }}
+          style={{ 
+            scrollBehavior: 'auto',
+            // Performance optimizations
+            willChange: 'scroll-position',
+            contain: 'layout style paint'
+          }}
         >
           <div className="prose prose-invert max-w-none w-full">
             <style jsx>{`
