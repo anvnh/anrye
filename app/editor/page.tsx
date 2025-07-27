@@ -25,20 +25,6 @@ import { python } from '@codemirror/lang-python';
 import { markdown } from '@codemirror/lang-markdown';
 import { cpp } from '@codemirror/lang-cpp';
 
-// Pyodide import
-declare global {
-    interface Window {
-        loadPyodide: (config?: { indexURL?: string }) => Promise<{ 
-            runPython: (code: string) => string; 
-            globals: { get: (name: string) => unknown };
-        }>;
-        pyodide: { 
-            runPython: (code: string) => string; 
-            globals: { get: (name: string) => unknown };
-        };
-    }
-}
-
 interface CodeFile {
     id: string;
     name: string;
@@ -89,6 +75,7 @@ console.log(message);
     const [showNewFileModal, setShowNewFileModal] = useState(false);
     const [newFileName, setNewFileName] = useState('');
     const [newFileLanguage, setNewFileLanguage] = useState('javascript');
+    const [userInput, setUserInput] = useState(''); // Add user input state
 
     // Editor settings
     const [settings, setSettings] = useState<EditorSettings>({
@@ -103,10 +90,6 @@ console.log(message);
     const editorRef = useRef<HTMLDivElement>(null);
     const editorViewRef = useRef<EditorView | null>(null);
     const outputRef = useRef<HTMLDivElement>(null);
-
-    // Pyodide state
-    const [pyodideReady, setPyodideReady] = useState(false);
-    const [pyodideLoading, setPyodideLoading] = useState(false);
 
     // Get language extension for CodeMirror
     const getLanguageExtension = (language: string) => {
@@ -144,43 +127,6 @@ console.log(message);
         { id: 'json', name: 'JSON', ext: 'json' },
         { id: 'markdown', name: 'Markdown', ext: 'md' }
     ];
-
-    // Load Pyodide on component mount
-    useEffect(() => {
-        const loadPyodideAsync = async () => {
-            if (typeof window !== 'undefined' && !window.pyodide && !pyodideLoading) {
-                setPyodideLoading(true);
-                try {
-                    // Load Pyodide script
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
-                    script.onload = async () => {
-                        try {
-                            window.pyodide = await window.loadPyodide({
-                                indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
-                            });
-                            setPyodideReady(true);
-                            console.log('Pyodide loaded successfully');
-                        } catch (error) {
-                            console.error('Failed to load Pyodide:', error);
-                        } finally {
-                            setPyodideLoading(false);
-                        }
-                    };
-                    script.onerror = () => {
-                        console.error('Failed to load Pyodide script');
-                        setPyodideLoading(false);
-                    };
-                    document.head.appendChild(script);
-                } catch (error) {
-                    console.error('Error loading Pyodide:', error);
-                    setPyodideLoading(false);
-                }
-            }
-        };
-
-        loadPyodideAsync();
-    }, [pyodideLoading]);
 
     // Load settings from localStorage
     useEffect(() => {
@@ -265,9 +211,17 @@ console.log(message);
                     '&': { fontSize: `${settings.fontSize}px` },
                     '.cm-editor': {
                         height: '100%',
+                        minHeight: '100%',
                         backgroundColor: settings.theme === 'dark' ? '#222831' : '#ffffff'
                     },
-                    '.cm-scroller': { fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' }
+                    '.cm-scroller': {
+                        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                        overflow: 'auto'
+                    },
+                    '.cm-content': {
+                        minHeight: '100%',
+                        padding: '10px'
+                    }
                 })
             ]
         });
@@ -396,83 +350,139 @@ def calculate_sum(numbers):
     return sum(numbers)
 
 def main():
-    # Input examples (will use sample data in browser)
-    print("=== Input Demo ===")
+    print("=== Interactive Input Demo ===")
     
-    # Method 1: Using input() - will use predefined sample data
-    print("Enter your name:")
-    name = input("Name: ")
+    # Get user input
+    print("What's your name?")
+    name = input()
+    print(f"Hello {name}!")
     
-    print("Enter your age:")
-    age = input("Age: ")
+    print("What's your age?")
+    age = input()
+    print(f"You are {age} years old!")
     
-    print(f"Hello {name}, you are {age} years old!")
+    print("Enter a number:")
+    num1 = int(input())
     
-    print("\n=== Alternative: Predefined Variables ===")
-    # Method 2: For reliable browser execution, use predefined variables
-    user_name = "Alice"
-    user_age = 30
+    print("Enter another number:")
+    num2 = int(input())
     
-    print(f"User: {user_name}")
-    print(f"Age: {user_age}")
+    result = num1 + num2
+    print(f"{num1} + {num2} = {result}")
     
-    # List example
+    print("\\n=== List Demo ===")
     numbers = [1, 2, 3, 4, 5]
     print(f"Numbers: {numbers}")
-    
-    # Function calls
-    greeting = greet(user_name)
-    print(greeting)
     
     total = calculate_sum(numbers)
     print(f"Sum of numbers: {total}")
     
-    # Loop example
-    print("Squared numbers:")
-    for num in numbers:
-        print(f"{num}^2 = {num**2}")
+    greeting = greet(name)
+    print(greeting)
     
-    print("\n💡 Browser Python Tips:")
-    print("• input() uses predefined sample values")
-    print("• For reliable testing, use predefined variables")
-    print("• Sample inputs: ['John', '25', 'Python', 'Hello World', '42', '3.14', 'True']")
+    print("\\n💡 Use the Input panel to provide input for this program!")
+    print("Example input:")
+    print("Alice")
+    print("25") 
+    print("10")
+    print("20")
 
 if __name__ == "__main__":
     main()`,
-            cpp: `// C++ file
-#include <iostream>
-#include <string>
-#include <vector>
+            cpp: `/**
+    Author: anvnh
+    RyeNyn
+**/
 
+#include <algorithm>
+#include <bits/stdc++.h>
+#include <utility>
 using namespace std;
+#define fastio ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
+#define anvnh signed main(void)
 
-int main() {
-    cout << "Hello, World!" << endl;
-    
-    // Basic variables
-    string name = "Developer";
-    int age = 25;
-    
-    cout << "Name: " << name << endl;
-    cout << "Age: " << age << endl;
-    
-    // Vector example
-    vector<int> numbers = {1, 2, 3, 4, 5};
-    cout << "Numbers: ";
-    for (int num : numbers) {
-        cout << num << " ";
+template <typename T>
+void print(const T& t) {
+    for (const auto& element : t) { 
+        std::cout << element << " ";
     }
-    cout << endl;
-    
-    // Simple calculation
-    int sum = 0;
-    for (int num : numbers) {
-        sum += num;
+    std::cout << std::endl;
+}
+
+#define ll long long
+#define pb push_back
+#define fi first
+#define se second
+#define FOR(i, a, b) for(int i = (a), _b = (b); i <= _b; ++i)
+#define REP(i, n) for(int i = 0, _n = (n); i < _n; ++i)
+#define MASK(i) (1LL << (i))
+#define BIT(x, i) (((x) >> (i)) & 1)
+#define SET_ON(x, i) ((x) | MASK(i))
+#define SET_OFF(x, i) ((x) & ~MASK(i))
+#define nl "\\n"
+#define sz(x) (int)(x).size()
+#define all(x) begin(x), end(x)
+#define rall(x) rbegin(x), rend(x)
+#define debug(...) fprintf(stderr, __VA_ARGS__), fflush(stderr)
+#define INF 0x3f3f3f3f
+const ll MOD = 1e9 + 7;
+
+void setIO(string s){
+    #ifdef ONLINE_JUDGE
+        freopen((s + ".inp").c_str(), "r", stdin);
+        freopen((s + ".out").c_str(), "w", stdout);
+    #endif
+}
+
+void solve()
+{
+    int n, k; cin >> n >> k;
+    vector<int> h(n);
+    for(int&v : h) cin >> v;
+    vector<int> tmp = h;
+    sort(all(tmp));
+    auto it = lower_bound(all(tmp), h[k - 1]) - tmp.begin();
+    bool check = true;
+    for(int i = it; i + 1 < n; i++) {
+        if(tmp[i + 1] - tmp[i] > h[k - 1]) {
+            check = false;
+            break;
+        }
     }
-    cout << "Sum: " << sum << endl;
-    
+    (check) ? cout << "YES" << nl : cout << "NO" << nl;
+}
+
+anvnh {
+    // Comment out file I/O for online execution
+    // #ifndef ONLINE_JUDGE
+    //     freopen("input.txt", "r", stdin);
+    //     freopen("output.txt", "w", stdout);
+    // #endif
+    fastio
+    int ntest;
+    ntest = 1;
+    cin >> ntest;
+    while (ntest--)
+    {
+        clock_t z = clock();
+        solve();
+        debug("Total Time: %.7f\\n", (double)(clock() - z) / CLOCKS_PER_SEC);
+    }
     return 0;
-}`,
+}
+
+// Input example for this problem:
+// 5
+// 5 3
+// 3 2 1 4 5
+// 3 1
+// 1 3 4
+// 4 4
+// 4 4 4 2
+// 6 2
+// 2 3 6 9 1 2
+// 4 2
+// 1 2 5 6`,
             c: `// C file
 #include <stdio.h>
 #include <string.h>
@@ -532,7 +542,7 @@ console.log("Hello from Markdown!");
         return templates[lang] || '// New file\n';
     };
 
-    // Run code for different languages
+    // Run code using Docker API
     const runCode = async () => {
         if (!activeFile) {
             setOutput('No file selected.');
@@ -540,27 +550,19 @@ console.log("Hello from Markdown!");
         }
 
         setIsRunning(true);
-        setOutput('Running...\n');
+        setOutput('Preparing to execute...\n');
 
         try {
-            switch (activeFile.language) {
-                case 'javascript':
-                    await runJavaScript();
-                    break;
-                case 'python':
-                    await runPython();
-                    break;
-                case 'cpp':
-                    await runCpp();
-                    break;
-                case 'c':
-                    await runCpp();
-                    break;
-                case 'html':
-                    runHTML();
-                    break;
-                default:
-                    setOutput(`Execution not supported for ${activeFile.language} files in this demo.\nSupported languages: JavaScript, Python, C/C++, HTML`);
+            if (activeFile.language === 'html') {
+                runHTML();
+                return;
+            }
+
+            // Use Docker API for supported languages
+            if (['javascript', 'python', 'cpp', 'c++', 'c'].includes(activeFile.language)) {
+                await runCodeWithDocker();
+            } else {
+                setOutput(`Execution not supported for ${activeFile.language} files.\nSupported languages: JavaScript, Python, C/C++, HTML`);
             }
         } catch (error) {
             setOutput(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -569,7 +571,58 @@ console.log("Hello from Markdown!");
         }
     };
 
-    // Run JavaScript code (existing functionality)
+    // Run code using Docker container
+    const runCodeWithDocker = async () => {
+        if (!activeFile) return;
+
+        try {
+            setOutput('Running...\n');
+
+            const response = await fetch('/api/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: activeFile.content,
+                    language: activeFile.language,
+                    filename: activeFile.name,
+                    input: userInput // Include user input
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setOutput(result.output || 'Code executed successfully (no output)');
+            } else {
+                let errorOutput = `Execution failed: ${result.error}\n`;
+
+                if (result.output) {
+                    errorOutput += `\nOutput:\n${result.output}`;
+                }
+
+                if (result.stderr) {
+                    errorOutput += `\nErrors:\n${result.stderr}`;
+                }
+
+                // Add helpful hints for common issues
+                if (result.error?.includes('Docker container not available')) {
+                    errorOutput += `\n\n💡 Setup Instructions:\n`;
+                    errorOutput += `1. Make sure Docker is installed and running\n`;
+                    errorOutput += `2. Run: docker-compose up -d code-runner\n`;
+                    errorOutput += `3. Wait for the container to start, then try again`;
+                }
+
+                setOutput(errorOutput);
+            }
+
+        } catch (error) {
+            setOutput(`❌ Network Error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease make sure:\n1. Docker container is running\n2. Next.js server is running\n3. No firewall blocking the request`);
+        }
+    };
+
+    // Run JavaScript code (fallback for browser-only execution)
     const runJavaScript = async () => {
         if (!activeFile) return;
 
@@ -601,151 +654,13 @@ console.log("Hello from Markdown!");
         }
     };
 
-    // Run Python code using Pyodide (browser-based Python)
-    const runPython = async () => {
-        if (!activeFile) return;
-
-        try {
-            if (!pyodideReady) {
-                if (pyodideLoading) {
-                    setOutput('Python is loading... Please wait and try again.');
-                } else {
-                    setOutput('Python (Pyodide) is not loaded. Please refresh the page to load Python support.');
-                }
-                return;
-            }
-
-            setOutput('Running Python code...\n');
-
-            // Setup Python environment with input support
-            window.pyodide.runPython(`
-import sys
-from io import StringIO
-import builtins
-
-# Redirect stdout to capture print statements
-old_stdout = sys.stdout
-sys.stdout = mystdout = StringIO()
-
-# Mock input function for interactive input
-input_values = []
-input_index = 0
-
-def mock_input(prompt=""):
-    global input_index
-    if prompt:
-        print(prompt, end="")
-    
-    # In a real scenario, you would collect these inputs beforehand
-    # For now, we'll provide some default values or handle gracefully
-    if input_index < len(input_values):
-        value = input_values[input_index]
-        input_index += 1
-        print(value)  # Echo the input
-        return value
-    else:
-        # If no more inputs available, return empty string
-        print("(no input provided)")
-        return ""
-
-# Replace the built-in input function
-builtins.input = mock_input
-            `);
-
-            try {
-                // Check if the code contains input() calls
-                const codeContainsInput = activeFile.content.includes('input(');
-
-                if (codeContainsInput) {
-                    // For codes with input(), provide some sample inputs
-                    window.pyodide.runPython(`
-# Provide some sample inputs for testing
-input_values = ["John", "25", "Python", "Hello World", "42", "3.14", "True"]
-input_index = 0
-                    `);
-                    setOutput('Running Python code with sample inputs...\n(Note: input() calls will use predefined values)\n\n');
-                }
-
-                // Run the user's code
-                window.pyodide.runPython(activeFile.content);
-
-                // Get the captured output
-                const stdout = window.pyodide.runPython(`
-# Get the output and restore stdout
-output = mystdout.getvalue()
-sys.stdout = old_stdout
-output
-                `);
-
-                if (stdout) {
-                    let finalOutput = 'Python Output:\n' + stdout;
-
-                    if (codeContainsInput) {
-                        finalOutput += '\n📝 Note: This code uses input() function.\n';
-                        finalOutput += 'Sample inputs were provided: ["John", "25", "Python", "Hello World", "42", "3.14", "True"]\n';
-                        finalOutput += '💡 In a browser environment, interactive input is limited.\n';
-                        finalOutput += 'Consider using predefined variables instead of input() for testing.';
-                    }
-
-                    setOutput(finalOutput);
-                } else {
-                    setOutput('Python code executed successfully (no output).');
-                }
-            } catch (pythonError: unknown) {
-                // Restore stdout even if there was an error
-                window.pyodide.runPython(`
-sys.stdout = old_stdout
-builtins.input = input  # Restore original input
-                `);
-
-                let errorMessage = pythonError instanceof Error 
-                    ? pythonError.toString() 
-                    : String(pythonError);
-
-                // Provide helpful error messages for common issues
-                if (errorMessage.includes('I/O error') || errorMessage.includes('OSError')) {
-                    errorMessage += '\n\n💡 Input/Output Error Solutions:\n';
-                    errorMessage += '• Replace input() with predefined variables\n';
-                    errorMessage += '• Example: Instead of "name = input()" use "name = \'John\'"\n';
-                    errorMessage += '• Browser-based Python has limitations with interactive input';
-                } else if (errorMessage.includes('input')) {
-                    errorMessage += '\n\n💡 Input Function Tips:\n';
-                    errorMessage += '• Use predefined variables for testing\n';
-                    errorMessage += '• Browser Python environment doesn\'t support real-time input';
-                }
-
-                setOutput('Python Error:\n' + errorMessage);
-            }
-
-        } catch (error) {
-            setOutput(`Python Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    };
-
-    // Run C/C++ code - Currently disabled due to API reliability issues
+    // Run C/C++ code - Now uses Docker
     const runCpp = async () => {
         if (!activeFile) return;
 
-        setOutput(`C++ Compilation is temporarily disabled.
-
-⚠️ Reason: External API reliability issues
-
-🔧 Alternative solutions:
-1. Use an online compiler like:
-   • https://compiler-explorer.godbolt.org/
-   • https://www.onlinegdb.com/
-   • https://replit.com/
-
-2. Install a local development environment:
-   • Install GCC/Clang on your computer
-   • Use Visual Studio Code with C++ extension
-   • Use Dev Containers for isolated environments
-
-3. For learning C++, try:
-   • Local IDEs (Code::Blocks, Dev-C++)
-   • Online platforms (Codecademy, LeetCode)
-
-💡 We're working on a better local solution that doesn't rely on external APIs!`);
+        // This function is kept for backward compatibility
+        // but actual execution now happens through runCodeWithDocker
+        await runCodeWithDocker();
     };
 
     // Run HTML code by opening in a new window
@@ -913,10 +828,10 @@ builtins.input = input  # Restore original input
                     <div className="flex-1 flex overflow-hidden">
                         {/* Code Editor */}
                         <div className="flex-1 flex flex-col">
-                            <div className="flex-1 relative overflow-hidden">
+                            <div className="flex-1 relative overflow-auto">
                                 <div
                                     ref={editorRef}
-                                    className="w-full h-full"
+                                    className="w-full h-full min-h-full"
                                     style={{
                                         backgroundColor: settings.theme === 'dark' ? '#222831' : '#ffffff'
                                     }}
@@ -945,6 +860,33 @@ builtins.input = input  # Restore original input
                                     className="flex-1 p-4 text-sm text-primary font-mono overflow-y-auto whitespace-pre-wrap bg-main"
                                 >
                                     {output}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Input Panel - Show when no output or when code uses input */}
+                        {(!output || activeFile?.content.includes('input(') || activeFile?.content.includes('scanf') || activeFile?.content.includes('cin >>')) && (
+                            <div className="w-1/3 border-l border-gray-600 flex flex-col bg-secondary">
+                                <div className="border-b border-gray-600 px-4 py-2 flex items-center justify-between">
+                                    <h3 className="text-sm font-medium text-primary flex items-center">
+                                        <FileText size={14} className="mr-2" />
+                                        Input
+                                    </h3>
+                                    <button
+                                        onClick={() => setUserInput('')}
+                                        className="text-gray-400 hover:text-primary text-xs"
+                                        title="Clear Input"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <div className="flex-1 p-4 bg-main">
+                                    <textarea
+                                        value={userInput}
+                                        onChange={(e) => setUserInput(e.target.value)}
+                                        placeholder="Enter input for your program (each line will be used as input)..."
+                                        className="w-full h-full bg-transparent text-primary text-sm font-mono resize-none outline-none placeholder-gray-500"
+                                    />
                                 </div>
                             </div>
                         )}

@@ -1,0 +1,50 @@
+# Code Runner Container - Supports C++, Python, and more
+FROM ubuntu:22.04
+
+# Avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install essential tools and compilers
+RUN apt-get update && apt-get install -y \
+    # C++ compiler and tools
+    gcc \
+    g++ \
+    make \
+    # Python
+    python3 \
+    python3-pip \
+    # Node.js for JavaScript execution
+    nodejs \
+    npm \
+    # Utilities
+    curl \
+    wget \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory
+WORKDIR /app
+
+# Install popular Python packages
+RUN pip3 install \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    flask
+
+# Create directories for code execution
+RUN mkdir -p /app/temp /app/output
+
+# Set proper permissions
+RUN chmod 777 /app/temp /app/output
+
+# Copy the execution script
+COPY code-runner.sh /app/code-runner.sh
+RUN chmod +x /app/code-runner.sh
+
+# Expose port for web services (if needed)
+EXPOSE 3001
+
+# Default command
+CMD ["tail", "-f", "/dev/null"]

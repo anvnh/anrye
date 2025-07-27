@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import { Note } from './types';
-import { MemoizedMarkdown } from '../utils';
+import { MemoizedMarkdown } from '../_utils';
 
 interface NoteSplitEditorProps {
   editContent: string;

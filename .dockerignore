@@ -1,0 +1,9 @@
+# Ignore temporary files and output
+temp/
+output/
+*.tmp
+*.out
+*.exe
+
+# Docker
+.dockerignore

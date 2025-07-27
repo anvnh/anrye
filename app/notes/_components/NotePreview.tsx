@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Note } from './types';
-import { MemoizedMarkdown } from '../utils';
+import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
 
 interface NotePreviewProps {
