@@ -273,7 +273,6 @@ export default function SharedNotePage() {
                     >
                       Edit
                     </button>
-
                   )}
                 </>
               )}
