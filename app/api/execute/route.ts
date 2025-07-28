@@ -30,6 +30,82 @@ const getFileExtension = (language: string): string => {
     return extensions[language] || 'txt';
 };
 
+// Execute code locally without Docker
+const executeCodeLocal = async (language: string, filePath: string, input?: string): Promise<{ stdout: string; stderr: string }> => {
+    const fileName = path.basename(filePath);
+    const fileBaseName = path.basename(filePath, path.extname(filePath));
+    const tempDir = path.dirname(filePath);
+
+    let command: string;
+
+    switch (language.toLowerCase()) {
+        case 'python':
+            command = input ? `echo "${input}" | python3 "${filePath}"` : `python3 "${filePath}"`;
+            break;
+        case 'javascript':
+            command = input ? `echo "${input}" | node "${filePath}"` : `node "${filePath}"`;
+            break;
+        case 'cpp':
+        case 'c++':
+            const cppExecutable = path.join(tempDir, fileBaseName);
+            command = `g++ -o "${cppExecutable}" "${filePath}" && `;
+            command += input ? `echo "${input}" | "${cppExecutable}"` : `"${cppExecutable}"`;
+            break;
+        case 'c':
+            const cExecutable = path.join(tempDir, fileBaseName);
+            command = `gcc -o "${cExecutable}" "${filePath}" && `;
+            command += input ? `echo "${input}" | "${cExecutable}"` : `"${cExecutable}"`;
+            break;
+        case 'java':
+            const className = fileBaseName;
+            command = `cd "${tempDir}" && javac "${fileName}" && `;
+            command += input ? `echo "${input}" | java "${className}"` : `java "${className}"`;
+            break;
+        default:
+            throw new Error(`Unsupported language: ${language}`);
+    }
+
+    return execAsync(command, { timeout: 15000 });
+};
+
+// Execute code in Cloud Run environment
+const executeCodeCloudRun = async (language: string, filePath: string, input?: string): Promise<{ stdout: string; stderr: string }> => {
+    const fileName = path.basename(filePath);
+    const fileBaseName = path.basename(filePath, path.extname(filePath));
+    const tempDir = path.dirname(filePath);
+
+    let command: string;
+
+    switch (language.toLowerCase()) {
+        case 'python':
+            command = input ? `echo "${input}" | timeout 15 python3 "${filePath}"` : `timeout 15 python3 "${filePath}"`;
+            break;
+        case 'javascript':
+            command = input ? `echo "${input}" | timeout 15 node "${filePath}"` : `timeout 15 node "${filePath}"`;
+            break;
+        case 'cpp':
+        case 'c++':
+            const cppExecutable = path.join(tempDir, fileBaseName);
+            command = `timeout 15 g++ -o "${cppExecutable}" "${filePath}" && `;
+            command += input ? `echo "${input}" | timeout 15 "${cppExecutable}"` : `timeout 15 "${cppExecutable}"`;
+            break;
+        case 'c':
+            const cExecutable = path.join(tempDir, fileBaseName);
+            command = `timeout 15 gcc -o "${cExecutable}" "${filePath}" && `;
+            command += input ? `echo "${input}" | timeout 15 "${cExecutable}"` : `timeout 15 "${cExecutable}"`;
+            break;
+        case 'java':
+            const className = fileBaseName;
+            command = `cd "${tempDir}" && timeout 15 javac "${fileName}" && `;
+            command += input ? `echo "${input}" | timeout 15 java "${className}"` : `timeout 15 java "${className}"`;
+            break;
+        default:
+            throw new Error(`Unsupported language: ${language}`);
+    }
+
+    return execAsync(command, { timeout: 15000 });
+};
+
 export async function POST(request: NextRequest) {
     try {
         const { code, language, filename, input }: ExecuteRequest = await request.json();
@@ -58,61 +134,16 @@ export async function POST(request: NextRequest) {
             // Write code to file
             await writeFile(filePath, code, 'utf8');
 
-            // Write input file if provided
-            if (input && input.trim()) {
-                const inputFilePath = path.join(tempDir, 'input.txt');
-                await writeFile(inputFilePath, input, 'utf8');
-            }
-
-            let command: string;
             let output: string;
             let stderr: string;
 
+            // Execute code based on environment
             if (isCloudRun) {
-                // Use native code runner on Cloud Run
-                const codeRunnerScript = '/usr/local/bin/code-runner.sh';
-                command = input && input.trim() 
-                    ? `${codeRunnerScript} ${language} ${codeFilename} < ${path.join(tempDir, 'input.txt')}`
-                    : `${codeRunnerScript} ${language} ${codeFilename}`;
-                
-                console.log('Executing (Cloud Run):', command);
-                
-                const result = await execAsync(command, {
-                    timeout: 15000,
-                    cwd: '/app/sandbox',
-                    env: {
-                        ...process.env,
-                        PATH: '/usr/local/bin:/usr/bin:/bin'
-                    }
-                });
+                const result = await executeCodeCloudRun(language, filePath, input);
                 output = result.stdout;
                 stderr = result.stderr;
             } else {
-                // Use Docker on local development
-                const createFileCmd = `docker exec anrye-code-runner sh -c 'cat > /app/temp/${codeFilename} << "EOF"
-${code}
-EOF'`;
-                
-                await execAsync(createFileCmd, { timeout: 5000 });
-
-                // Create input file if input is provided
-                if (input && input.trim()) {
-                    const inputCmd = `docker exec anrye-code-runner sh -c 'cat > /app/temp/input.txt << "EOF"
-${input}
-EOF'`;
-                    await execAsync(inputCmd, { timeout: 5000 });
-                }
-
-                // Execute code in Docker container
-                const dockerCommand = input && input.trim() 
-                    ? `docker exec anrye-code-runner bash -c '/tmp/code-runner.sh ${language} ${codeFilename} < /app/temp/input.txt'`
-                    : `docker exec anrye-code-runner /tmp/code-runner.sh ${language} ${codeFilename}`;
-                
-                console.log('Executing (Docker):', dockerCommand);
-                
-                const result = await execAsync(dockerCommand, {
-                    timeout: 15000
-                });
+                const result = await executeCodeLocal(language, filePath, input);
                 output = result.stdout;
                 stderr = result.stderr;
             }
@@ -135,13 +166,23 @@ EOF'`;
 
             // Clean up temporary files
             try {
-                if (isCloudRun) {
-                    await unlink(filePath);
-                    if (input && input.trim()) {
-                        await unlink(path.join(tempDir, 'input.txt'));
+                await unlink(filePath);
+                // Clean up compiled files for C/C++/Java
+                const fileBaseName = path.basename(filePath, path.extname(filePath));
+                if (language === 'cpp' || language === 'c++' || language === 'c') {
+                    const executablePath = path.join(tempDir, fileBaseName);
+                    try {
+                        await unlink(executablePath);
+                    } catch {
+                        // Ignore if executable doesn't exist
                     }
-                } else {
-                    await execAsync(`docker exec anrye-code-runner rm -f /app/temp/${codeFilename} /app/temp/input.txt`, { timeout: 2000 });
+                } else if (language === 'java') {
+                    const classPath = path.join(tempDir, `${fileBaseName}.class`);
+                    try {
+                        await unlink(classPath);
+                    } catch {
+                        // Ignore if class file doesn't exist
+                    }
                 }
             } catch (cleanupError) {
                 console.warn('Could not cleanup temp files:', cleanupError);
@@ -164,21 +205,14 @@ EOF'`;
             } else if (err.message?.includes('timeout')) {
                 errorMessage = 'Code execution timed out';
             } else if (err.message?.includes('No such file')) {
-                errorMessage = 'Code runner not found. Please check server configuration.';
+                errorMessage = 'Compiler not found. Please install required compilers.';
             } else {
                 errorMessage = err.message || 'Unknown execution error';
             }
 
             // Clean up on error
             try {
-                if (isCloudRun) {
-                    await unlink(filePath);
-                    if (input && input.trim()) {
-                        await unlink(path.join(tempDir, 'input.txt'));
-                    }
-                } else {
-                    await execAsync(`docker exec anrye-code-runner rm -f /app/temp/${codeFilename} /app/temp/input.txt`, { timeout: 2000 });
-                }
+                await unlink(filePath);
             } catch {
                 // Ignore cleanup errors
             }
@@ -207,53 +241,35 @@ EOF'`;
 // Health check endpoint
 export async function GET() {
     try {
-        if (isCloudRun) {
-            // Check if code runner script exists and is executable on Cloud Run
-            const { stdout } = await execAsync('ls -la /usr/local/bin/code-runner.sh');
-            const isExecutable = stdout.includes('-rwx');
+        // Check available compilers/interpreters
+        const checks = await Promise.allSettled([
+            execAsync('gcc --version'),
+            execAsync('g++ --version'),
+            execAsync('python3 --version'),
+            execAsync('node --version'),
+            execAsync('javac -version')
+        ]);
 
-            // Check available compilers
-            const checks = await Promise.allSettled([
-                execAsync('gcc --version'),
-                execAsync('g++ --version'),
-                execAsync('python3 --version'),
-                execAsync('node --version'),
-                execAsync('javac -version')
-            ]);
+        const compilers = {
+            gcc: checks[0].status === 'fulfilled',
+            gpp: checks[1].status === 'fulfilled',
+            python3: checks[2].status === 'fulfilled',
+            node: checks[3].status === 'fulfilled',
+            java: checks[4].status === 'fulfilled'
+        };
 
-            const compilers = {
-                gcc: checks[0].status === 'fulfilled',
-                gpp: checks[1].status === 'fulfilled',
-                python3: checks[2].status === 'fulfilled',
-                node: checks[3].status === 'fulfilled',
-                java: checks[4].status === 'fulfilled'
-            };
-
-            return NextResponse.json({
-                status: 'ok',
-                environment: 'cloud-run',
-                codeRunner: isExecutable ? 'available' : 'not available',
-                compilers: compilers,
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            // Check if Docker container is running for local development
-            const { stdout } = await execAsync('docker ps --filter "name=anrye-code-runner" --format "{{.Names}}"');
-            const isRunning = stdout.trim() === 'anrye-code-runner';
-
-            return NextResponse.json({
-                status: 'ok',
-                environment: 'local-docker',
-                dockerContainer: isRunning ? 'running' : 'not running',
-                timestamp: new Date().toISOString()
-            });
-        }
-    } catch {
+        return NextResponse.json({
+            status: 'ok',
+            environment: isCloudRun ? 'cloud-run' : 'local',
+            compilers: compilers,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Health check error:', error);
         return NextResponse.json({
             status: 'error',
-            environment: isCloudRun ? 'cloud-run' : 'local-docker',
-            codeRunner: 'not available',
-            error: 'Could not check code runner status'
+            environment: isCloudRun ? 'cloud-run' : 'local',
+            error: 'Could not check system status'
         });
     }
 }

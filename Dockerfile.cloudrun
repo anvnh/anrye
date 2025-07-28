@@ -70,10 +70,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy and setup code runner script
-COPY --chown=nextjs:nodejs code-runner.sh /usr/local/bin/code-runner.sh
-RUN chmod +x /usr/local/bin/code-runner.sh
-
 # Create temp directory for code execution
 RUN mkdir -p /app/temp && chown nextjs:nodejs /app/temp
 
