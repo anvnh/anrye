@@ -43,6 +43,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   // Ref for textarea to enable context menu functionality
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  // Split pane resize state
+  const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  
   // Debounced content for markdown rendering to reduce lag
   const [debouncedContent, setDebouncedContent] = useState(editContent);
   
@@ -53,6 +58,56 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     
     return () => clearTimeout(timer);
   }, [editContent]);
+  
+  // Handle resizing between panes
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !resizeRef.current) return;
+    
+    const container = resizeRef.current.parentElement;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const newLeftWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    
+    // Constrain between 20% and 80%
+    const constrainedWidth = Math.max(20, Math.min(80, newLeftWidth));
+    setLeftPaneWidth(constrainedWidth);
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Handle double-click to reset to 50-50 split
+  const handleDoubleClick = useCallback(() => {
+    setLeftPaneWidth(50);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
   
   const syncScroll = useCallback((sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
     if (!sourceElement || !targetElement || isScrollingSynced) return;
@@ -140,9 +195,15 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   }, [debouncedContent, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full relative">
       {/* Raw Editor Side */}
-      <div className="w-1/2 flex flex-col border-r border-gray-600" style={{ backgroundColor: '#111111' }}>
+      <div 
+        className="flex flex-col border-r border-gray-500" 
+        style={{ 
+          backgroundColor: '#31363F',
+          width: `${leftPaneWidth}%`
+        }}
+      >
         <div className="flex-1 px-4 py-4 overflow-hidden">
           <EditorContextMenu 
             editContent={editContent} 
@@ -154,11 +215,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               value={editContent}
               onChange={handleContentChange}
               onScroll={handleRawScroll}
-              className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
+              className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
               placeholder="Write your note in Markdown..."
               style={{ 
                 scrollBehavior: 'auto',
-                backgroundColor: '#111111',
+                backgroundColor: '#31363F',
                 // Performance optimizations
                 willChange: 'scroll-position',
                 containIntrinsicSize: '1px 1000px'
@@ -172,8 +233,31 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         </div>
       </div>
       
+      {/* Resize Handle */}
+      <div
+        ref={resizeRef}
+        className="w-1 bg-gray-500 hover:bg-gray-400 cursor-col-resize flex-shrink-0 relative group"
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
+        style={{
+          backgroundColor: isResizing ? '#6b7595' : '#6b7280'
+        }}
+        title="Double-click to reset to 50-50 split"
+      >
+        {/* Resize handle visual indicator */}
+        <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="w-full h-full bg-gray-300 rounded"></div>
+        </div>
+      </div>
+      
       {/* Preview Side */}
-      <div className="w-1/2 flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
+      <div 
+        className="flex flex-col" 
+        style={{ 
+          backgroundColor: '#222831',
+          width: `${100 - leftPaneWidth}%`
+        }}
+      >
         <div 
           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
           onScroll={handlePreviewScroll}
@@ -182,7 +266,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             // Performance optimizations
             willChange: 'scroll-position',
             contain: 'layout style paint',
-            backgroundColor: '#1a1a1a'
+            backgroundColor: '#222831'
           }}
         >
           <div className="prose prose-invert max-w-none w-full">
@@ -219,11 +303,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               /* Scroll optimization */
               .preview-content {
                 scroll-behavior: auto !important;
-                background-color: #1a1a1a !important;
+                background-color: #222831 !important;
               }
               .raw-content {
                 scroll-behavior: auto !important;
-                background-color: #111111 !important;
+                background-color: #31363F !important;
               }
               /* Force equal width split */
               .prose {
@@ -231,44 +315,65 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
                 max-width: none !important;
               }
               .katex .mbin, .katex .mrel {
-                color: #93c5fd !important;
+                color: #6b7595 !important;
               }
               .katex .mopen, .katex .mclose {
                 color: #fbbf24 !important;
               }
               .katex .mfrac > span {
-                border-color: #6b7280 !important;
+                border-color: #6b7595 !important;
               }
               .katex .sqrt > .sqrt-line {
-                border-top-color: #6b7280 !important;
+                border-top-color: #6b7595 !important;
               }
-              /* Enhanced dark theme */
+              /* Enhanced dark theme matching website colors */
               .prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert h5, .prose-invert h6 {
-                color: #f8fafc !important;
+                color: #EEEEEE !important;
               }
               .prose-invert p {
-                color: #e2e8f0 !important;
+                color: #EEEEEE !important;
               }
               .prose-invert strong {
-                color: #f1f5f9 !important;
+                color: #EEEEEE !important;
               }
               .prose-invert blockquote {
-                border-left-color: #64748b !important;
-                color: #cbd5e1 !important;
+                border-left-color: #6b7595 !important;
+                color: #EEEEEE !important;
+                background-color: #31363F !important;
+                padding: 0.75rem 1rem !important;
+                border-radius: 0.375rem !important;
               }
               .prose-invert code {
                 color: #fbbf24 !important;
-                background-color: #374151 !important;
+                background-color: #31363F !important;
+                padding: 0.125rem 0.25rem !important;
+                border-radius: 0.25rem !important;
               }
               .prose-invert pre {
-                background-color: #111827 !important;
-                border: 1px solid #374151 !important;
+                background-color: #31363F !important;
+                border: 1px solid #6b7595 !important;
               }
               .prose-invert a {
-                color: #60a5fa !important;
+                color: #6b7595 !important;
               }
               .prose-invert a:hover {
-                color: #93c5fd !important;
+                color: #8b92b3 !important;
+              }
+              .prose-invert ul li::marker,
+              .prose-invert ol li::marker {
+                color: #6b7595 !important;
+              }
+              .prose-invert table {
+                border-color: #6b7595 !important;
+              }
+              .prose-invert thead th {
+                background-color: #31363F !important;
+                border-bottom-color: #6b7595 !important;
+                color: #EEEEEE !important;
+              }
+              .prose-invert tbody td {
+                border-bottom-color: #6b7595 !important;
+                color: #EEEEEE !important;
               }
             `}</style>
             {realtimePreview}
