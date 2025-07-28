@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Navbar from '../components/NavBar';
+import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import { ImageIcon } from 'lucide-react';
 
 export default function UtilsPage() {
@@ -44,16 +44,15 @@ export default function UtilsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-main">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 text-white">Utils</h1>
-          <p className="text-gray-300">Useful tools and utilities</p>
-        </div>
+    <AuthenticatedLayout>
+      <div className="h-full p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2 text-white">Utils</h1>
+            <p className="text-gray-300">Useful tools and utilities</p>
+          </div>
 
-        <div className="grid lg:grid-cols-1 gap-8">
+          <div className="grid lg:grid-cols-1 gap-8">
           {/* Image Converter */}
           <div className="rounded-xl shadow-sm p-6 bg-secondary">
             <div className="flex items-center space-x-3 mb-4">
@@ -99,7 +98,8 @@ export default function UtilsPage() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 }

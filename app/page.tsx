@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Navbar from "./components/NavBar";
+import AuthenticatedLayout from "./components/AuthenticatedLayout";
 
 export default function Home() {
   const [loveTime, setLoveTime] = useState({
@@ -55,35 +55,34 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
+  
   return (
-    <div className="min-h-screen bg-main">
-      {/* Navigation */}
-      <Navbar />
-
-      {/* Hero Section */}
-      <div className="text-white bg-gradient-main">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Welcome to AnRye
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 opacity-90">
-              Personal website with utilities and notes
-            </p>
+    <AuthenticatedLayout>
+      <div className="h-full flex flex-col overflow-y-auto">
+        {/* Hero Section */}
+        <div className="text-white bg-gradient-main">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                Welcome to AnRye
+              </h1>
+              <p className="text-xl md:text-2xl mb-8 opacity-90">
+                Personal website with utilities and notes
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Love Timer Section */}
-      <div className="py-20 bg-secondary">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-2xl font-bold text-white">
-              Since 22/08/2024
-            </p>
-          </div>
+        {/* Love Timer Section */}
+        <div className="py-12 bg-secondary">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <p className="text-2xl font-bold text-white">
+                Since 22/08/2024
+              </p>
+            </div>
 
-          <div className="rounded-xl p-8 bg-main">
+            <div className="rounded-xl p-6 bg-main">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
               <div className="text-center">
                 <div className="text-3xl md:text-4xl font-bold mb-2 text-white">
@@ -135,14 +134,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="text-white py-12 bg-secondary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>
+        {/* Footer */}
+        <footer className="text-white py-8 bg-secondary">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </AuthenticatedLayout>
   );
 }

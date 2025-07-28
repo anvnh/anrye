@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Navbar from '../components/NavBar';
+import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import {
     Play,
     Download,
@@ -712,11 +712,10 @@ console.log("Hello from Markdown!");
     };
 
     return (
-        <div className="h-screen flex flex-col bg-main">
-            <Navbar />
-
-            {/* Main Editor Layout */}
-            <div className="flex flex-1 overflow-hidden">
+        <AuthenticatedLayout>
+            <div className="h-full flex flex-col bg-main">
+                {/* Main Editor Layout */}
+                <div className="flex flex-1 overflow-hidden">
                 {/* File Explorer Sidebar */}
                 <div
                     className="border-r border-gray-600 flex flex-col overflow-hidden relative bg-secondary"
@@ -1018,6 +1017,7 @@ console.log("Hello from Markdown!");
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </AuthenticatedLayout>
     );
 }

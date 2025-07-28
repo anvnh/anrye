@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Navbar from '../components/NavBar';
+import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import { FileText, Edit, Save, X, Split } from 'lucide-react';
 import 'katex/dist/katex.min.css';
-import { useDrive } from '../lib/driveContext';
-import { driveService } from '../lib/googleDrive';
-import '../lib/types';
+import { useDrive } from '../../lib/driveContext';
+import { driveService } from '../../lib/googleDrive';
+import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
 import { Note, Folder } from './_components/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -948,10 +948,9 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
   const scrollThrottleRef = useRef<NodeJS.Timeout | null>(null);
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#222831' }}>
-      <Navbar />
-      
-      <div className="flex flex-1 overflow-hidden">
+    <AuthenticatedLayout>
+      <div className="h-full flex flex-col" style={{ backgroundColor: '#222831' }}>
+        <div className="flex flex-1 overflow-hidden">
         {/* File Explorer Sidebar */}
         <NoteSidebar
           notes={notes}
@@ -1203,7 +1202,8 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
             </button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </div>
+        </Dialog>
+      </div>
+    </AuthenticatedLayout>
   );
 }
