@@ -7,7 +7,7 @@ import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
-import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
+import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, ShareDropdown } from './_components';
 import { Note, Folder } from './_components/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -1080,6 +1080,13 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                   )}
                   
                   <div className="flex items-center space-x-2">
+                    {/* Share Button */}
+                    <ShareDropdown 
+                      noteId={selectedNote.id} 
+                      noteTitle={selectedNote.title}
+                      noteContent={selectedNote.content}
+                    />
+                    
                     {/* Split Mode Toggle */}
                     <button
                       onClick={() => setIsSplitMode(!isSplitMode)}

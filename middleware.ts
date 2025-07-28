@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Pages that don't require authentication
-const publicPaths = ['/login'];
+const publicPaths = ['/login', '/shared', '/api/shared-notes'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Allow public paths
-  if (publicPaths.includes(pathname)) {
+  // Allow public paths (exact match or startsWith for /shared and /api/shared-notes)
+  if (publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'))) {
     return NextResponse.next();
   }
   

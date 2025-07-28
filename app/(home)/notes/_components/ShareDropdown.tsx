@@ -1,0 +1,438 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Share, Copy, Eye, Edit3, Lock, Globe, User } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface ShareDropdownProps {
+  noteId: string;
+  noteTitle: string;
+  noteContent: string;
+}
+
+interface ShareSettings {
+  sharingUrl: string;
+  editMode: 'edit' | 'view';
+  readPermission: 'public' | 'password-required';
+  writePermission: 'only-me' | 'password-required';
+  readPassword?: string;
+  writePassword?: string;
+}
+
+export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownProps) {
+  const [shareSettings, setShareSettings] = useState<ShareSettings>({
+    sharingUrl: '',
+    editMode: 'edit',
+    readPermission: 'public',
+    writePermission: 'only-me',
+    readPassword: '',
+    writePassword: '',
+  });
+
+  const [copied, setCopied] = useState(false);
+  const [shortId, setShortId] = useState<string>('');
+
+  // Initialize sharing URL on component mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check if this note already has a shared link
+      const existingSharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
+      let existingShortId = '';
+      let existingSettings = null;
+      
+      // Find if this note is already shared
+      for (const [id, sharedNote] of Object.entries(existingSharedNotes)) {
+        if ((sharedNote as any).note.id === noteId) {
+          existingShortId = id;
+          existingSettings = (sharedNote as any).settings;
+          break;
+        }
+      }
+      
+      // Use existing shortId or create new one
+      const finalShortId = existingShortId || generateShortId();
+      setShortId(finalShortId);
+      
+      // Load existing settings or use defaults
+      if (existingSettings) {
+        setShareSettings(prev => ({
+          ...prev,
+          sharingUrl: `${window.location.origin}/shared/${finalShortId}`,
+          editMode: existingSettings.editMode || 'edit',
+          readPermission: existingSettings.readPermission || 'public',
+          writePermission: existingSettings.writePermission || 'only-me',
+          readPassword: existingSettings.readPassword || '',
+          writePassword: existingSettings.writePassword || ''
+        }));
+      } else {
+        setShareSettings(prev => ({
+          ...prev,
+          sharingUrl: `${window.location.origin}/shared/${finalShortId}`
+        }));
+      }
+      
+      // Save the shared note to localStorage
+      setTimeout(() => {
+        // Only save if settings are not being modified
+        if (!existingSettings) {
+          saveSharedNote(finalShortId);
+        }
+      }, 100);
+    }
+  }, [noteId, noteTitle, noteContent]); // Add dependencies to re-run when note changes
+
+  function generateShortId(): string {
+    return Math.random().toString(36).substring(2, 15);
+  }
+
+  function generatePassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  const saveSharedNote = async (shortIdToUse: string) => {
+    try {
+      // Create note object with current data
+      const noteToShare = {
+        id: noteId,
+        title: noteTitle,
+        content: noteContent,
+        lastModified: new Date().toISOString(),
+        path: '',
+        folderId: ''
+      };
+      
+      // Get current settings
+      const currentSettings = {
+        editMode: shareSettings.editMode,
+        readPermission: shareSettings.readPermission,
+        writePermission: shareSettings.writePermission,
+        readPassword: shareSettings.readPassword,
+        writePassword: shareSettings.writePassword
+      };
+      
+      // Save to server via API
+      const response = await fetch('/api/shared-notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shortId: shortIdToUse,
+          note: noteToShare,
+          settings: currentSettings
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Saved shared note to server:', shortIdToUse);
+      } else {
+        console.error('Failed to save shared note to server');
+      }
+      
+      // Also keep localStorage as backup for now
+      const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
+      sharedNotes[shortIdToUse] = {
+        note: noteToShare,
+        settings: currentSettings,
+        createdAt: new Date().toISOString()
+      };
+      localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
+      
+    } catch (err) {
+      console.error('Error saving shared note:', err);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareSettings.sharingUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
+  const updateShareSettings = (key: keyof ShareSettings, value: any) => {
+    setShareSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [key]: value
+      };
+      
+      // Generate password when switching to password-required
+      if (key === 'readPermission' && value === 'password-required' && !prev.readPassword) {
+        const newPassword = generatePassword();
+        newSettings.readPassword = newPassword;
+        console.log('Generated read password:', newPassword);
+      }
+      if (key === 'writePermission' && value === 'password-required' && !prev.writePassword) {
+        const newPassword = generatePassword();
+        newSettings.writePassword = newPassword;
+        console.log('Generated write password:', newPassword);
+      }
+      
+      return newSettings;
+    });
+  };
+
+  // Separate effect to update localStorage when settings change
+  useEffect(() => {
+    if (shortId && shareSettings.sharingUrl) {
+      updateSharedNoteSettings(shortId, shareSettings);
+    }
+  }, [shareSettings, shortId]);
+
+  const updateSharedNoteSettings = async (shortIdToUpdate: string, settingsToSave: ShareSettings) => {
+    try {
+      // Update on server
+      const noteToShare = {
+        id: noteId,
+        title: noteTitle,
+        content: noteContent,
+        lastModified: new Date().toISOString(),
+        path: '',
+        folderId: ''
+      };
+      
+      await fetch('/api/shared-notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shortId: shortIdToUpdate,
+          note: noteToShare,
+          settings: {
+            editMode: settingsToSave.editMode,
+            readPermission: settingsToSave.readPermission,
+            writePermission: settingsToSave.writePermission,
+            readPassword: settingsToSave.readPassword,
+            writePassword: settingsToSave.writePassword
+          }
+        })
+      });
+      
+      // Also update localStorage as backup
+      const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
+      if (sharedNotes[shortIdToUpdate]) {
+        sharedNotes[shortIdToUpdate].settings = {
+          editMode: settingsToSave.editMode,
+          readPermission: settingsToSave.readPermission,
+          writePermission: settingsToSave.writePermission,
+          readPassword: settingsToSave.readPassword,
+          writePassword: settingsToSave.writePassword
+        };
+        sharedNotes[shortIdToUpdate].note = noteToShare;
+        localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
+      }
+      
+      console.log('Updated shared note settings:', shortIdToUpdate, settingsToSave);
+    } catch (err) {
+      console.error('Error updating shared note settings:', err);
+    }
+  };
+
+  const getShortUrl = () => {
+    return shortId;
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          title="Share Note"
+        >
+          <Share size={16} />
+          <span className="hidden sm:inline">Share</span>
+        </button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent className="w-80 bg-gray-800 text-white border-gray-700" align="end">
+        <div className="px-3 py-2">
+          <h3 className="font-semibold text-base text-white">Share</h3>
+          <p className="text-sm text-gray-400 mt-1">Publish</p>
+        </div>
+        
+        <DropdownMenuSeparator className="bg-gray-700" />
+        
+        {/* Sharing URL Section */}
+        <div className="px-3 py-3">
+          <DropdownMenuLabel className="text-sm text-gray-300 px-0 mb-2">Sharing URL</DropdownMenuLabel>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1 flex items-center bg-gray-700 rounded">
+              <span className="px-3 py-2 text-xs text-gray-400 bg-gray-600 rounded-l border-r border-gray-500">
+                {getShortUrl()}
+              </span>
+              <select
+                value={shareSettings.editMode}
+                onChange={(e) => updateShareSettings('editMode', e.target.value)}
+                className="px-2 py-2 text-xs bg-gray-700 text-white border-none outline-none"
+              >
+                <option value="edit">/edit</option>
+                <option value="view">/view</option>
+              </select>
+            </div>
+            <button
+              onClick={handleCopyLink}
+              className={`px-3 py-2 text-xs rounded transition-colors ${
+                copied 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-gray-600 hover:bg-gray-500 text-white'
+              }`}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
+        <DropdownMenuSeparator className="bg-gray-700" />
+
+        {/* Note Permission Section */}
+        <div className="px-3 py-3">
+          <DropdownMenuLabel className="text-sm text-gray-300 px-0 flex items-center gap-2 mb-3">
+            <Lock size={16} />
+            Note Permission
+          </DropdownMenuLabel>
+          
+          {/* Read Permissions */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">Read</span>
+            </div>
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                <input
+                  type="radio"
+                  name="readPermission"
+                  value="public"
+                  checked={shareSettings.readPermission === 'public'}
+                  onChange={(e) => updateShareSettings('readPermission', e.target.value)}
+                  className="text-blue-600"
+                />
+                <Globe size={14} />
+                <span>Public</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                <input
+                  type="radio"
+                  name="readPermission"
+                  value="password-required"
+                  checked={shareSettings.readPermission === 'password-required'}
+                  onChange={(e) => updateShareSettings('readPermission', e.target.value)}
+                  className="text-blue-600"
+                />
+                <User size={14} />
+                <span>Required password</span>
+              </label>
+            </div>
+            
+            {/* Show password when password-required is selected */}
+            {shareSettings.readPermission === 'password-required' && shareSettings.readPassword && (
+              <div className="mt-2 p-2 bg-gray-600 rounded text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300">Password:</span>
+                  <div className="flex items-center gap-2">
+                    <code className="text-yellow-300 font-mono">{shareSettings.readPassword}</code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(shareSettings.readPassword || '')}
+                      className="text-blue-400 hover:text-blue-300"
+                      title="Copy password"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Write Permissions */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">Write</span>
+            </div>
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                <input
+                  type="radio"
+                  name="writePermission"
+                  value="only-me"
+                  checked={shareSettings.writePermission === 'only-me'}
+                  onChange={(e) => updateShareSettings('writePermission', e.target.value)}
+                  className="text-blue-600"
+                />
+                <Lock size={14} />
+                <span>Only me</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                <input
+                  type="radio"
+                  name="writePermission"
+                  value="password-required"
+                  checked={shareSettings.writePermission === 'password-required'}
+                  onChange={(e) => updateShareSettings('writePermission', e.target.value)}
+                  className="text-blue-600"
+                />
+                <User size={14} />
+                <span>Required password</span>
+              </label>
+            </div>
+            
+            {/* Show password when password-required is selected */}
+            {shareSettings.writePermission === 'password-required' && shareSettings.writePassword && (
+              <div className="mt-2 p-2 bg-gray-600 rounded text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300">Password:</span>
+                  <div className="flex items-center gap-2">
+                    <code className="text-yellow-300 font-mono">{shareSettings.writePassword}</code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(shareSettings.writePassword || '')}
+                      className="text-blue-400 hover:text-blue-300"
+                      title="Copy password"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DropdownMenuSeparator className="bg-gray-700" />
+
+        {/* Copy Share Link Button */}
+        <div className="p-3">
+          <button
+            onClick={handleCopyLink}
+            className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              copied
+                ? 'bg-green-600 text-white'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <Copy size={16} />
+            {copied ? 'Link Copied!' : 'Copy share link'}
+          </button>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
