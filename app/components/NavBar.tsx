@@ -30,7 +30,9 @@ export default function Navbar() {
           <div className="flex items-center space-x-8">
             <Link 
               href="/utils" 
-              className={`transition-colors ${
+              className={`
+                items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-700
+                transition-colors ${
                 isActive('/utils') 
                   ? 'font-semibold text-white' 
                   : 'text-gray-300 hover:text-white'
@@ -41,7 +43,9 @@ export default function Navbar() {
             
             <Link 
               href="/editor" 
-              className={`transition-colors ${
+              className={`
+                items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-700
+                transition-colors ${
                 isActive('/editor') 
                   ? 'font-semibold text-white' 
                   : 'text-gray-300 hover:text-white'
@@ -52,7 +56,9 @@ export default function Navbar() {
             
             <Link 
               href="/notes" 
-              className={`transition-colors ${
+              className={`
+                items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-700
+                transition-colors ${
                 isActive('/notes') 
                   ? 'font-semibold text-white' 
                   : 'text-gray-300 hover:text-white'
@@ -70,7 +76,9 @@ export default function Navbar() {
                   title="Signed in to Google Drive - Click to sign out"
                 >
                   <Cloud size={16} />
-                  <span className="text-sm">Drive</span>
+                  <span className="">
+                    Drive
+                  </span>
                 </button>
               ) : (
                 <button
@@ -87,15 +95,17 @@ export default function Navbar() {
               )}
             </div>
 
+
+
             {/* User Info and Logout */}
             {isAuthenticated && user && (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-10">
+                <div className="text-gray-600">
+                  |
+                </div>
                 <div className="flex items-center space-x-2">
                   <User size={20} style={{ color: '#EEEEEE' }} />
                   <span className="text-gray-300">{user.username}</span>
-                  <span className="text-xs px-2 py-1 rounded-full text-white bg-green-600">
-                    admin
-                  </span>
                 </div>
                 <button 
                   onClick={handleLogout}

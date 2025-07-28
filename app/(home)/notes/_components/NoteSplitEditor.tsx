@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
+import { EditorContextMenu } from './EditorContextMenu';
 
 interface NoteSplitEditorProps {
   editContent: string;
@@ -38,6 +39,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   scrollThrottleRef,
   lastScrollSource
 }) => {
+  
+  // Ref for textarea to enable context menu functionality
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Debounced content for markdown rendering to reduce lag
   const [debouncedContent, setDebouncedContent] = useState(editContent);
@@ -138,30 +142,38 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   return (
     <div className="flex h-full w-full">
       {/* Raw Editor Side */}
-      <div className="w-1/2 flex flex-col border-r border-gray-600">
+      <div className="w-1/2 flex flex-col border-r border-gray-600" style={{ backgroundColor: '#111111' }}>
         <div className="flex-1 px-4 py-4 overflow-hidden">
-          <textarea
-            value={editContent}
-            onChange={handleContentChange}
-            onScroll={handleRawScroll}
-            className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
-            placeholder="Write your note in Markdown..."
-            style={{ 
-              scrollBehavior: 'auto',
-              // Performance optimizations
-              willChange: 'scroll-position',
-              containIntrinsicSize: '1px 1000px'
-            }}
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-          />
+          <EditorContextMenu 
+            editContent={editContent} 
+            setEditContent={setEditContent}
+            textareaRef={textareaRef}
+          >
+            <textarea
+              ref={textareaRef}
+              value={editContent}
+              onChange={handleContentChange}
+              onScroll={handleRawScroll}
+              className="raw-content w-full h-full resize-none bg-transparent text-gray-300 focus:outline-none font-mono text-sm leading-relaxed"
+              placeholder="Write your note in Markdown..."
+              style={{ 
+                scrollBehavior: 'auto',
+                backgroundColor: '#111111',
+                // Performance optimizations
+                willChange: 'scroll-position',
+                containIntrinsicSize: '1px 1000px'
+              }}
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+          </EditorContextMenu>
         </div>
       </div>
       
       {/* Preview Side */}
-      <div className="w-1/2 flex flex-col">
+      <div className="w-1/2 flex flex-col" style={{ backgroundColor: '#1a1a1a' }}>
         <div 
           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
           onScroll={handlePreviewScroll}
@@ -169,7 +181,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             scrollBehavior: 'auto',
             // Performance optimizations
             willChange: 'scroll-position',
-            contain: 'layout style paint'
+            contain: 'layout style paint',
+            backgroundColor: '#1a1a1a'
           }}
         >
           <div className="prose prose-invert max-w-none w-full">
@@ -206,9 +219,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               /* Scroll optimization */
               .preview-content {
                 scroll-behavior: auto !important;
+                background-color: #1a1a1a !important;
               }
               .raw-content {
                 scroll-behavior: auto !important;
+                background-color: #111111 !important;
               }
               /* Force equal width split */
               .prose {
@@ -226,6 +241,34 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               }
               .katex .sqrt > .sqrt-line {
                 border-top-color: #6b7280 !important;
+              }
+              /* Enhanced dark theme */
+              .prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert h5, .prose-invert h6 {
+                color: #f8fafc !important;
+              }
+              .prose-invert p {
+                color: #e2e8f0 !important;
+              }
+              .prose-invert strong {
+                color: #f1f5f9 !important;
+              }
+              .prose-invert blockquote {
+                border-left-color: #64748b !important;
+                color: #cbd5e1 !important;
+              }
+              .prose-invert code {
+                color: #fbbf24 !important;
+                background-color: #374151 !important;
+              }
+              .prose-invert pre {
+                background-color: #111827 !important;
+                border: 1px solid #374151 !important;
+              }
+              .prose-invert a {
+                color: #60a5fa !important;
+              }
+              .prose-invert a:hover {
+                color: #93c5fd !important;
               }
             `}</style>
             {realtimePreview}

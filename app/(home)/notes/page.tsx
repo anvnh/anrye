@@ -10,6 +10,14 @@ import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
 import { Note, Folder } from './_components/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { 
+  ContextMenu, 
+  ContextMenuTrigger, 
+  ContextMenuContent, 
+  ContextMenuItem, 
+  ContextMenuSeparator,
+  ContextMenuShortcut 
+} from '@/components/ui/context-menu';
 
 export default function NotesPage() {
   const { isSignedIn } = useDrive();
@@ -176,18 +184,51 @@ export default function NotesPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + Shift + S to toggle split mode
+      // Ctrl/Cmd + E to toggle edit mode
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        setIsEditing(!isEditing);
+      }
+      
+      // Ctrl/Cmd + \ to toggle split mode (only in edit mode)
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        if (isEditing) {
+          setIsSplitMode(!isSplitMode);
+        }
+      }
+      
+      // Ctrl/Cmd + Shift + S to toggle split mode (legacy)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
         e.preventDefault();
         if (isEditing) {
           setIsSplitMode(!isSplitMode);
         }
       }
+      
+      // Ctrl/Cmd + N to create new note
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Ctrl/Cmd + Shift + N to create note from current content
+          createNoteFromCurrentContent();
+        } else {
+          setIsCreatingNote(true);
+        }
+      }
+      
+      // Delete key to delete selected note
+      if (e.key === 'Delete' && selectedNote && !isEditing) {
+        e.preventDefault();
+        if (confirm('Are you sure you want to delete this note?')) {
+          deleteNote(selectedNote.id);
+        }
+      }
     };
     
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isSplitMode]);
+  }, [isEditing, isSplitMode, selectedNote]);
   
   // Handle sidebar resize
   useEffect(() => {
@@ -795,6 +836,49 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
     }
   };
 
+  // Create note from current content
+  const createNoteFromCurrentContent = async () => {
+    const title = selectedNote ? `${selectedNote.title} - Copy` : 'New Note';
+    const content = isEditing ? editContent : (selectedNote?.content || '');
+    
+    try {
+      setIsLoading(true);
+      
+      const parentFolder = folders.find(f => f.path === selectedPath);
+      const parentDriveId = parentFolder?.driveFolderId;
+      
+      let driveFileId: string | undefined;
+      
+      if (isSignedIn && parentDriveId) {
+        driveFileId = await driveService.uploadFile(
+          title + '.md',
+          content,
+          parentDriveId
+        );
+      }
+      
+      const newNote: Note = {
+        id: Date.now().toString(),
+        title,
+        content,
+        path: selectedPath,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        driveFileId
+      };
+
+      setNotes([...notes, newNote]);
+      setSelectedNote(newNote);
+      setIsEditing(true);
+      setEditTitle(newNote.title);
+      setEditContent(newNote.content);
+    } catch (error) {
+      console.error('Failed to create note from current content:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const saveNote = async () => {
     if (!selectedNote) return;
     
@@ -1041,44 +1125,143 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
               </div>
 
               {/* Note Content */}
-              <div className="flex-1 overflow-hidden" style={{ backgroundColor: '#222831' }}>
-                {isEditing ? (
-                  isSplitMode ? (
-                    /* Split Mode: Raw + Preview */
-                    <NoteSplitEditor
-                      editContent={editContent}
-                      setEditContent={setEditContent}
-                      notes={notes}
-                      selectedNote={selectedNote}
-                      setNotes={setNotes}
-                      setSelectedNote={setSelectedNote}
-                      isSignedIn={isSignedIn}
-                      driveService={driveService}
-                      isScrollingSynced={isScrollingSynced}
-                      setIsScrollingSynced={setIsScrollingSynced}
-                      scrollTimeoutRef={scrollTimeoutRef}
-                      scrollThrottleRef={scrollThrottleRef}
-                      lastScrollSource={lastScrollSource}
-                    />
-                  ) : (
-                    /* Regular Edit Mode */
-                    <NoteRegularEditor
-                      editContent={editContent}
-                      setEditContent={setEditContent}
-                    />
-                  )
-                ) : (
-                  /* Preview Only Mode */
-                  <NotePreview
-                    selectedNote={selectedNote}
-                    notes={notes}
-                    setNotes={setNotes}
-                    setSelectedNote={setSelectedNote}
-                    isSignedIn={isSignedIn}
-                    driveService={driveService}
-                  />
-                )}
-              </div>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div className="flex-1 overflow-hidden" style={{ backgroundColor: '#222831' }}>
+                    {isEditing ? (
+                      isSplitMode ? (
+                        /* Split Mode: Raw + Preview */
+                        <NoteSplitEditor
+                          editContent={editContent}
+                          setEditContent={setEditContent}
+                          notes={notes}
+                          selectedNote={selectedNote}
+                          setNotes={setNotes}
+                          setSelectedNote={setSelectedNote}
+                          isSignedIn={isSignedIn}
+                          driveService={driveService}
+                          isScrollingSynced={isScrollingSynced}
+                          setIsScrollingSynced={setIsScrollingSynced}
+                          scrollTimeoutRef={scrollTimeoutRef}
+                          scrollThrottleRef={scrollThrottleRef}
+                          lastScrollSource={lastScrollSource}
+                        />
+                      ) : (
+                        /* Regular Edit Mode */
+                        <NoteRegularEditor
+                          editContent={editContent}
+                          setEditContent={setEditContent}
+                        />
+                      )
+                    ) : (
+                      /* Preview Only Mode */
+                      <NotePreview
+                        selectedNote={selectedNote}
+                        notes={notes}
+                        setNotes={setNotes}
+                        setSelectedNote={setSelectedNote}
+                        isSignedIn={isSignedIn}
+                        driveService={driveService}
+                      />
+                    )}
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-64 bg-[#31363F] border-gray-600 text-gray-300">
+                  <ContextMenuItem onClick={() => setIsEditing(!isEditing)} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                    <Edit className="mr-2 h-4 w-4" />
+                    {isEditing ? 'Preview Mode' : 'Edit Mode'}
+                    <ContextMenuShortcut className="text-gray-400">Ctrl+E</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  
+                  {isEditing && (
+                    <ContextMenuItem onClick={() => setIsSplitMode(!isSplitMode)} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                      <Split className="mr-2 h-4 w-4" />
+                      {isSplitMode ? 'Regular Editor' : 'Split Editor'}
+                      <ContextMenuShortcut className="text-gray-400">Ctrl+\\</ContextMenuShortcut>
+                    </ContextMenuItem>
+                  )}
+                  
+                  <ContextMenuSeparator className="bg-gray-600" />
+                  
+                  <ContextMenuItem onClick={() => {
+                    if (selectedNote) {
+                      navigator.clipboard.writeText(selectedNote.content);
+                    }
+                  }} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Copy Content
+                    <ContextMenuShortcut className="text-gray-400">Ctrl+C</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  
+                  <ContextMenuItem onClick={() => {
+                    if (selectedNote) {
+                      const title = selectedNote.title || 'Untitled Note';
+                      const content = selectedNote.content || '';
+                      const fullText = `# ${title}\n\n${content}`;
+                      navigator.clipboard.writeText(fullText);
+                    }
+                  }} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Copy with Title
+                    <ContextMenuShortcut className="text-gray-400">Ctrl+Shift+C</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  
+                  {isEditing && (
+                    <>
+                      <ContextMenuSeparator className="bg-gray-600" />
+                      <ContextMenuItem onClick={() => {
+                        setEditContent('');
+                      }} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                        <X className="mr-2 h-4 w-4" />
+                        Clear Content
+                      </ContextMenuItem>
+                      
+                      <ContextMenuItem onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          setEditContent(prev => prev + text);
+                        } catch (err) {
+                          console.error('Failed to read clipboard:', err);
+                        }
+                      }} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Paste
+                        <ContextMenuShortcut className="text-gray-400">Ctrl+V</ContextMenuShortcut>
+                      </ContextMenuItem>
+                    </>
+                  )}
+                  
+                  <ContextMenuSeparator className="bg-gray-600" />
+                  
+                  <ContextMenuItem onClick={() => setIsCreatingNote(true)} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                    <FileText className="mr-2 h-4 w-4" />
+                    New Note
+                    <ContextMenuShortcut className="text-gray-400">Ctrl+N</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  
+                  <ContextMenuItem onClick={createNoteFromCurrentContent} className="text-gray-300 hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white">
+                    <FileText className="mr-2 h-4 w-4" />
+                    New Note from Current
+                    <ContextMenuShortcut className="text-gray-400">Ctrl+Shift+N</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  
+                  {selectedNote && (
+                    <ContextMenuItem 
+                      variant="destructive"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this note?')) {
+                          deleteNote(selectedNote.id);
+                        }
+                      }}
+                      className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Delete Note
+                      <ContextMenuShortcut className="text-gray-400">Del</ContextMenuShortcut>
+                    </ContextMenuItem>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
