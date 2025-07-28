@@ -1,4 +1,4 @@
-# Multi-stage build for production
+# Multi-stage build for Render
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -21,31 +21,64 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm install -g pnpm && pnpm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# Production image optimized for Render
+FROM ubuntu:22.04 AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+# Install Node.js and development tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    lsb-release \
+    ca-certificates \
+    # Install Node.js 18
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    # Install compilers and interpreters for code execution
+    && apt-get install -y \
+        gcc \
+        g++ \
+        make \
+        python3 \
+        python3-pip \
+        # Java (optional)
+        default-jdk \
+        # Utilities (timeout is built into coreutils, time is separate)
+        coreutils \
+        time \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install popular Python packages
+RUN pip3 install \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    json5
+
+# Render uses PORT environment variable
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME="0.0.0.0"
+
+# Create system user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy Next.js app
 COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Create temp directory for code execution
+RUN mkdir -p /app/temp && chown nextjs:nodejs /app/temp
+
+# Create secure execution environment
+RUN mkdir -p /app/sandbox && chown nextjs:nodejs /app/sandbox
+
 USER nextjs
 
-EXPOSE 3000
-
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+# Render will inject PORT environment variable
+EXPOSE $PORT
 
 CMD ["node", "server.js"]
