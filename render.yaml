@@ -6,11 +6,16 @@ services:
     plan: free
     region: singapore
     branch: main
+    dockerBuildArgs:
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        value: 846379636466-0ub3mlnrjve124l07cctq121edaajpkm.apps.googleusercontent.com
     env_vars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 8080
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        value: 846379636466-0ub3mlnrjve124l07cctq121edaajpkm.apps.googleusercontent.com
     scaling:
       minInstances: 1
       maxInstances: 1

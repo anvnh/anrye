@@ -1,4 +1,5 @@
 import './types';
+import { getGoogleClientId, isGoogleClientIdConfigured } from './env';
 
 interface DriveFile {
   id: string;
@@ -164,7 +165,7 @@ class GoogleDriveService {
   }
 
   private setupTokenClient(): void {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientId = getGoogleClientId();
     
     if (!clientId) {
       console.error('Google Client ID not found. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment variables.');
@@ -198,7 +199,7 @@ class GoogleDriveService {
       }
 
       // Check if Google Client ID is configured
-      if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+      if (!isGoogleClientIdConfigured()) {
         console.error('Google Client ID not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env.local file.');
         alert('Google Drive integration is not configured. Please check the console for details.');
         return false;

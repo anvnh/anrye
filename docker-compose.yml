@@ -10,12 +10,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=development
-
-  code-runner:
-    build:
-      context: .
-      dockerfile: Dockerfile.code-runner
-    container_name: anrye-code-runner
-    restart: unless-stopped
-    # Keep container running
-    command: tail -f /dev/null

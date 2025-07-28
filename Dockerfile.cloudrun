@@ -19,6 +19,10 @@ COPY . .
 # Next.js collects completely anonymous telemetry data about general usage.
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Accept build arguments for environment variables
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
 RUN npm install -g pnpm && pnpm run build
 
 # Production image optimized for Cloud Run
@@ -60,6 +64,10 @@ ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV PORT 8080
 ENV HOSTNAME "0.0.0.0"
+
+# Set Google Client ID for runtime
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
 # Create system user
 RUN addgroup --system --gid 1001 nodejs
