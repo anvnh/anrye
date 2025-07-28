@@ -254,3 +254,9 @@ body {
     transform: scale(0.95);
   }
 }
+
+.alert-custom {
+  background:#31363F;
+  color: #FFFFFF;
+  border: #31363F solid 1px;
+}
