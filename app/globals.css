@@ -70,8 +70,11 @@ body {
   background: linear-gradient(to right, #31363F, #222831) !important;
 }
 
-.bg-gradient-main:hover {
-  background: #4A5568 !important;
+.task-list-item input[type="checkbox"]:checked+span,
+.prose .task-list-item input[type="checkbox"]:checked+span {
+  text-decoration: line-through;
+  color: #888 !important;
+  opacity: 0.7;
 }
 
 /* Custom KaTeX styles for dark theme */
@@ -182,6 +185,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -242,6 +246,7 @@ body {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -253,6 +258,7 @@ body {
     opacity: 1;
     transform: scale(1);
   }
+
   to {
     opacity: 0;
     transform: scale(0.95);
@@ -260,7 +266,7 @@ body {
 }
 
 .alert-custom {
-  background:#31363F;
+  background: #31363F;
   color: #FFFFFF;
   border: #31363F solid 1px;
 }

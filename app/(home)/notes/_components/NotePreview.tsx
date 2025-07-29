@@ -27,13 +27,13 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   // Optimized markdown rendering - memoized to prevent re-renders on large files
   const memoizedMarkdown = useMemo(() => {
     return (
-      <MemoizedMarkdown 
+      <MemoizedMarkdown
         content={selectedNote.content}
         notes={notes}
         selectedNote={selectedNote}
         isEditing={false}
         editContent=""
-        setEditContent={() => {}}
+        setEditContent={() => { }}
         setNotes={setNotes}
         setSelectedNote={setSelectedNote}
         isSignedIn={isSignedIn}
@@ -50,11 +50,11 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         <div className="w-60 flex-shrink-0 hidden lg:block">
           <NoteOutlineSidebar content={selectedNote.content} />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 px-12 py-6 overflow-y-auto">
           <div className="prose prose-invert max-w-none">
-        <style jsx>{`
+            <style jsx>{`
           .katex { 
             color: #e5e7eb !important;
             font-size: 1.1em !important;
@@ -97,7 +97,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             border-top-color: #6b7280 !important;
           }
         `}</style>
-        {memoizedMarkdown}
+            {memoizedMarkdown}
           </div>
         </div>
       </div>

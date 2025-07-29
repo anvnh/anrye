@@ -242,33 +242,21 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     onChange={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      
                       const newChecked = e.target.checked;
-                      console.log('Checkbox clicked:', { textContent, isChecked, newChecked });
-                      
                       if (isEditing && setEditContent) {
-                        // Update edit content
                         const updatedContent = updateCheckboxContent(editContent, textContent, newChecked);
-                        console.log('Updating edit content');
                         setEditContent(updatedContent);
                       } else if (selectedNote && setNotes && setSelectedNote) {
-                        // Update note content directly
                         const updatedContent = updateCheckboxContent(selectedNote.content, textContent, newChecked);
-                        console.log('Updating note content');
-                        
                         const updatedNote = {
                           ...selectedNote,
                           content: updatedContent,
                           updatedAt: new Date().toISOString()
                         };
-                        
-                        // Update state
                         setNotes(prev => prev.map(note => 
                           note.id === selectedNote.id ? updatedNote : note
                         ));
                         setSelectedNote(updatedNote);
-                        
-                        // Update Drive if connected
                         if (isSignedIn && selectedNote.driveFileId && driveService) {
                           driveService.updateFile(selectedNote.driveFileId, updatedContent)
                             .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
@@ -277,7 +265,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     }}
                     className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
                   />
-                  <span className="flex-1 text-gray-300">
+                  <span className={`flex-1 ${isChecked ? 'line-through text-gray-500/70' : 'text-gray-300'}`}>
                     {restOfContent}
                   </span>
                 </li>
