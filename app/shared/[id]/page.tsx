@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { NoteRegularEditor } from '@/app/(home)/notes/_components';
 import { MemoizedMarkdown } from '@/app/(home)/notes/_utils';
+import NoteOutlineSidebar from '@/app/(home)/notes/_components/NoteOutlineSidebar';
 import { Note } from '@/app/(home)/notes/_components/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from 'lucide-react';
@@ -239,7 +240,7 @@ export default function SharedNotePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-main">
+      <div className="min-h-screen bg-main flex flex-col">
         {/* Header */}
         <div className="bg-secondary border-b border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -324,8 +325,13 @@ export default function SharedNotePage() {
               setEditContent={setEditContent}
             />
           ) : (
-            <div className="h-full">
-              <div className="px-96 py-6 h-full bg-main">
+            <div className="h-full flex">
+              {/* Outline Sidebar */}
+              <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
+                <NoteOutlineSidebar content={note.content} />
+              </div>
+              {/* Main Content */}
+              <div className="flex-1 px-64 py-6 h-full bg-main">
                 <MemoizedMarkdown content={note.content} />
               </div>
             </div>

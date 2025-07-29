@@ -79,11 +79,21 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   driveService
 }) => {
   // Pre-process content to get all headings with consistent IDs
+  // and to ensure $$...$$ blocks are on their own lines
+  const preprocessedContent = useMemo(() => {
+    // Ensure that any $$...$$ block is on its own line
+    // Replace inline $$...$$ with newlines before and after
+    // Replace all $$...$$ (multiline) with newlines before and after
+    let processed = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => `\n$$${p1}$$\n`);
+    // Remove duplicate newlines
+    processed = processed.replace(/\n{3,}/g, '\n\n');
+    return processed;
+  }, [content]);
+
   const headingIds = useMemo(() => {
-    const lines = content.split('\n');
+    const lines = preprocessedContent.split('\n');
     const ids: { [lineIndex: number]: string } = {};
     const titleCounts: { [key: string]: number } = {};
-    
     lines.forEach((line, index) => {
       const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
@@ -93,29 +103,25 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')
           .trim();
-        
         titleCounts[baseId] = (titleCounts[baseId] || 0) + 1;
         const id = titleCounts[baseId] === 1 ? baseId : `${baseId}-${titleCounts[baseId]}`;
         ids[index] = id;
       }
     });
-    
     return ids;
-  }, [content]);
+  }, [preprocessedContent]);
 
   // Track current heading index for consistent ID assignment
   let currentHeadingIndex = 0;
   const getHeadingId = (text: string) => {
-    const lines = content.split('\n');
+    const lines = preprocessedContent.split('\n');
     const headingLines = lines.map((line, index) => ({ line, index }))
       .filter(({ line }) => line.match(/^(#{1,6})\s+(.+)$/));
-    
     if (currentHeadingIndex < headingLines.length) {
       const lineIndex = headingLines[currentHeadingIndex].index;
       currentHeadingIndex++;
       return headingIds[lineIndex] || text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     }
-    
     return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
   };
 
@@ -340,7 +346,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         div: ({ children, className, ...props }) => {
           if (className === 'math math-display') {
             return (
-              <div className="math-display my-6 text-center overflow-x-auto" {...props}>
+              <div className="math-display my-6 text-center overflow-x-auto" style={{ minHeight: '2.5em' }} {...props}>
                 <div className="inline-block">{children}</div>
               </div>
             );
@@ -355,7 +361,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         },
       }}
     >
-      {content}
+      {preprocessedContent}
     </ReactMarkdown>
   );
 });
