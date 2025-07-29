@@ -160,12 +160,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        
-        {/* Security notice */}
-        <div className="text-center text-xs text-gray-500 mt-4">
-          <p>This system uses advanced security measures including:</p>
-          <p>• Rate limiting • Password encryption • Secure sessions</p>
-        </div>
       </div>
     </div>
   );
