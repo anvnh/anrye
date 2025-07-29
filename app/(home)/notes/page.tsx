@@ -8,6 +8,7 @@ import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, ShareDropdown } from './_components';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Note, Folder } from './_components/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -20,6 +21,8 @@ import {
 } from '@/components/ui/context-menu';
 
 export default function NotesPage() {
+  // Tab size state for editor
+  const [tabSize, setTabSize] = useState(2);
   const { isSignedIn } = useDrive();
   
   const [notes, setNotes] = useState<Note[]>([]);
@@ -1086,7 +1089,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                       noteTitle={selectedNote.title}
                       noteContent={selectedNote.content}
                     />
-                    
+
                     {/* Split Mode Toggle */}
                     <button
                       onClick={() => setIsSplitMode(!isSplitMode)}
@@ -1100,10 +1103,47 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                       <Split size={16} />
                       <span className="hidden sm:inline">{isSplitMode ? 'Exit Split' : 'Split View'}</span>
                     </button>
-                    
-                    {isEditing ? (
-                      <>
+
+                    {/* Settings Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <button
+                          className="px-3 py-1 rounded-md text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 flex items-center gap-1"
+                          title="Settings"
+                        >
+                          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Zm7.94-2.06c.04-.48.06-.97.06-1.44s-.02-.96-.06-1.44l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.03 7.03 0 0 0-1.25-.73l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.44.18-.86.4-1.25.73l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.48-.06.97-.06 1.44s.02.96.06 1.44l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .6.22l2.49-1c.39.33.81.55 1.25.73l.38 2.65A.5.5 0 0 0 10 22h4a.5.5 0 0 0 .5-.42l.38-2.65c.44-.18.86-.4 1.25-.73l2.49 1a.5.5 0 0 0 .6-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/></svg>
+                        </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+                          <DropdownMenuLabel>
+                            Settings
+                          </DropdownMenuLabel>
+                          <DropdownMenuLabel>
+                            <span className="mr-2">
+                              Tab Size:
+                            </span>
+                            <select
+                              value={tabSize}
+                              onChange={e => setTabSize(Number(e.target.value))}
+                              className="bg-gray-700 text-white rounded px-2 py-1 ml-2"
+                            >
+                              <option value={2}>
+                                2
+                              </option>
+                              <option value={4}>
+                                4
+                              </option>
+                              <option value={8}>
+                                8
+                              </option>
+                            </select>
+                          </DropdownMenuLabel>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {isEditing ? (
+                        <>
+                          <button
                           onClick={saveNote}
                           className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         >
@@ -1152,12 +1192,14 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                           scrollTimeoutRef={scrollTimeoutRef}
                           scrollThrottleRef={scrollThrottleRef}
                           lastScrollSource={lastScrollSource}
+                          tabSize={tabSize}
                         />
                       ) : (
                         /* Regular Edit Mode */
                         <NoteRegularEditor
                           editContent={editContent}
                           setEditContent={setEditContent}
+                          tabSize={tabSize}
                         />
                       )
                     ) : (
