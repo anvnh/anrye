@@ -591,10 +591,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
           <div className="p-3">
             <button
               onClick={handleCopyLink}
-              className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${copied
-                ? 'bg-green-600 text-white'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+              className={`w-full cursor-pointer px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 
+                ${copied ? 'bg-green-600 text-white'
+                  : 'bg-gradient-main'
+                }`
+              }
             >
               <Copy size={16} />
               {copied ? 'Link Copied!' : 'Copy share link'}

@@ -70,6 +70,10 @@ body {
   background: linear-gradient(to right, #31363F, #222831) !important;
 }
 
+.bg-gradient-main:hover {
+  background: #4A5568 !important;
+}
+
 /* Custom KaTeX styles for dark theme */
 .katex {
   color: #e5e7eb;
