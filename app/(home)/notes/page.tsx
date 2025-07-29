@@ -19,6 +19,15 @@ import {
   ContextMenuSeparator,
   ContextMenuShortcut 
 } from '@/components/ui/context-menu';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function NotesPage() {
   // Tab size state for editor
@@ -1119,10 +1128,39 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                             Settings
                           </DropdownMenuLabel>
                           <DropdownMenuLabel>
-                            <span className="mr-2">
-                              Tab Size:
-                            </span>
-                            <select
+                            <div className='flex flex-col'>
+                              <span className="mr-2 mb-2">
+                                Tab Size:
+                              </span>
+                              <Select
+                                value={tabSize.toString()}
+                                onValueChange={(value) => setTabSize(Number(value))}
+                              >
+                                <SelectTrigger
+                                  className="w-auto border-gray-600"
+                                >
+                                  <SelectValue placeholder="Select tab size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    <SelectItem value="2">2</SelectItem>
+                                    <SelectItem value="4">4</SelectItem>
+                                    <SelectItem value="8">8</SelectItem>
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {/* <select
+                              value={tabSize}
+                              onChange={e => setTabSize(Number(e.target.value))}
+                              className="bg-gray-700 text-white rounded px-2 py-1 ml-2"
+                            >
+                              <option value={2}>
+                                2
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                            {/* <select
                               value={tabSize}
                               onChange={e => setTabSize(Number(e.target.value))}
                               className="bg-gray-700 text-white rounded px-2 py-1 ml-2"
@@ -1136,7 +1174,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                               <option value={8}>
                                 8
                               </option>
-                            </select>
+                            </select> */}
                           </DropdownMenuLabel>
                         </DropdownMenuContent>
                       </DropdownMenu>
