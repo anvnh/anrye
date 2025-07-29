@@ -171,6 +171,24 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }
   }, [syncScroll, isScrollingSynced]);
 
+
+  // Handle Tab key for indentation (2 spaces)
+  const handleTabKey = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const indent = '  '; // 2 spaces
+      setEditContent(value.slice(0, start) + indent + value.slice(end));
+      // Move cursor after inserted indent
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + indent.length;
+      }, 0);
+    }
+  }, [setEditContent]);
+
   // Optimized onChange handler
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setEditContent(e.target.value);
@@ -215,6 +233,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               value={editContent}
               onChange={handleContentChange}
               onScroll={handleRawScroll}
+              onKeyDown={handleTabKey}
               className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
               placeholder="Write your note in Markdown..."
               style={{ 
