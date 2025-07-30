@@ -20,6 +20,8 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 
+import { Checkbox } from '@/components/ui/checkbox';
+
 interface MarkdownRendererProps {
   content: string;
   notes?: Note[];
@@ -47,37 +49,25 @@ const getTextContent = (node: unknown): string => {
   return '';
 };
 
-// Utility function to update checkbox content
+// Utility function to update checkbox content by line index (safe, preserves all lines)
 const updateCheckboxContent = (
   content: string,
-  textContent: string,
+  lineIndex: number,
   newChecked: boolean
 ): string => {
-  const lines = content.split('\n');
-  let updated = false;
-
-  const updatedLines = lines.map(line => {
-    if (updated) return line;
-
-    // More flexible checkbox matching
-    const checkboxMatch = line.match(/^(\s*)-\s+\[([ x])\]\s*(.*)$/);
-    if (checkboxMatch) {
-      const [, indent, , lineText] = checkboxMatch;
-      const lineTextContent = lineText.trim();
-      const targetTextContent = textContent.trim();
-
-      // More flexible text matching
-      if (lineTextContent === targetTextContent ||
-        lineTextContent.includes(targetTextContent) ||
-        targetTextContent.includes(lineTextContent)) {
-        updated = true;
-        return `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}`;
-      }
-    }
-    return line;
-  });
-
-  return updatedLines.join('\n');
+  // Split preserving all lines, including trailing empty lines
+  const matchLines = content.match(/[^\n]*\n?|$/g);
+  const lines = matchLines ? matchLines.slice(0, -1) : [];
+  if (lineIndex < 0 || lineIndex >= lines.length) return content;
+  const line = lines[lineIndex].replace(/\r?\n$/, '');
+  const checkboxMatch = line.match(/^(\s*)-\s*\[[ xX]?\]\s*(.*)$/);
+  if (checkboxMatch) {
+    const [, indent, lineText] = checkboxMatch;
+    lines[lineIndex] = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
+    // Preserve all lines and trailing newlines
+    return lines.join('');
+  }
+  return content;
 };
 
 export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
@@ -281,11 +271,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             {children}
           </ol>
         ),
-        li: ({ children, ...props }) => {
+        li: ({ children, node, ...props }) => {
           // Check if this is a task list item (checkbox)
           if (Array.isArray(children) && children.length > 0) {
             const firstChild = children[0];
-
             // Check if first child is a checkbox input
             if (typeof firstChild === 'object' && firstChild !== null &&
               'type' in firstChild && firstChild.type === 'input' &&
@@ -297,22 +286,22 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               const isChecked = checkboxProps.checked;
               const restOfContent = children.slice(1);
 
-              const textContent = getTextContent(restOfContent).trim();
+              // Find the line index of this checkbox in the original markdown
+              let lineIndex = -1;
+              if (node && typeof node.position === 'object' && node.position && typeof node.position.start === 'object') {
+                lineIndex = node.position.start.line - 1;
+              }
 
               return (
-                <li className="text-gray-300 flex items-start gap-2 list-none" {...props}>
-                  <input
-                    type="checkbox"
+                <li className="text-gray-300 flex items-baseline gap-2 list-none" {...props}>
+                  <Checkbox
                     checked={isChecked}
-                    onChange={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const newChecked = e.target.checked;
-                      if (isEditing && setEditContent) {
-                        const updatedContent = updateCheckboxContent(editContent, textContent, newChecked);
+                    onCheckedChange={(newChecked: boolean) => {
+                      if (isEditing && setEditContent && lineIndex !== -1) {
+                        const updatedContent = updateCheckboxContent(editContent, lineIndex, newChecked);
                         setEditContent(updatedContent);
-                      } else if (selectedNote && setNotes && setSelectedNote) {
-                        const updatedContent = updateCheckboxContent(selectedNote.content, textContent, newChecked);
+                      } else if (selectedNote && setNotes && setSelectedNote && lineIndex !== -1) {
+                        const updatedContent = updateCheckboxContent(selectedNote.content, lineIndex, newChecked);
                         const updatedNote = {
                           ...selectedNote,
                           content: updatedContent,
@@ -328,7 +317,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                         }
                       }
                     }}
-                    className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
+                    className="align-middle flex-shrink-0 -mt-1 w-5 h-5 min-w-[1.25rem] min-h-[1.25rem]"
                   />
                   <span className={`flex-1 ${isChecked ? 'line-through text-gray-500/70' : 'text-gray-300'}`}>
                     {restOfContent}

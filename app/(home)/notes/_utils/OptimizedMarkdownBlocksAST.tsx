@@ -7,22 +7,28 @@ import { MemoizedMarkdown } from '../_utils';
 import { Note } from '../_components/types';
 
 // Parse markdown to AST and split into top-level blocks
-function splitMarkdownBlocksAST(content: string): { type: string; value: string }[] {
+function splitMarkdownBlocksAST(content: string): { type: string; value: string; startLine: number }[] {
   const tree = unified().use(remarkParse).parse(content);
-  const blocks: { type: string; value: string }[] = [];
+  const blocks: { type: string; value: string; startLine: number }[] = [];
   let lastPos = 0;
   // Each top-level node in AST is a block
   tree.children.forEach((node: any) => {
-    // node.position.start.offset, node.position.end.offset
-    if (node.position && typeof node.position.start.offset === 'number' && typeof node.position.end.offset === 'number') {
+    if (
+      node.position &&
+      typeof node.position.start.offset === 'number' &&
+      typeof node.position.end.offset === 'number' &&
+      typeof node.position.start.line === 'number'
+    ) {
       const value = content.slice(node.position.start.offset, node.position.end.offset);
-      blocks.push({ type: node.type, value });
+      blocks.push({ type: node.type, value, startLine: node.position.start.line - 1 });
       lastPos = node.position.end.offset;
     }
   });
-  // If there is trailing content not captured (shouldn't happen), add as block
   if (lastPos < content.length) {
-    blocks.push({ type: 'text', value: content.slice(lastPos) });
+    // Estimate line number for trailing content
+    const prevBlock = blocks[blocks.length - 1];
+    const prevEnd = prevBlock ? prevBlock.startLine + prevBlock.value.split('\n').length : 0;
+    blocks.push({ type: 'text', value: content.slice(lastPos), startLine: prevEnd });
   }
   return blocks;
 }
@@ -47,20 +53,22 @@ const MemoizedMarkdownBlock = React.memo(
     setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
     isSignedIn: boolean;
     driveService: any;
-  }) => (
-    <MemoizedMarkdown
-      content={content}
-      notes={notes}
-      selectedNote={selectedNote}
-      isEditing={true}
-      editContent={content}
-      setEditContent={setEditContent}
-      setNotes={setNotes}
-      setSelectedNote={setSelectedNote}
-      isSignedIn={isSignedIn}
-      driveService={driveService}
-    />
-  ),
+  }) => {
+    return (
+      <MemoizedMarkdown
+        content={content}
+        notes={notes}
+        selectedNote={selectedNote}
+        isEditing={true}
+        editContent={content}
+        setEditContent={setEditContent}
+        setNotes={setNotes}
+        setSelectedNote={setSelectedNote}
+        isSignedIn={isSignedIn}
+        driveService={driveService}
+      />
+    );
+  },
   (prev, next) => prev.content === next.content && prev.selectedNote === next.selectedNote
 );
 
