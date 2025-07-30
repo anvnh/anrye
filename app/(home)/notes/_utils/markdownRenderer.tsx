@@ -6,6 +6,19 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Note } from '../_components/types';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-sql';
+import { useEffect } from 'react';
 
 interface MarkdownRendererProps {
   content: string;
@@ -26,9 +39,9 @@ interface MarkdownRendererProps {
 const getTextContent = (node: unknown): string => {
   if (typeof node === 'string') return node;
   if (Array.isArray(node)) return node.map(getTextContent).join('');
-  if (typeof node === 'object' && node !== null && 
-      node && typeof node === 'object' && 'props' in node && 
-      node.props && typeof node.props === 'object' && 'children' in node.props) {
+  if (typeof node === 'object' && node !== null &&
+    node && typeof node === 'object' && 'props' in node &&
+    node.props && typeof node.props === 'object' && 'children' in node.props) {
     return getTextContent((node.props as { children: unknown }).children);
   }
   return '';
@@ -36,39 +49,39 @@ const getTextContent = (node: unknown): string => {
 
 // Utility function to update checkbox content
 const updateCheckboxContent = (
-  content: string, 
-  textContent: string, 
+  content: string,
+  textContent: string,
   newChecked: boolean
 ): string => {
   const lines = content.split('\n');
   let updated = false;
-  
+
   const updatedLines = lines.map(line => {
     if (updated) return line;
-    
+
     // More flexible checkbox matching
     const checkboxMatch = line.match(/^(\s*)-\s+\[([ x])\]\s*(.*)$/);
     if (checkboxMatch) {
       const [, indent, , lineText] = checkboxMatch;
       const lineTextContent = lineText.trim();
       const targetTextContent = textContent.trim();
-      
+
       // More flexible text matching
-      if (lineTextContent === targetTextContent || 
-          lineTextContent.includes(targetTextContent) ||
-          targetTextContent.includes(lineTextContent)) {
+      if (lineTextContent === targetTextContent ||
+        lineTextContent.includes(targetTextContent) ||
+        targetTextContent.includes(lineTextContent)) {
         updated = true;
         return `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}`;
       }
     }
     return line;
   });
-  
+
   return updatedLines.join('\n');
 };
 
-export const MemoizedMarkdown = memo<MarkdownRendererProps>(({ 
-  content, 
+export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
+  content,
   selectedNote,
   isEditing = false,
   editContent = '',
@@ -134,7 +147,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h1: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h1 id={id} className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
               {children}
@@ -144,7 +157,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h2: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h2 id={id} className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
               {children}
@@ -154,7 +167,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h3: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h3 id={id} className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
               {children}
@@ -164,7 +177,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h4: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h4 id={id} className="text-lg font-medium text-white mb-2 mt-4" {...props}>
               {children}
@@ -174,7 +187,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h5: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h5 id={id} className="text-base font-medium text-white mb-2 mt-3" {...props}>
               {children}
@@ -184,7 +197,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         h6: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
-          
+
           return (
             <h6 id={id} className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
               {children}
@@ -199,14 +212,18 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         code: ({ children, className, ...props }) => {
           const match = /language-(\w+)/.exec(className || '');
           const isInline = !match;
-          
+
+          useEffect(() => {
+            Prism.highlightAll();
+          }, [children, className]);
+
           return isInline ? (
             <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
               {children}
             </code>
           ) : (
             <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 my-4 overflow-x-auto">
-              <code className={`text-sm font-mono text-gray-300 ${className}`} {...props}>
+              <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
                 {children}
               </code>
             </pre>
@@ -226,20 +243,20 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           // Check if this is a task list item (checkbox)
           if (Array.isArray(children) && children.length > 0) {
             const firstChild = children[0];
-            
+
             // Check if first child is a checkbox input
-            if (typeof firstChild === 'object' && firstChild !== null && 
-                'type' in firstChild && firstChild.type === 'input' &&
-                'props' in firstChild && firstChild.props && 
-                typeof firstChild.props === 'object' &&
-                'type' in firstChild.props && firstChild.props.type === 'checkbox') {
-              
-              const checkboxProps = firstChild.props as { checked?: boolean; [key: string]: unknown };
+            if (typeof firstChild === 'object' && firstChild !== null &&
+              'type' in firstChild && firstChild.type === 'input' &&
+              'props' in firstChild && firstChild.props &&
+              typeof firstChild.props === 'object' &&
+              'type' in firstChild.props && firstChild.props.type === 'checkbox') {
+
+              const checkboxProps = firstChild.props as { checked?: boolean;[key: string]: unknown };
               const isChecked = checkboxProps.checked;
               const restOfContent = children.slice(1);
-              
+
               const textContent = getTextContent(restOfContent).trim();
-              
+
               return (
                 <li className="text-gray-300 flex items-start gap-2 list-none" {...props}>
                   <input
@@ -259,7 +276,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                           content: updatedContent,
                           updatedAt: new Date().toISOString()
                         };
-                        setNotes(prev => prev.map(note => 
+                        setNotes(prev => prev.map(note =>
                           note.id === selectedNote.id ? updatedNote : note
                         ));
                         setSelectedNote(updatedNote);
@@ -278,7 +295,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               );
             }
           }
-          
+
           return (
             <li className="text-gray-300" {...props}>{children}</li>
           );
@@ -289,10 +306,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           </blockquote>
         ),
         a: ({ children, href, ...props }) => (
-          <a 
-            href={href} 
-            className="text-blue-400 hover:text-blue-300 underline transition-colors" 
-            target="_blank" 
+          <a
+            href={href}
+            className="text-blue-400 hover:text-blue-300 underline transition-colors"
+            target="_blank"
             rel="noopener noreferrer"
             {...props}
           >

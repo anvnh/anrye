@@ -47,7 +47,7 @@ export default function SharedNotePage() {
 
       if (response.ok) {
         const sharedNote = await response.json();
-        console.log('Loaded shared note from server:', sharedNote);
+        // console.log('Loaded shared note from server:', sharedNote);
 
         setNote(sharedNote.note);
         setShareSettings(sharedNote.settings);
