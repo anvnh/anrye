@@ -212,6 +212,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         code: ({ children, className, ...props }) => {
           const match = /language-(\w+)/.exec(className || '');
           const isInline = !match;
+          const [showAlert, setShowAlert] = React.useState(false);
+          const { Alert, AlertTitle, AlertDescription } = require("@/components/ui/alert");
+          const { CheckCircle2Icon } = require("lucide-react");
 
           useEffect(() => {
             Prism.highlightAll();
@@ -234,15 +237,28 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             codeString = children;
           }
 
+          const handleCopy = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(codeString);
+            setShowAlert(true);
+            setTimeout(() => setShowAlert(false), 2000);
+          };
+
           return (
             <div className="relative group/codeblock my-4">
+              {showAlert && (
+                <Alert variant="default" className="alert-custom fixed bottom-4 right-4 z-50 w-80">
+                  <CheckCircle2Icon className="h-5 w-5" />
+                  <AlertTitle>Copied!</AlertTitle>
+                  <AlertDescription>
+                    Code block copied to clipboard.
+                  </AlertDescription>
+                </Alert>
+              )}
               <button
                 className="absolute top-2 right-2 opacity-0 group-hover/codeblock:opacity-100 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded p-1 transition-opacity z-10"
                 title="Copy code block"
-                onClick={e => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(codeString);
-                }}
+                onClick={handleCopy}
                 tabIndex={-1}
               >
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2"/><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2"/></svg>

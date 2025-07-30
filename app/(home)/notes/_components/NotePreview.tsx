@@ -52,7 +52,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 px-12 py-6 overflow-y-auto">
+        <div className="flex-1 px-56 py-6 overflow-y-auto">
           <div className="prose prose-invert max-w-none">
             <style jsx>{`
           .katex { 
