@@ -61,8 +61,7 @@ export default function NoteSidebar({
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''
-                    }`}
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''}`}
                   draggable={folder.id !== 'root'}
                   onDragStart={(e) => onDragStart(e, 'folder', folder.id)}
                   onDragOver={(e) => onDragOver(e, folder.id)}
@@ -83,7 +82,13 @@ export default function NoteSidebar({
                   ) : (
                     <FolderIcon size={16} className="text-blue-400 mr-2" />
                   )}
-                  <span className="text-gray-300 text-sm flex-1">{folder.name}</span>
+                  <span
+                    className="text-gray-300 text-sm flex-1 truncate"
+                    style={{ maxWidth: 'calc(100% - 40px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    title={folder.name}
+                  >
+                    {folder.name}
+                  </span>
                   {folder.driveFolderId && (
                     <Cloud size={12} className="text-green-400 mr-1" />
                   )}
@@ -135,15 +140,20 @@ export default function NoteSidebar({
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${selectedNote?.id === note.id ? 'bg-gray-700' : ''
-                    }`}
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${selectedNote?.id === note.id ? 'bg-gray-700' : ''}`}
                   draggable
                   onDragStart={(e) => onDragStart(e, 'note', note.id)}
                   onClick={() => onSelectNote(note)}
                 >
                   <div className="w-4 mr-1"></div>
                   <FileText size={16} className="text-gray-400 mr-2" />
-                  <span className="text-gray-300 text-sm flex-1 truncate">{note.title}</span>
+                  <span
+                    className="text-gray-300 text-sm flex-1 truncate"
+                    style={{ maxWidth: 'calc(100% - 40px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    title={note.title}
+                  >
+                    {note.title}
+                  </span>
                   {note.driveFileId && (
                     <Cloud size={12} className="text-green-400 mr-1" />
                   )}
