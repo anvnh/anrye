@@ -31,6 +31,30 @@ import {
 } from "@/components/ui/select"
 
 export default function NotesPage() {
+  // Font settings
+  const [fontFamily, setFontFamily] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('note-font-family') || 'inherit';
+    }
+    return 'inherit';
+  });
+  const [fontSize, setFontSize] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('note-font-size') || '16px';
+    }
+    return '16px';
+  });
+  // Save font settings to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('note-font-family', fontFamily);
+    }
+  }, [fontFamily]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('note-font-size', fontSize);
+    }
+  }, [fontSize]);
   // Tab size state for editor
   const [tabSize, setTabSize] = useState(2);
   const { isSignedIn } = useDrive();
@@ -1153,6 +1177,10 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                         currentTheme={currentTheme}
                         setCurrentTheme={setCurrentTheme}
                         themeOptions={themeOptions}
+                        fontFamily={fontFamily}
+                        setFontFamily={setFontFamily}
+                        fontSize={fontSize}
+                        setFontSize={setFontSize}
                       />
 
                       {isEditing ? (
@@ -1188,7 +1216,15 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                 {/* Note Content */}
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
-                    <div className="flex-1 overflow-hidden" style={{ backgroundColor: '#222831' }}>
+                    <div
+                      className="flex-1 overflow-hidden"
+                      style={{
+                        backgroundColor: '#222831',
+                        fontFamily: fontFamily,
+                        fontSize: fontSize,
+                        transition: 'font-family 0.2s, font-size 0.2s',
+                      }}
+                    >
                       {isEditing ? (
                         isSplitMode ? (
                           /* Split Mode: Raw + Preview */

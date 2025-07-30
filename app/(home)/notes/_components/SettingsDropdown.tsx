@@ -21,7 +21,32 @@ interface SettingsDropdownProps {
   currentTheme: string;
   setCurrentTheme: (theme: string) => void;
   themeOptions: ThemeOption[];
+  fontFamily: string;
+  setFontFamily: (font: string) => void;
+  fontSize: string;
+  setFontSize: (size: string) => void;
 }
+
+const fontOptions = [
+  { value: 'inherit', label: 'Default' },
+  { value: 'monospace', label: 'Monospace' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'sans-serif', label: 'Sans Serif' },
+  { value: 'Fira Code', label: 'Fira Code' },
+  { value: 'JetBrains Mono', label: 'JetBrains Mono' },
+];
+const fontSizeOptions = [
+  { value: '14px', label: '14px' },
+  { value: '16px', label: '16px' },
+  { value: '18px', label: '18px' },
+  { value: '20px', label: '20px' },
+  { value: '24px', label: '24px' },
+  { value: '28px', label: '28px' },
+  { value: '32px', label: '32px' },
+  { value: '36px', label: '36px' },
+  { value: '40px', label: '40px' },
+  { value: '48px', label: '48px' },
+];
 
 const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
   tabSize,
@@ -29,6 +54,10 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
   currentTheme,
   setCurrentTheme,
   themeOptions,
+  fontFamily,
+  setFontFamily,
+  fontSize,
+  setFontSize,
 }) => {
   return (
     <DropdownMenu>
@@ -42,6 +71,50 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto bg-[#31363F] border-gray-600 text-gray-300">
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <div className='flex flex-col'>
+            <span className="mr-2 mb-2">Font:</span>
+            <Select
+              value={fontFamily}
+              onValueChange={setFontFamily}
+            >
+              <SelectTrigger className="w-auto border-gray-600">
+                <SelectValue placeholder="Select font" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {fontOptions.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      {font.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <div className='flex flex-col'>
+            <span className="mr-2 mb-2">Font Size:</span>
+            <Select
+              value={fontSize}
+              onValueChange={setFontSize}
+            >
+              <SelectTrigger className="w-auto border-gray-600">
+                <SelectValue placeholder="Select font size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {fontSizeOptions.map((size) => (
+                    <SelectItem key={size.value} value={size.value}>
+                      {size.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuLabel>
           <div className='flex flex-col'>
             <span className="mr-2 mb-2">Tab Size:</span>
