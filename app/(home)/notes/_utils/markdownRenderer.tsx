@@ -217,16 +217,42 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             Prism.highlightAll();
           }, [children, className]);
 
-          return isInline ? (
-            <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
-              {children}
-            </code>
-          ) : (
-            <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 my-4 overflow-x-auto">
-              <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
+          // Copy button for code block
+          if (isInline) {
+            return (
+              <code className="bg-gray-700 text-pink-300 px-1 py-0.5 rounded text-sm font-mono" {...props}>
                 {children}
               </code>
-            </pre>
+            );
+          }
+
+          // Convert children to string for copying
+          let codeString = '';
+          if (Array.isArray(children)) {
+            codeString = children.map(c => (typeof c === 'string' ? c : '')).join('');
+          } else if (typeof children === 'string') {
+            codeString = children;
+          }
+
+          return (
+            <div className="relative group/codeblock my-4">
+              <button
+                className="absolute top-2 right-2 opacity-0 group-hover/codeblock:opacity-100 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded p-1 transition-opacity z-10"
+                title="Copy code block"
+                onClick={e => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(codeString);
+                }}
+                tabIndex={-1}
+              >
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2"/><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2"/></svg>
+              </button>
+              <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 overflow-x-auto">
+                <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
+                  {children}
+                </code>
+              </pre>
+            </div>
           );
         },
         ul: ({ children, ...props }) => (
