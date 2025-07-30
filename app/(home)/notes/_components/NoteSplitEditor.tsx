@@ -3,6 +3,7 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
+import { OptimizedMarkdownBlocksAST } from '../_utils/OptimizedMarkdownBlocksAST';
 import { EditorContextMenu } from './EditorContextMenu';
 
 
@@ -48,7 +49,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Split pane resize state
-  const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
+  const [leftPaneWidth, setLeftPaneWidth] = useState(40); // Percentage
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +71,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedContent(editContent);
-    }, 800); // 800ms debounce for markdown rendering
+    }, 500); // 500ms debounce for markdown rendering
 
     return () => clearTimeout(timer);
   }, [editContent]);
@@ -101,7 +102,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   // Handle double-click to reset to 50-50 split
   const handleDoubleClick = useCallback(() => {
-    setLeftPaneWidth(50);
+    setLeftPaneWidth(40);
   }, []);
 
   useEffect(() => {
@@ -269,15 +270,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }, 50);
   }, [setEditContent]);
 
-  // Optimized real-time preview with debounced content
+  // Optimized real-time preview with debounced content (block-based AST, đầy đủ tính năng)
   const realtimePreview = useMemo(() => {
     return (
-      <MemoizedMarkdown
+      <OptimizedMarkdownBlocksAST
         content={debouncedContent}
         notes={notes}
         selectedNote={selectedNote}
-        isEditing={true}
-        editContent={debouncedContent}
         setEditContent={setEditContent}
         setNotes={setNotes}
         setSelectedNote={setSelectedNote}
@@ -334,7 +333,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       {/* Resize Handle */}
       <div
         ref={resizeRef}
-        className="w-1 bg-gray-500 hover:bg-gray-400 cursor-col-resize flex-shrink-0 relative group"
+        className="w-1 cursor-col-resize flex-shrink-0 relative group"
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
         style={{
