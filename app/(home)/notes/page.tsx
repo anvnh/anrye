@@ -1099,7 +1099,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
   const [isScrollingSynced, setIsScrollingSynced] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScrollSource = useRef<'raw' | 'preview' | null>(null);
-  const scrollThrottleRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollThrottleRef = useRef<number | null>(null);
 
   return (
     <AuthenticatedLayout>
