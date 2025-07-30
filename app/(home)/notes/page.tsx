@@ -1310,7 +1310,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
 
                     {selectedNote && (
                       <ContextMenuItem
-                        variant="destructive"
+                        variant="default"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this note?')) {
                             deleteNote(selectedNote.id);
@@ -1318,7 +1318,7 @@ $$\\lim_{n \\to \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e$$`;
                         }}
                         className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
                       >
-                        <X className="mr-2 h-4 w-4" />
+                        <X className="mr-2 h-4 w-4 text-red-400" />
                         Delete Note
                         <ContextMenuShortcut className="text-gray-400">Del</ContextMenuShortcut>
                       </ContextMenuItem>

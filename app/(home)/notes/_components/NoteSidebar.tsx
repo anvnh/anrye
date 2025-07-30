@@ -34,7 +34,7 @@ export default function NoteSidebar({
   onSetDragOver,
   onSetIsResizing
 }: NoteSidebarProps) {
-  
+
   const getNotesInPath = (path: string) => {
     return notes.filter(note => note.path === path);
   };
@@ -44,15 +44,15 @@ export default function NoteSidebar({
       if (parentPath === '') {
         return folder.parentId === 'root' && folder.id !== 'root';
       }
-      return folder.path.startsWith(parentPath + '/') && 
-             folder.path.split('/').length === parentPath.split('/').length + 1;
+      return folder.path.startsWith(parentPath + '/') &&
+        folder.path.split('/').length === parentPath.split('/').length + 1;
     });
   };
 
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
     const subfolders = getSubfolders(parentPath);
     const notesInPath = getNotesInPath(parentPath);
-    
+
     return (
       <div className={level > 0 ? 'ml-4' : ''}>
         {/* Render subfolders */}
@@ -60,10 +60,9 @@ export default function NoteSidebar({
           <div key={folder.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div 
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
-                    dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''
-                  }`}
+                <div
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''
+                    }`}
                   draggable={folder.id !== 'root'}
                   onDragStart={(e) => onDragStart(e, 'folder', folder.id)}
                   onDragOver={(e) => onDragOver(e, folder.id)}
@@ -91,7 +90,7 @@ export default function NoteSidebar({
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
-                <ContextMenuItem 
+                <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
                   onClick={() => {
                     onSetSelectedPath(folder.path);
@@ -101,7 +100,7 @@ export default function NoteSidebar({
                   <FolderPlus size={16} className="mr-2" />
                   New Folder
                 </ContextMenuItem>
-                <ContextMenuItem 
+                <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
                   onClick={() => {
                     onSetSelectedPath(folder.path);
@@ -114,12 +113,12 @@ export default function NoteSidebar({
                 {folder.id !== 'root' && (
                   <>
                     <ContextMenuSeparator className="bg-gray-600" />
-                    <ContextMenuItem 
-                      variant="destructive"
+                    <ContextMenuItem
+                      variant="default"
                       className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
                       onClick={() => onDeleteFolder(folder.id)}
                     >
-                      <Trash2 size={16} className="mr-2" />
+                      <Trash2 size={16} className="mr-2 text-red-400" />
                       Delete Folder
                     </ContextMenuItem>
                   </>
@@ -129,16 +128,15 @@ export default function NoteSidebar({
             {folder.expanded && renderFileTree(folder.path, level + 1)}
           </div>
         ))}
-        
+
         {/* Render notes */}
         {notesInPath.map(note => (
           <div key={note.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div 
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${
-                    selectedNote?.id === note.id ? 'bg-gray-700' : ''
-                  }`}
+                <div
+                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${selectedNote?.id === note.id ? 'bg-gray-700' : ''
+                    }`}
                   draggable
                   onDragStart={(e) => onDragStart(e, 'note', note.id)}
                   onClick={() => onSelectNote(note)}
@@ -152,7 +150,7 @@ export default function NoteSidebar({
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
-                <ContextMenuItem 
+                <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
                   onClick={() => onSelectNote(note)}
                 >
@@ -160,12 +158,12 @@ export default function NoteSidebar({
                   Open Note
                 </ContextMenuItem>
                 <ContextMenuSeparator className="bg-gray-600" />
-                <ContextMenuItem 
-                  variant="destructive"
+                <ContextMenuItem
+                  variant="default"
                   className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
                   onClick={() => onDeleteNote(note.id)}
                 >
-                  <Trash2 size={16} className="mr-2" />
+                  <Trash2 size={16} className="mr-2 text-red-400" />
                   Delete Note
                 </ContextMenuItem>
               </ContextMenuContent>
@@ -179,33 +177,32 @@ export default function NoteSidebar({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div 
-          className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${
-            dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
-          }`}
-          style={{ 
+        <div
+          className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
+            }`}
+          style={{
             width: `${sidebarWidth}px`,
-            backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F' 
+            backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F'
           }}
         >
           <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
             <h2 className="text-lg font-semibold text-white">
               Notes
             </h2>
-            
+
             {!isSignedIn && (
               <div className="text-xs text-yellow-400 mt-2">
                 💡 Sign in to Google Drive to sync notes
               </div>
             )}
-            
+
             {isLoading && (
               <div className="text-xs text-blue-400 mt-2">
                 Syncing {syncProgress}%...
               </div>
             )}
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4"
             onDragOver={(e) => {
               e.preventDefault();
@@ -229,7 +226,7 @@ export default function NoteSidebar({
           >
             {renderFileTree()}
           </div>
-          
+
           {/* Resize Handle */}
           <div
             className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-500 transition-colors"
@@ -239,7 +236,7 @@ export default function NoteSidebar({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
-        <ContextMenuItem 
+        <ContextMenuItem
           className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
           onClick={() => {
             onSetSelectedPath('');
@@ -249,7 +246,7 @@ export default function NoteSidebar({
           <FolderPlus size={16} className="mr-2" />
           New Folder
         </ContextMenuItem>
-        <ContextMenuItem 
+        <ContextMenuItem
           className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
           onClick={() => {
             onSetSelectedPath('');
