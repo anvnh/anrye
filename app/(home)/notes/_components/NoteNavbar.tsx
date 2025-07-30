@@ -124,3 +124,5 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
 );
 
 export default NoteNavbar;
+
+
