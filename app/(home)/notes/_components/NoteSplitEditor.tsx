@@ -20,9 +20,10 @@ interface NoteSplitEditorProps {
   // Split mode sync props
   isScrollingSynced: boolean;
   setIsScrollingSynced: (synced: boolean) => void;
-  scrollTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  scrollThrottleRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  lastScrollSource: React.MutableRefObject<'raw' | 'preview' | null>;
+  scrollTimeoutRef: React.RefObject<NodeJS.Timeout | null>;
+  // scrollThrottleRef: React.MutableRefObject<NodeJS.Timeout | null>;
+  scrollThrottleRef: React.RefObject<number | null>;
+  lastScrollSource: React.RefObject<'raw' | 'preview' | null>;
   tabSize?: number;
 }
 
@@ -42,26 +43,38 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   lastScrollSource,
   tabSize = 2
 }) => {
-  
+
   // Ref for textarea to enable context menu functionality
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   // Split pane resize state
   const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
-  
+
   // Debounced content for markdown rendering to reduce lag
   const [debouncedContent, setDebouncedContent] = useState(editContent);
-  
+
+  const pendingUpdateRef = useRef<string | null>(null);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const scrollHeightCache = useRef<{
+    raw?: { scrollHeight: number; clientHeight: number; timestamp: number };
+    preview?: { scrollHeight: number; clientHeight: number; timestamp: number };
+  }>({});
+
+  const SCROLL_THRESHOLD = 5; // pixels
+  const CACHE_DURATION = 150; // ms
+  const THROTTLE_DELAY = 8; // ~120fps
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedContent(editContent);
-    }, 300); // 300ms debounce for markdown rendering
-    
+    }, 800); // 800ms debounce for markdown rendering
+
     return () => clearTimeout(timer);
   }, [editContent]);
-  
+
   // Handle resizing between panes
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -70,13 +83,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeRef.current) return;
-    
+
     const container = resizeRef.current.parentElement;
     if (!container) return;
-    
+
     const containerRect = container.getBoundingClientRect();
     const newLeftWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-    
+
     // Constrain between 20% and 80%
     const constrainedWidth = Math.max(20, Math.min(80, newLeftWidth));
     setLeftPaneWidth(constrainedWidth);
@@ -111,55 +124,93 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       document.body.style.userSelect = '';
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
-  
-  const syncScroll = useCallback((sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
-    if (!sourceElement || !targetElement || isScrollingSynced) return;
-    
-    // Throttle scroll events to improve performance
-    if (scrollThrottleRef.current) {
-      clearTimeout(scrollThrottleRef.current);
+
+  const lastScrollPositions = useRef<{
+    raw: number;
+    preview: number;
+  }>({ raw: 0, preview: 0 });
+
+  // Optimized getScrollMetrics function
+  const getScrollMetrics = useCallback((element: HTMLElement, type: 'raw' | 'preview') => {
+    const now = Date.now();
+    const cached = scrollHeightCache.current[type];
+
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return {
+        maxScroll: cached.scrollHeight - cached.clientHeight
+      };
     }
-    
-    scrollThrottleRef.current = setTimeout(() => {
+
+    const scrollHeight = element.scrollHeight;
+    const clientHeight = element.clientHeight;
+    const maxScroll = scrollHeight - clientHeight;
+
+    scrollHeightCache.current[type] = {
+      scrollHeight,
+      clientHeight,
+      timestamp: now
+    };
+
+    return { maxScroll };
+  }, []);
+
+  const syncScroll = useCallback(
+    (sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
+      if (!sourceElement || !targetElement || isScrollingSynced) return;
       if (lastScrollSource.current === source) return;
-      
-      setIsScrollingSynced(true);
-      lastScrollSource.current = source;
-      
-      const sourceScrollHeight = sourceElement.scrollHeight - sourceElement.clientHeight;
-      const targetScrollHeight = targetElement.scrollHeight - targetElement.clientHeight;
-      
-      if (sourceScrollHeight <= 0 || targetScrollHeight <= 0) {
-        setIsScrollingSynced(false);
-        lastScrollSource.current = null;
-        return;
+
+      const currentScrollTop = sourceElement.scrollTop;
+      const lastScrollTop = lastScrollPositions.current[source];
+
+      // Skip if scroll position hasn't changed significantly
+      if (Math.abs(currentScrollTop - lastScrollTop) < SCROLL_THRESHOLD) return;
+
+      if (scrollThrottleRef.current) {
+        cancelAnimationFrame(scrollThrottleRef.current);
       }
-      
-      const scrollPercentage = Math.max(0, Math.min(1, sourceElement.scrollTop / sourceScrollHeight));
-      const targetScrollTop = scrollPercentage * targetScrollHeight;
-      
-      // Smooth scroll sync
-      targetElement.style.scrollBehavior = 'auto';
-      targetElement.scrollTop = targetScrollTop;
-      
-      // Clear existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      
-      // Reset sync flag after a short delay
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrollingSynced(false);
-        lastScrollSource.current = null;
-      }, 50); // Reduced from 150ms to 50ms for better responsiveness
-    }, 32); // Reduced from 16ms to 32ms (~30fps instead of 60fps) for better performance
-  }, [isScrollingSynced, setIsScrollingSynced, scrollTimeoutRef, scrollThrottleRef, lastScrollSource]);
+
+      scrollThrottleRef.current = requestAnimationFrame(() => {
+        const sourceMetrics = getScrollMetrics(sourceElement, source);
+        const targetType = source === 'raw' ? 'preview' : 'raw';
+        const targetMetrics = getScrollMetrics(targetElement, targetType);
+
+        if (sourceMetrics.maxScroll <= 0 || targetMetrics.maxScroll <= 0) return;
+
+        setIsScrollingSynced(true);
+        lastScrollSource.current = source;
+
+        const scrollPercentage = Math.max(0, Math.min(1,
+          currentScrollTop / sourceMetrics.maxScroll
+        ));
+        const targetScrollTop = Math.round(scrollPercentage * targetMetrics.maxScroll);
+
+        lastScrollPositions.current[source] = currentScrollTop;
+
+        targetElement.style.scrollBehavior = 'auto';
+        targetElement.scrollTop = targetScrollTop;
+
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        scrollTimeoutRef.current = setTimeout(() => {
+          setIsScrollingSynced(false);
+          lastScrollSource.current = null;
+        }, 32);
+      }) as any;
+    },
+    [isScrollingSynced, setIsScrollingSynced, scrollTimeoutRef, scrollThrottleRef, lastScrollSource, getScrollMetrics]
+  );
 
   const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
     if (isScrollingSynced) return;
+
+    const now = Date.now();
+    if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
+    (lastScrollPositions.current as any).lastRawScrollTime = now;
+
     const rawElement = e.currentTarget;
     const previewElement = document.querySelector('.preview-content') as HTMLElement;
-    
+
     if (previewElement) {
       syncScroll(rawElement, previewElement, 'raw');
     }
@@ -167,6 +218,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (isScrollingSynced) return;
+
+    const now = Date.now();
+    if (now - (lastScrollPositions.current as any).lastPreviewScrollTime < THROTTLE_DELAY) return;
+    (lastScrollPositions.current as any).lastPreviewScrollTime = now;
+
     const previewElement = e.currentTarget;
     const rawElement = document.querySelector('.raw-content') as HTMLTextAreaElement;
     if (rawElement) {
@@ -194,13 +250,29 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   // Optimized onChange handler
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEditContent(e.target.value);
+    const newValue = e.target.value;
+
+    setEditContent(newValue);
+
+    // Batch updates to avoid excessive re-renders
+    pendingUpdateRef.current = newValue;
+
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+
+    updateTimeoutRef.current = setTimeout(() => {
+      if (pendingUpdateRef.current !== null) {
+        // Trigger any expensive operations here if needed
+        pendingUpdateRef.current = null;
+      }
+    }, 50);
   }, [setEditContent]);
 
   // Optimized real-time preview with debounced content
   const realtimePreview = useMemo(() => {
     return (
-      <MemoizedMarkdown 
+      <MemoizedMarkdown
         content={debouncedContent}
         notes={notes}
         selectedNote={selectedNote}
@@ -215,19 +287,23 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     );
   }, [debouncedContent, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
+  useEffect(() => {
+    scrollHeightCache.current = {};
+  }, [editContent]);
+
   return (
     <div className="flex h-full w-full relative">
       {/* Raw Editor Side */}
-      <div 
-        className="flex flex-col border-r border-gray-500" 
-        style={{ 
+      <div
+        className="flex flex-col border-r border-gray-500"
+        style={{
           backgroundColor: '#31363F',
           width: `${leftPaneWidth}%`
         }}
       >
         <div className="flex-1 px-4 py-4 overflow-hidden">
-          <EditorContextMenu 
-            editContent={editContent} 
+          <EditorContextMenu
+            editContent={editContent}
             setEditContent={setEditContent}
             textareaRef={textareaRef}
           >
@@ -239,7 +315,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
               onKeyDown={handleTabKey}
               className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
               placeholder="Write your note in Markdown..."
-              style={{ 
+              style={{
                 scrollBehavior: 'auto',
                 backgroundColor: '#31363F',
                 // Performance optimizations
@@ -254,7 +330,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           </EditorContextMenu>
         </div>
       </div>
-      
+
       {/* Resize Handle */}
       <div
         ref={resizeRef}
@@ -271,19 +347,19 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           <div className="w-full h-full bg-gray-300 rounded"></div>
         </div>
       </div>
-      
+
       {/* Preview Side */}
-      <div 
-        className="flex flex-col" 
-        style={{ 
+      <div
+        className="flex flex-col"
+        style={{
           backgroundColor: '#222831',
           width: `${100 - leftPaneWidth}%`
         }}
       >
-        <div 
+        <div
           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
           onScroll={handlePreviewScroll}
-          style={{ 
+          style={{
             scrollBehavior: 'auto',
             // Performance optimizations
             willChange: 'scroll-position',
