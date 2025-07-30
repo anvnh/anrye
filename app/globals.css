@@ -1,4 +1,4 @@
-@import './syntax-highlighter/frappe.css';
+/* @import './syntax-highlighter/frappe.css'; */
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 @import "tw-animate-css";

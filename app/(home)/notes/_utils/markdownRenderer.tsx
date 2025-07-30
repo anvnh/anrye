@@ -261,7 +261,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 onClick={handleCopy}
                 tabIndex={-1}
               >
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2"/><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2"/></svg>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2" /><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2" /></svg>
               </button>
               <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 overflow-x-auto">
                 <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
