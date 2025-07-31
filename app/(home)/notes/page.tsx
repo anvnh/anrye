@@ -821,13 +821,18 @@ export default function NotesPage() {
 
     try {
       setIsLoading(true);
+      setSyncProgress(10);
 
       const parentFolder = folders.find(f => f.path === selectedPath);
       const parentDriveId = parentFolder?.driveFolderId;
 
+      setSyncProgress(30);
+
       let driveFolderId;
       if (isSignedIn && parentDriveId) {
+        setSyncProgress(50);
         driveFolderId = await driveService.createFolder(newFolderName, parentDriveId);
+        setSyncProgress(80);
       }
 
       const newFolder: Folder = {
@@ -842,10 +847,19 @@ export default function NotesPage() {
       setFolders([...folders, newFolder]);
       setNewFolderName('');
       setIsCreatingFolder(false);
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to create folder:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
@@ -854,15 +868,22 @@ export default function NotesPage() {
 
     try {
       setIsLoading(true);
+      setSyncProgress(10);
 
       const parentFolder = folders.find(f => f.path === selectedPath);
       const parentDriveId = parentFolder?.driveFolderId;
 
+      setSyncProgress(30);
+
       const initialContent = createNoteTemplate(newNoteName);
+
+      setSyncProgress(50);
 
       let driveFileId;
       if (isSignedIn && parentDriveId) {
+        setSyncProgress(60);
         driveFileId = await driveService.uploadFile(`${newNoteName}.md`, initialContent, parentDriveId);
+        setSyncProgress(80);
       }
 
       const newNote: Note = {
@@ -882,10 +903,19 @@ export default function NotesPage() {
       setIsEditing(true);
       setEditTitle(newNote.title);
       setEditContent(newNote.content);
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to create note:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
@@ -896,18 +926,23 @@ export default function NotesPage() {
 
     try {
       setIsLoading(true);
+      setSyncProgress(10);
 
       const parentFolder = folders.find(f => f.path === selectedPath);
       const parentDriveId = parentFolder?.driveFolderId;
 
+      setSyncProgress(30);
+
       let driveFileId: string | undefined;
 
       if (isSignedIn && parentDriveId) {
+        setSyncProgress(50);
         driveFileId = await driveService.uploadFile(
           title + '.md',
           content,
           parentDriveId
         );
+        setSyncProgress(80);
       }
 
       const newNote: Note = {
@@ -925,10 +960,19 @@ export default function NotesPage() {
       setIsEditing(true);
       setEditTitle(newNote.title);
       setEditContent(newNote.content);
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to create note from current content:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
@@ -1032,21 +1076,36 @@ export default function NotesPage() {
   const deleteNote = async (noteId: string) => {
     try {
       setIsLoading(true);
+      setSyncProgress(10);
+      
       const note = notes.find(n => n.id === noteId);
+
+      setSyncProgress(30);
 
       // Delete from Drive if signed in and has Drive file ID
       if (isSignedIn && note?.driveFileId) {
+        setSyncProgress(50);
         await driveService.deleteFile(note.driveFileId);
+        setSyncProgress(80);
       }
 
       setNotes(notes.filter(note => note.id !== noteId));
       if (selectedNote?.id === noteId) {
         setSelectedNote(null);
       }
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to delete note:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
@@ -1056,18 +1115,34 @@ export default function NotesPage() {
 
     try {
       setIsLoading(true);
+      setSyncProgress(10);
 
-      // Delete from Drive if signed in and has Drive folder ID
-      if (isSignedIn && folderToDelete.driveFolderId) {
-        await driveService.deleteFile(folderToDelete.driveFolderId);
-      }
+      setSyncProgress(20);
 
       // Delete all notes in this folder (and from Drive)
       const notesToDelete = notes.filter(note => note.path.startsWith(folderToDelete.path));
+      const totalItems = notesToDelete.length + 1; // +1 for the folder itself
+      let processedItems = 0;
+
+      setSyncProgress(30);
+
       for (const note of notesToDelete) {
         if (isSignedIn && note.driveFileId) {
           await driveService.deleteFile(note.driveFileId);
         }
+        processedItems++;
+        // Update progress based on how many items we've processed
+        const progressIncrement = 40 / totalItems; // 40% range for deleting notes
+        setSyncProgress(30 + (progressIncrement * processedItems));
+      }
+
+      setSyncProgress(70);
+
+      // Delete from Drive if signed in and has Drive folder ID
+      if (isSignedIn && folderToDelete.driveFolderId) {
+        setSyncProgress(75);
+        await driveService.deleteFile(folderToDelete.driveFolderId);
+        setSyncProgress(85);
       }
 
       setNotes(notes.filter(note => !note.path.startsWith(folderToDelete.path)));
@@ -1076,10 +1151,20 @@ export default function NotesPage() {
       setFolders(folders.filter(folder =>
         folder.id !== folderId && !folder.path.startsWith(folderToDelete.path + '/')
       ));
+
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to delete folder:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
