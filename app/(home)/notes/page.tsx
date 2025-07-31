@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import AuthenticatedLayout from '../../components/AuthenticatedLayout';
-import { FileText, Edit, Save, X, Split, Settings2Icon } from 'lucide-react';
+import { FileText, Edit, Save, X, Split, Settings2Icon, Menu } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
@@ -106,6 +106,9 @@ export default function NotesPage() {
 
   // Split-screen mode state
   const [isSplitMode, setIsSplitMode] = useState(false);
+
+  // Mobile sidebar state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Utility function to clear all localStorage data (for debugging)
   const clearAllData = () => {
@@ -1038,6 +1041,7 @@ export default function NotesPage() {
             sidebarWidth={sidebarWidth}
             dragOver={dragOver}
             isResizing={isResizing}
+            isMobileSidebarOpen={isMobileSidebarOpen}
             onToggleFolder={toggleFolder}
             onSelectNote={setSelectedNote}
             onSetSelectedPath={setSelectedPath}
@@ -1051,6 +1055,7 @@ export default function NotesPage() {
             onDrop={handleDrop}
             onSetDragOver={setDragOver}
             onSetIsResizing={setIsResizing}
+            onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
           />
 
           {/* Main content area */}
@@ -1077,6 +1082,8 @@ export default function NotesPage() {
                   saveNote={saveNote}
                   cancelEdit={cancelEdit}
                   startEdit={startEdit}
+                  isMobileSidebarOpen={isMobileSidebarOpen}
+                  onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                 />
 
                 {/* Note Content */}
@@ -1229,13 +1236,29 @@ export default function NotesPage() {
                 </ContextMenu>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
-                <div className="text-center">
-                  <FileText size={64} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">Select a note to start reading</p>
-                  <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
+              <>
+                {/* Mobile Header for No Note Selected */}
+                <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                      className="p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                      title="Toggle sidebar"
+                    >
+                      <Menu size={20} />
+                    </button>
+                    <h1 className="text-xl font-semibold text-white">Notes</h1>
+                  </div>
                 </div>
-              </div>
+
+                <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
+                  <div className="text-center">
+                    <FileText size={64} className="text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Select a note to start reading</p>
+                    <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

@@ -84,7 +84,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   return (
-    <div className="px-20 py-6 h-full bg-secondary">
+    <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-6 h-full bg-secondary">
       <EditorContextMenu 
         editContent={editContent} 
         setEditContent={setEditContent}

@@ -19,6 +19,7 @@ export default function NoteSidebar({
   syncProgress,
   sidebarWidth,
   dragOver,
+  isMobileSidebarOpen,
   // isResizing, // Currently unused but kept for future feature
   onToggleFolder,
   onSelectNote,
@@ -32,7 +33,8 @@ export default function NoteSidebar({
   onDragLeave,
   onDrop,
   onSetDragOver,
-  onSetIsResizing
+  onSetIsResizing,
+  onSetIsMobileSidebarOpen
 }: NoteSidebarProps) {
 
   const getNotesInPath = (path: string) => {
@@ -143,7 +145,13 @@ export default function NoteSidebar({
                   className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${selectedNote?.id === note.id ? 'bg-gray-700' : ''}`}
                   draggable
                   onDragStart={(e) => onDragStart(e, 'note', note.id)}
-                  onClick={() => onSelectNote(note)}
+                  onClick={() => {
+                    onSelectNote(note);
+                    // Close mobile sidebar when selecting a note
+                    if (isMobileSidebarOpen) {
+                      onSetIsMobileSidebarOpen(false);
+                    }
+                  }}
                 >
                   <div className="w-4 mr-1"></div>
                   <FileText size={16} className="text-gray-400 mr-2" />
@@ -162,7 +170,13 @@ export default function NoteSidebar({
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
                 <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
-                  onClick={() => onSelectNote(note)}
+                  onClick={() => {
+                    onSelectNote(note);
+                    // Close mobile sidebar when opening note
+                    if (isMobileSidebarOpen) {
+                      onSetIsMobileSidebarOpen(false);
+                    }
+                  }}
                 >
                   <Edit size={16} className="mr-2" />
                   Open Note
@@ -185,16 +199,30 @@ export default function NoteSidebar({
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
+    <>
+      {/* Mobile Overlay */}
+      {isMobileSidebarOpen && (
         <div
-          className={`border-r border-gray-600 flex flex-col overflow-hidden relative ${dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''
-            }`}
-          style={{
-            width: `${sidebarWidth}px`,
-            backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F'
-          }}
-        >
+          className="fixed inset-0 backdrop-blur-sm bg-gray-900/20 z-40 lg:hidden transition-all duration-300"
+          onClick={() => onSetIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={`
+              border-r border-gray-600 flex flex-col overflow-hidden relative z-50
+              ${dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''}
+              ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
+              lg:relative lg:translate-x-0
+              ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
+            `}
+            style={{
+              width: `${sidebarWidth}px`,
+              backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F'
+            }}
+          >
           <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
             <h2 className="text-lg font-semibold text-white">
               Notes
@@ -207,8 +235,20 @@ export default function NoteSidebar({
             )}
 
             {isLoading && (
-              <div className="text-xs text-blue-400 mt-2">
-                Syncing {syncProgress}%...
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-blue-400">Syncing...</span>
+                  <span className="text-xs text-gray-400">{syncProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
+                    style={{
+                      width: `${syncProgress}%`,
+                      boxShadow: syncProgress > 0 ? '0 0 4px rgba(59, 130, 246, 0.5)' : 'none'
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -268,5 +308,6 @@ export default function NoteSidebar({
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+    </>
   );
 }

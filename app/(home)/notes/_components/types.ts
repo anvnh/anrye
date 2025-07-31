@@ -32,6 +32,7 @@ export interface NoteSidebarProps {
   sidebarWidth: number;
   dragOver: string | null;
   isResizing: boolean;
+  isMobileSidebarOpen: boolean;
   onToggleFolder: (folderId: string) => void;
   onSelectNote: (note: Note) => void;
   onSetSelectedPath: (path: string) => void;
@@ -45,4 +46,5 @@ export interface NoteSidebarProps {
   onDrop: (e: React.DragEvent, targetFolderId: string) => void;
   onSetDragOver: (dragOver: string | null) => void;
   onSetIsResizing: (isResizing: boolean) => void;
+  onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, X, Edit, Split } from 'lucide-react';
+import { Save, X, Edit, Split, Menu } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
@@ -23,6 +23,8 @@ interface NoteNavbarProps {
   saveNote: () => void;
   cancelEdit: () => void;
   startEdit: () => void;
+  isMobileSidebarOpen: boolean;
+  onToggleMobileSidebar: () => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -44,21 +46,34 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   saveNote,
   cancelEdit,
   startEdit,
+  isMobileSidebarOpen,
+  onToggleMobileSidebar,
 }) => (
   <div className="border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
     <div className="flex items-center justify-between">
-      {isEditing ? (
-        <input
-          type="text"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          className="text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white"
-        />
-      ) : (
-        <h1 className="text-xl font-semibold text-white">{selectedNote.title}</h1>
-      )}
+      <div className="flex items-center">
+        {/* Mobile Sidebar Toggle */}
+        <button
+          onClick={onToggleMobileSidebar}
+          className="lg:hidden p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+          title="Toggle sidebar"
+        >
+          <Menu size={20} />
+        </button>
+        
+        {isEditing ? (
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white"
+          />
+        ) : (
+          <h1 className="text-xl font-semibold text-white">{selectedNote.title}</h1>
+        )}
+      </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1 sm:space-x-2">
         {/* Share Button */}
         <ShareDropdown
           noteId={selectedNote.id}
