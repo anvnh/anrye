@@ -809,7 +809,42 @@ Start writing your note here...
 - Tables
 - Blockquotes
 - **LaTeX Math Support**
+- **Obsidian-style Callouts**
 - And much more!
+
+## Callouts Examples
+
+Callouts are great for organizing and highlighting important information:
+
+> [!note] Note Callout
+> This is a note callout. Use it to highlight important information or add context.
+
+> [!tip] Pro Tip
+> This is a tip callout. Perfect for sharing helpful advice or best practices.
+
+> [!warning] Warning
+> This is a warning callout. Use it to alert readers about potential issues or important considerations.
+
+> [!info] Information
+> This is an info callout. Great for providing additional context or explanations.
+
+> [!success] Success
+> This is a success callout. Use it to highlight achievements or positive outcomes.
+
+> [!question] Question
+> This is a question callout. Perfect for highlighting questions or areas that need clarification.
+
+> [!bug] Bug Report
+> This is a bug callout. Use it to document issues or problems that need to be addressed.
+
+> [!example] Example
+> This is an example callout. Great for providing code examples or demonstrations.
+
+> [!quote] Quote
+> This is a quote callout. Perfect for highlighting important quotes or citations.
+
+> [!danger] Danger
+> This is a danger callout. Use it to highlight critical warnings or dangerous situations.
 
 ## Task Lists / Checkboxes
 
@@ -868,7 +903,7 @@ console.log("Hello World!");
 | Data 1   | Data 2   | Data 3   |
 | Data 4   | Data 5   | Data 6   |
 
-> This is a blockquote example. Great for highlighting important information.
+> This is a regular blockquote example. Great for highlighting important information.
 
 ## More Math
 
