@@ -244,6 +244,25 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
   }, [hasSyncedWithDrive]);
+  // Handle screen resize - disable split mode on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024 && isSplitMode) {
+        setIsSplitMode(false);
+      }
+    };
+
+    // Check on mount
+    handleResize();
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isSplitMode]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -265,18 +284,18 @@ export default function NotesPage() {
         setIsEditing(!isEditing);
       }
 
-      // Ctrl/Cmd + \ to toggle split mode (only in edit mode)
+      // Ctrl/Cmd + \ to toggle split mode (only in edit mode and on desktop)
       if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault();
-        if (isEditing) {
+        if (isEditing && typeof window !== 'undefined' && window.innerWidth >= 1024) {
           setIsSplitMode(!isSplitMode);
         }
       }
 
-      // Ctrl/Cmd + Shift + S to toggle split mode (legacy)
+      // Ctrl/Cmd + Shift + S to toggle split mode (legacy, desktop only)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
         e.preventDefault();
-        if (isEditing) {
+        if (isEditing && typeof window !== 'undefined' && window.innerWidth >= 1024) {
           setIsSplitMode(!isSplitMode);
         }
       }
@@ -1030,8 +1049,10 @@ export default function NotesPage() {
     setIsEditing(true);
     setEditTitle(selectedNote.title);
     setEditContent(selectedNote.content);
-    // Auto-enable split mode when starting to edit
-    setIsSplitMode(true);
+    // Auto-enable split mode only on desktop (large screens)
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setIsSplitMode(true);
+    }
   };
 
   const cancelEdit = () => {

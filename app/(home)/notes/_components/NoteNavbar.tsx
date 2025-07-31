@@ -49,16 +49,16 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   isMobileSidebarOpen,
   onToggleMobileSidebar,
 }) => (
-  <div className="border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
-    <div className="flex items-center justify-between">
-      <div className="flex items-center">
+  <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+    <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <div className="flex items-center min-w-0 flex-1">
         {/* Mobile Sidebar Toggle */}
         <button
           onClick={onToggleMobileSidebar}
-          className="lg:hidden p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+          className="lg:hidden p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
           title="Toggle sidebar"
         >
-          <Menu size={20} />
+          <Menu size={18} className="sm:w-5 sm:h-5" />
         </button>
         
         {isEditing ? (
@@ -66,14 +66,16 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             type="text"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className="text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white"
+            className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white min-w-0 flex-1"
           />
         ) : (
-          <h1 className="text-xl font-semibold text-white">{selectedNote.title}</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0" title={selectedNote.title}>
+            {selectedNote.title}
+          </h1>
         )}
       </div>
 
-      <div className="flex items-center space-x-1 sm:space-x-2">
+      <div className="flex items-center space-x-1 flex-shrink-0">
         {/* Share Button */}
         <ShareDropdown
           noteId={selectedNote.id}
@@ -81,18 +83,20 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           noteContent={selectedNote.content}
         />
 
-        {/* Split Mode Toggle */}
-        <button
-          onClick={() => setIsSplitMode(!isSplitMode)}
-          className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 ${isSplitMode
-            ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30'
-            : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
-          title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+Shift+S)`}
-        >
-          <Split size={16} />
-          <span className="hidden sm:inline">{isSplitMode ? 'Exit Split' : 'Split View'}</span>
-        </button>
+        {/* Split Mode Toggle - Hidden on mobile */}
+        {isEditing && (
+          <button
+            onClick={() => setIsSplitMode(!isSplitMode)}
+            className={`hidden lg:flex px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isSplitMode
+              ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30'
+              : 'bg-gray-600 text-white hover:bg-gray-700'
+              }`}
+            title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+\\)`}
+          >
+            <Split size={14} className="lg:w-4 lg:h-4" />
+            <span>Split View</span>
+          </button>
+        )}
 
         {/* Settings Dropdown */}
         <SettingsDropdown
@@ -111,29 +115,33 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           <>
             <button
               onClick={saveNote}
-              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+              className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+              title="Save"
             >
-              <Save size={16} />
+              <Save size={14} className="sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={cancelEdit}
-              className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+              className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
+              title="Cancel"
             >
-              <X size={16} />
+              <X size={14} className="sm:w-4 sm:h-4" />
             </button>
           </>
         ) : (
           <button
             onClick={startEdit}
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+            title="Edit"
           >
-            <Edit size={16} />
+            <Edit size={14} className="sm:w-4 sm:h-4" />
           </button>
         )}
       </div>
     </div>
-    <p className="text-sm text-gray-400 mt-1">
-      Last updated: {new Date(selectedNote.updatedAt).toLocaleString()}
+    <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
+      <span className="hidden sm:inline">Last updated: </span>
+      {new Date(selectedNote.updatedAt).toLocaleString()}
     </p>
   </div>
 );
