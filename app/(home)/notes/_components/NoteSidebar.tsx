@@ -56,14 +56,19 @@ export default function NoteSidebar({
     const notesInPath = getNotesInPath(parentPath);
 
     return (
-      <div className={level > 0 ? 'ml-4' : ''}>
+      <div className={level > 0 ? 'ml-3' : ''}>
         {/* Render subfolders */}
         {subfolders.map(folder => (
           <div key={folder.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${dragOver === folder.id ? 'bg-blue-600 bg-opacity-30' : ''}`}
+                  className={`
+                    flex items-center px-3 py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+                    hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
+                    ${dragOver === folder.id ? 'bg-blue-600/40 shadow-lg ring-2 ring-blue-500/50' : ''}
+                    ${level > 0 ? 'ml-2' : ''}
+                  `}
                   draggable={folder.id !== 'root'}
                   onDragStart={(e) => onDragStart(e, 'folder', folder.id)}
                   onDragOver={(e) => onDragOver(e, folder.id)}
@@ -75,30 +80,30 @@ export default function NoteSidebar({
                   }}
                 >
                   {folder.expanded ? (
-                    <ChevronDown size={16} className="text-gray-400 mr-1" />
+                    <ChevronDown size={16} className="text-gray-400 mr-2 transition-transform duration-200" />
                   ) : (
-                    <ChevronRight size={16} className="text-gray-400 mr-1" />
+                    <ChevronRight size={16} className="text-gray-400 mr-2 transition-transform duration-200" />
                   )}
                   {folder.expanded ? (
-                    <FolderOpen size={16} className="text-blue-400 mr-2" />
+                    <FolderOpen size={16} className="text-blue-400 mr-3 transition-colors duration-200" />
                   ) : (
-                    <FolderIcon size={16} className="text-blue-400 mr-2" />
+                    <FolderIcon size={16} className="text-blue-400 mr-3 transition-colors duration-200" />
                   )}
                   <span
-                    className="text-gray-300 text-sm flex-1 truncate"
-                    style={{ maxWidth: 'calc(100% - 40px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    className="text-gray-300 text-sm flex-1 truncate font-medium"
+                    style={{ maxWidth: 'calc(100% - 50px)', display: 'inline-block', verticalAlign: 'middle' }}
                     title={folder.name}
                   >
                     {folder.name}
                   </span>
                   {folder.driveFolderId && (
-                    <Cloud size={12} className="text-green-400 mr-1" />
+                    <Cloud size={12} className="text-green-400 mr-1 opacity-80" />
                   )}
                 </div>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => {
                     onSetSelectedPath(folder.path);
                     onSetIsCreatingFolder(true);
@@ -108,7 +113,7 @@ export default function NoteSidebar({
                   New Folder
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => {
                     onSetSelectedPath(folder.path);
                     onSetIsCreatingNote(true);
@@ -119,10 +124,10 @@ export default function NoteSidebar({
                 </ContextMenuItem>
                 {folder.id !== 'root' && (
                   <>
-                    <ContextMenuSeparator className="bg-gray-600" />
+                    <ContextMenuSeparator className="bg-gray-600 mx-1" />
                     <ContextMenuItem
                       variant="default"
-                      className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
+                      className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300 rounded-md mx-1 my-0.5"
                       onClick={() => onDeleteFolder(folder.id)}
                     >
                       <Trash2 size={16} className="mr-2 text-red-400" />
@@ -142,7 +147,12 @@ export default function NoteSidebar({
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div
-                  className={`flex items-center px-2 py-1 hover:bg-gray-700 rounded cursor-pointer group ${selectedNote?.id === note.id ? 'bg-gray-700' : ''}`}
+                  className={`
+                    flex items-center px-3 py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+                    hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
+                    ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
+                    ${level > 0 ? 'ml-2' : ''}
+                  `}
                   draggable
                   onDragStart={(e) => onDragStart(e, 'note', note.id)}
                   onClick={() => {
@@ -153,23 +163,23 @@ export default function NoteSidebar({
                     }
                   }}
                 >
-                  <div className="w-4 mr-1"></div>
-                  <FileText size={16} className="text-gray-400 mr-2" />
+                  <div className="w-4 mr-2"></div>
+                  <FileText size={16} className="text-gray-400 mr-3 transition-colors duration-200" />
                   <span
                     className="text-gray-300 text-sm flex-1 truncate"
-                    style={{ maxWidth: 'calc(100% - 40px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    style={{ maxWidth: 'calc(100% - 50px)', display: 'inline-block', verticalAlign: 'middle' }}
                     title={note.title}
                   >
                     {note.title}
                   </span>
                   {note.driveFileId && (
-                    <Cloud size={12} className="text-green-400 mr-1" />
+                    <Cloud size={12} className="text-green-400 mr-1 opacity-80" />
                   )}
                 </div>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => {
                     onSelectNote(note);
                     // Close mobile sidebar when opening note
@@ -181,10 +191,10 @@ export default function NoteSidebar({
                   <Edit size={16} className="mr-2" />
                   Open Note
                 </ContextMenuItem>
-                <ContextMenuSeparator className="bg-gray-600" />
+                <ContextMenuSeparator className="bg-gray-600 mx-1" />
                 <ContextMenuItem
                   variant="default"
-                  className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300"
+                  className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300 rounded-md mx-1 my-0.5"
                   onClick={() => onDeleteNote(note.id)}
                 >
                   <Trash2 size={16} className="mr-2 text-red-400" />
@@ -212,40 +222,41 @@ export default function NoteSidebar({
         <ContextMenuTrigger asChild>
           <div
             className={`
-              border-r border-gray-600 flex flex-col overflow-hidden relative z-50
-              ${dragOver === 'root' ? 'bg-blue-600 bg-opacity-10' : ''}
+              border-r border-gray-600/50 flex flex-col overflow-hidden relative z-50
+              ${dragOver === 'root' ? 'bg-blue-600/10' : ''}
               ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
               lg:relative lg:translate-x-0
               ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
+              shadow-xl rounded-r-2xl
             `}
             style={{
               width: `${sidebarWidth}px`,
-              backgroundColor: dragOver === 'root' ? '#1e40af20' : '#31363F'
+              backgroundColor: dragOver === 'root' ? '#1e40af10' : '#31363F'
             }}
           >
-          <div className="px-4 py-3 border-b border-gray-600 flex-shrink-0">
-            <h2 className="text-lg font-semibold text-white">
+          <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0 rounded-t-2xl">
+            <h2 className="text-xl font-bold text-white mb-2">
               Notes
             </h2>
 
             {!isSignedIn && (
-              <div className="text-xs text-yellow-400 mt-2">
+              <div className="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/20">
                 💡 Sign in to Google Drive to sync notes
               </div>
             )}
 
             {isLoading && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-blue-400">Syncing...</span>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-blue-400 font-medium">Syncing...</span>
                   <span className="text-xs text-gray-400">{syncProgress}%</span>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
                     style={{
                       width: `${syncProgress}%`,
-                      boxShadow: syncProgress > 0 ? '0 0 4px rgba(59, 130, 246, 0.5)' : 'none'
+                      boxShadow: syncProgress > 0 ? '0 0 8px rgba(59, 130, 246, 0.6)' : 'none'
                     }}
                   />
                 </div>
@@ -253,7 +264,7 @@ export default function NoteSidebar({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4"
+          <div className="flex-1 overflow-y-auto p-4 space-y-1"
             onDragOver={(e) => {
               e.preventDefault();
               // Only set to root if we're not over a specific folder
@@ -276,18 +287,11 @@ export default function NoteSidebar({
           >
             {renderFileTree()}
           </div>
-
-          {/* Resize Handle */}
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-blue-500 transition-colors"
-            onMouseDown={() => onSetIsResizing(true)}
-            title="Drag to resize sidebar"
-          />
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300">
+      <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
         <ContextMenuItem
-          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
           onClick={() => {
             onSetSelectedPath('');
             onSetIsCreatingFolder(true);
@@ -297,7 +301,7 @@ export default function NoteSidebar({
           New Folder
         </ContextMenuItem>
         <ContextMenuItem
-          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
           onClick={() => {
             onSetSelectedPath('');
             onSetIsCreatingNote(true);

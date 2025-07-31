@@ -1226,7 +1226,7 @@ export default function NotesPage() {
           />
 
           {/* Main content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden lg:rounded-l-2xl">
             {selectedNote ? (
               <>
                 {/* Note Header */}
@@ -1257,7 +1257,7 @@ export default function NotesPage() {
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
                     <div
-                      className="flex-1 overflow-hidden"
+                      className="flex-1 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
                       style={{
                         backgroundColor: '#222831',
                         fontFamily: fontFamily,
