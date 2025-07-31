@@ -1,15 +1,6 @@
 import './types';
 import { getGoogleClientId, isGoogleClientIdConfigured } from './env';
 
-// Utility function to detect Safari iOS
-export const isSafariIOSDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const userAgent = window.navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-  const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|FxiOS/.test(userAgent);
-  return isIOS && isSafari;
-};
-
 interface DriveFile {
   id: string;
   name: string;
@@ -414,11 +405,6 @@ class GoogleDriveService {
     });
   }
 
-  // Detect if we're on Safari iOS
-  private isSafariIOS(): boolean {
-    return isSafariIOSDevice();
-  }
-
   private setupTokenClient(): void {
     const clientId = getGoogleClientId();
     
@@ -427,15 +413,11 @@ class GoogleDriveService {
     }
     
     if (window.google?.accounts?.oauth2) {
-      const isSafariIOS = this.isSafariIOS();
-      
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
         // Request offline access to get refresh token
         access_type: 'offline',
-        // Use redirect flow for Safari iOS to avoid popup blocking
-        ux_mode: isSafariIOS ? 'redirect' : 'popup',
         callback: (response: GoogleAuth) => {
           if (response.access_token) {
             this.accessToken = response.access_token;
@@ -476,14 +458,7 @@ class GoogleDriveService {
         return false;
       }
 
-      const isSafariIOS = this.isSafariIOS();
-      
-      // Show Safari iOS specific message
-      if (isSafariIOS) {
-        console.log('🍎 Safari iOS detected - using redirect flow for better compatibility');
-      }
-
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         let resolved = false;
         
         // Set timeout for popup blocking detection
@@ -491,15 +466,10 @@ class GoogleDriveService {
           if (!resolved) {
             resolved = true;
             console.log('⚠️ Authentication timeout - popup may have been blocked');
-            
-            if (isSafariIOS) {
-              alert('Safari on iOS detected. Please allow popups for this site in Safari settings, or try using Chrome app for better experience.');
-            } else {
-              alert('Popup may have been blocked. Please allow popups for this site and try again.');
-            }
+            alert('Popup may have been blocked. Please allow popups for this site and try again.');
             resolve(false);
           }
-        }, isSafariIOS ? 15000 : 30000); // Longer timeout for Safari iOS redirect
+        }, 30000);
 
         // Update callback to resolve promise
         if (this.tokenClient) {
@@ -519,13 +489,9 @@ class GoogleDriveService {
               } else if (response.error) {
                 console.log('❌ Sign in failed with error:', response.error);
                 
-                // Handle specific errors
+                // Handle popup blocking
                 if (response.error === 'popup_blocked_by_browser' || response.error === 'popup_closed_by_user') {
-                  if (isSafariIOS) {
-                    alert('Authentication was blocked. Please try:\n1. Enable popups for this site in Safari settings\n2. Or use Chrome app for better compatibility');
-                  } else {
-                    alert('Authentication popup was blocked. Please allow popups for this site and try again.');
-                  }
+                  alert('Authentication popup was blocked. Please allow popups for this site and try again.');
                 }
                 resolve(false);
               } else {
@@ -536,19 +502,13 @@ class GoogleDriveService {
           };
           
           try {
-            // Request access token with prompt to ensure refresh token
-            // Use 'select_account' for Safari iOS to be less aggressive than 'consent'
-            const promptType = isSafariIOS ? 'select_account' : 'consent';
-            this.tokenClient.requestAccessToken({ prompt: promptType });
+            // Request access token with consent to ensure refresh token
+            this.tokenClient.requestAccessToken({ prompt: 'consent' });
           } catch (error) {
             if (!resolved) {
               resolved = true;
               clearTimeout(timeoutId);
               console.error('Error requesting access token:', error);
-              
-              if (isSafariIOS) {
-                alert('Safari iOS authentication error. Please try using Chrome app or enabling popups in Safari settings.');
-              }
               resolve(false);
             }
           }
