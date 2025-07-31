@@ -14,21 +14,24 @@ interface TokenData {
   access_token: string;
   refresh_token?: string;
   expires_at: number;
+  refresh_expires_at?: number; // Refresh token expiry (much longer)
 }
 
 interface GoogleAuth {
   access_token: string;
+  refresh_token?: string;
   error?: string;
   expires_in?: number;
 }
 
 interface GoogleTokenClient {
   callback?: (response: GoogleAuth) => void;
-  requestAccessToken: () => void;
+  requestAccessToken: (options?: { prompt?: string }) => void;
 }
 
 class GoogleDriveService {
   private accessToken: string | null = null;
+  private refreshToken: string | null = null;
   private tokenClient: GoogleTokenClient | null = null;
   private readonly TOKEN_KEY = 'google_drive_token';
   private isRefreshing = false;
@@ -43,14 +46,41 @@ class GoogleDriveService {
     }
   }
 
-  private saveToken(accessToken: string): void {
+  private saveToken(accessToken: string, expiresIn?: number, refreshToken?: string): void {
     if (typeof window === 'undefined') return;
     
-    const expiresAt = Date.now() + (3600 * 1000); // 1 hour from now (Google tokens typically expire in 1 hour)
+    // Use provided expiry time or default to 1 hour
+    const expiryDuration = expiresIn ? (expiresIn * 1000) : (3600 * 1000); // Convert to milliseconds
+    const expiresAt = Date.now() + expiryDuration;
+    
+    // Refresh token typically expires in 6 months, but we'll be conservative
+    const refreshExpiresAt = refreshToken ? Date.now() + (30 * 24 * 60 * 60 * 1000) : undefined; // 30 days
+    
     const tokenData: TokenData = {
       access_token: accessToken,
-      expires_at: expiresAt
+      expires_at: expiresAt,
+      ...(refreshToken && { 
+        refresh_token: refreshToken,
+        refresh_expires_at: refreshExpiresAt 
+      })
     };
+    
+    // If we have existing refresh token and no new one provided, keep the old one
+    if (!refreshToken && this.refreshToken) {
+      const existingToken = localStorage.getItem(this.TOKEN_KEY);
+      if (existingToken) {
+        try {
+          const existing = JSON.parse(existingToken);
+          if (existing.refresh_token) {
+            tokenData.refresh_token = existing.refresh_token;
+            tokenData.refresh_expires_at = existing.refresh_expires_at;
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    }
+    
     localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
   }
 
@@ -63,12 +93,34 @@ class GoogleDriveService {
         const tokenData: TokenData = JSON.parse(savedToken);
         const timeUntilExpiry = tokenData.expires_at - Date.now();
         
-        if (timeUntilExpiry > 5 * 60 * 1000) { // At least 5 minutes left
+        if (timeUntilExpiry > 10 * 60 * 1000) { // At least 10 minutes left
           this.accessToken = tokenData.access_token;
+          this.refreshToken = tokenData.refresh_token || null;
         } else if (timeUntilExpiry > 0) {
+          // Token expires soon, but still valid - keep it but mark for refresh
           this.accessToken = tokenData.access_token;
+          this.refreshToken = tokenData.refresh_token || null;
         } else {
-          localStorage.removeItem(this.TOKEN_KEY);
+          // Token expired, check if we have valid refresh token
+          if (tokenData.refresh_token && tokenData.refresh_expires_at) {
+            const refreshTimeLeft = tokenData.refresh_expires_at - Date.now();
+            if (refreshTimeLeft > 0) {
+              // Refresh token still valid, keep it for refresh
+              this.refreshToken = tokenData.refresh_token;
+              this.accessToken = null; // Clear expired access token
+              console.log('Access token expired, but refresh token still valid');
+            } else {
+              // Both tokens expired
+              localStorage.removeItem(this.TOKEN_KEY);
+              this.accessToken = null;
+              this.refreshToken = null;
+            }
+          } else {
+            // No refresh token, clear everything
+            localStorage.removeItem(this.TOKEN_KEY);
+            this.accessToken = null;
+            this.refreshToken = null;
+          }
         }
       }
     } catch (error) {
@@ -97,15 +149,41 @@ class GoogleDriveService {
       const tokenData: TokenData = JSON.parse(savedToken);
       const timeUntilExpiry = tokenData.expires_at - Date.now();
 
-      // If token is still valid for more than 5 minutes, no refresh needed
-      if (timeUntilExpiry > 5 * 60 * 1000) {
+      // If token is still valid for more than 10 minutes, no refresh needed
+      if (timeUntilExpiry > 10 * 60 * 1000) {
         return true;
       }
       
-      // For now, clear the token and let the user re-authenticate
-      // In a full implementation, we would use a refresh token here
+      // If token expires within 10 minutes but still valid, try to refresh
+      if (timeUntilExpiry > 0) {
+        console.log('Token expires soon, attempting refresh...');
+        try {
+          const refreshSuccess = await this.refreshWithRefreshToken();
+          if (refreshSuccess) {
+            return true;
+          }
+        } catch (error) {
+          console.log('Refresh token failed, will require re-authentication');
+        }
+      }
+      
+      // Token expired, try refresh token if available
+      if (!this.accessToken && this.refreshToken) {
+        console.log('Access token expired, trying refresh token...');
+        try {
+          const refreshSuccess = await this.refreshWithRefreshToken();
+          if (refreshSuccess) {
+            return true;
+          }
+        } catch (error) {
+          console.log('Refresh token failed:', error);
+        }
+      }
+      
+      // Token expired or refresh failed, clear everything
       this.clearSavedToken();
       this.accessToken = null;
+      this.refreshToken = null;
       
       return false;
     } catch (error) {
@@ -163,6 +241,96 @@ class GoogleDriveService {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.TOKEN_KEY);
     }
+    this.accessToken = null;
+    this.refreshToken = null;
+  }
+
+  // Refresh access token using refresh token
+  private async refreshWithRefreshToken(): Promise<boolean> {
+    if (!this.refreshToken) {
+      console.log('No refresh token available');
+      return false;
+    }
+
+    try {
+      console.log('Using refresh token to get new access token...');
+      
+      // Use Google's token endpoint to refresh
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: this.CLIENT_ID,
+          refresh_token: this.refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Refresh token request failed:', response.status, response.statusText);
+        return false;
+      }
+
+      const data = await response.json();
+      
+      if (data.access_token) {
+        this.accessToken = data.access_token;
+        // Note: refresh token may or may not be returned - keep existing if not provided
+        this.saveToken(data.access_token, data.expires_in, data.refresh_token);
+        console.log('Token refreshed successfully using refresh token');
+        return true;
+      } else {
+        console.error('No access token in refresh response:', data);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return false;
+    }
+  }
+
+  // Silent refresh method (fallback)
+  private async silentRefresh(): Promise<boolean> {
+    if (!this.tokenClient) {
+      return false;
+    }
+
+    return new Promise((resolve) => {
+      // Save original callback
+      const originalCallback = this.tokenClient?.callback;
+      
+      // Set up silent refresh callback
+      if (this.tokenClient) {
+        this.tokenClient.callback = (response: GoogleAuth) => {
+          if (response.access_token) {
+            this.accessToken = response.access_token;
+            this.saveToken(response.access_token, response.expires_in, response.refresh_token);
+            console.log('Silent token refresh successful');
+            resolve(true);
+          } else {
+            console.log('Silent token refresh failed');
+            resolve(false);
+          }
+          
+          // Restore original callback
+          if (this.tokenClient && originalCallback) {
+            this.tokenClient.callback = originalCallback;
+          }
+        };
+        
+        // Request new token silently
+        try {
+          this.tokenClient.requestAccessToken({ prompt: '' });
+        } catch (error) {
+          console.log('Silent refresh request failed:', error);
+          resolve(false);
+        }
+      } else {
+        resolve(false);
+      }
+    });
   }
 
   async loadGoogleAPI(): Promise<void> {
@@ -248,10 +416,23 @@ class GoogleDriveService {
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
+        // Request offline access to get refresh token
+        access_type: 'offline',
         callback: (response: GoogleAuth) => {
           if (response.access_token) {
             this.accessToken = response.access_token;
-            this.saveToken(response.access_token);
+            if (response.refresh_token) {
+              this.refreshToken = response.refresh_token;
+              console.log('✅ Refresh token received! You can stay logged in longer.');
+            } else {
+              console.log('⚠️ No refresh token received. User might need to re-authorize with consent.');
+            }
+            this.saveToken(response.access_token, response.expires_in, response.refresh_token);
+            console.log('Received new tokens:', {
+              access_token: '***',
+              refresh_token: response.refresh_token ? '***' : 'none',
+              expires_in: response.expires_in
+            });
           }
         },
       });
@@ -283,15 +464,20 @@ class GoogleDriveService {
           this.tokenClient.callback = (response: GoogleAuth) => {
             if (response.access_token) {
               this.accessToken = response.access_token;
-              this.saveToken(response.access_token);
+              if (response.refresh_token) {
+                this.refreshToken = response.refresh_token;
+              }
+              this.saveToken(response.access_token, response.expires_in, response.refresh_token);
+              console.log('Sign in successful, tokens received');
               resolve(true);
             } else {
+              console.log('Sign in failed, no access token received');
               resolve(false);
             }
           };
           
-          // Request access token
-          this.tokenClient.requestAccessToken();
+          // Request access token with prompt to ensure refresh token
+          this.tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
           resolve(false);
         }
@@ -306,11 +492,13 @@ class GoogleDriveService {
       window.google.accounts.oauth2.revoke(this.accessToken);
     }
     this.accessToken = null;
+    this.refreshToken = null;
     this.clearSavedToken();
   }
 
   // Force clear all tokens and restart authentication
   public async forceReAuthenticate(): Promise<boolean> {
+    console.log('Force re-authenticating with Google Drive...');
     // Clear everything
     if (this.accessToken && window.google?.accounts?.oauth2) {
       try {
@@ -321,6 +509,7 @@ class GoogleDriveService {
     }
     
     this.accessToken = null;
+    this.refreshToken = null;
     this.clearSavedToken();
     this.tokenClient = null;
     
@@ -328,8 +517,95 @@ class GoogleDriveService {
     return await this.signIn();
   }
 
+  // Public method to manually refresh token
+  public async refreshToken(): Promise<boolean> {
+    console.log('Manually refreshing Google Drive token...');
+    try {
+      // Try refresh token first
+      if (this.refreshToken) {
+        const success = await this.refreshWithRefreshToken();
+        if (success) {
+          console.log('Token refresh successful using refresh token');
+          return true;
+        }
+      }
+      
+      // Fallback to silent refresh
+      const success = await this.silentRefresh();
+      if (success) {
+        console.log('Token refresh successful using silent refresh');
+        return true;
+      } else {
+        console.log('Token refresh failed, attempting re-authentication');
+        return await this.forceReAuthenticate();
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return await this.forceReAuthenticate();
+    }
+  }
+
   async isSignedIn(): Promise<boolean> {
     return this.accessToken !== null;
+  }
+
+  // Get token status for debugging
+  public getTokenStatus(): {
+    hasAccessToken: boolean;
+    hasRefreshToken: boolean;
+    accessTokenExpiresAt?: string;
+    refreshTokenExpiresAt?: string;
+    timeUntilAccessExpiry?: string;
+    timeUntilRefreshExpiry?: string;
+  } {
+    const result: any = {
+      hasAccessToken: !!this.accessToken,
+      hasRefreshToken: !!this.refreshToken,
+    };
+
+    if (typeof window !== 'undefined') {
+      try {
+        const savedToken = localStorage.getItem(this.TOKEN_KEY);
+        if (savedToken) {
+          const tokenData: TokenData = JSON.parse(savedToken);
+          
+          if (tokenData.expires_at) {
+            result.accessTokenExpiresAt = new Date(tokenData.expires_at).toLocaleString();
+            const timeLeft = tokenData.expires_at - Date.now();
+            if (timeLeft > 0) {
+              const minutes = Math.floor(timeLeft / (1000 * 60));
+              const hours = Math.floor(minutes / 60);
+              const days = Math.floor(hours / 24);
+              
+              if (days > 0) {
+                result.timeUntilAccessExpiry = `${days} ngày ${hours % 24} giờ`;
+              } else if (hours > 0) {
+                result.timeUntilAccessExpiry = `${hours} giờ ${minutes % 60} phút`;
+              } else {
+                result.timeUntilAccessExpiry = `${minutes} phút`;
+              }
+            } else {
+              result.timeUntilAccessExpiry = 'Đã hết hạn';
+            }
+          }
+
+          if (tokenData.refresh_expires_at) {
+            result.refreshTokenExpiresAt = new Date(tokenData.refresh_expires_at).toLocaleString();
+            const timeLeft = tokenData.refresh_expires_at - Date.now();
+            if (timeLeft > 0) {
+              const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+              result.timeUntilRefreshExpiry = `${days} ngày`;
+            } else {
+              result.timeUntilRefreshExpiry = 'Đã hết hạn';
+            }
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    return result;
   }
 
   private async setAccessToken(): Promise<void> {
@@ -496,17 +772,22 @@ class GoogleDriveService {
       await this.ensureApiLoaded();
       await this.setAccessToken();
       
-      // Look for existing "Notes" folder
+      // Look for existing "Notes" folder - be more specific with search to avoid duplicates
       const response = await window.gapi.client.drive.files.list({
-        q: "name='Notes' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-        fields: 'files(id,name)'
+        q: "name='Notes' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents",
+        fields: 'files(id,name,parents)'
       });
 
       if (response.result.files && response.result.files.length > 0) {
+        // If multiple Notes folders exist, use the first one and log a warning
+        if (response.result.files.length > 1) {
+          console.warn(`Found ${response.result.files.length} Notes folders. Using the first one.`);
+        }
         return response.result.files[0].id;
       }
 
       // Create Notes folder if it doesn't exist
+      console.log('Creating new Notes folder in Google Drive...');
       return await this.createFolder('Notes');
     } catch (error: any) {
       // Check if it's a 401 error and handle it
@@ -520,8 +801,8 @@ class GoogleDriveService {
             await this.setAccessToken();
             
             const retryResponse = await window.gapi.client.drive.files.list({
-              q: "name='Notes' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-              fields: 'files(id,name)'
+              q: "name='Notes' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents",
+              fields: 'files(id,name,parents)'
             });
             
             if (retryResponse.result.files && retryResponse.result.files.length > 0) {
@@ -541,3 +822,4 @@ class GoogleDriveService {
 }
 
 export const driveService = new GoogleDriveService();
+

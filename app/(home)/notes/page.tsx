@@ -671,35 +671,53 @@ export default function NotesPage() {
     try {
       setIsLoading(true);
       setSyncProgress(10);
+      console.log('Starting sync with Google Drive...');
+      
       const notesFolderId = await driveService.findOrCreateNotesFolder();
+      console.log('Notes folder ID:', notesFolderId);
 
       setSyncProgress(30);
       // Update root folder with Drive ID if not already set
-      setFolders(prev => prev.map(folder =>
-        folder.id === 'root' && !folder.driveFolderId
-          ? { ...folder, driveFolderId: notesFolderId }
-          : folder
-      ));
+      setFolders(prev => {
+        const rootFolder = prev.find(f => f.id === 'root');
+        if (rootFolder && !rootFolder.driveFolderId) {
+          console.log('Linking root folder to Drive Notes folder');
+          return prev.map(folder =>
+            folder.id === 'root'
+              ? { ...folder, driveFolderId: notesFolderId }
+              : folder
+          );
+        }
+        return prev;
+      });
 
       setSyncProgress(50);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
+        console.log('Loading content from Drive...');
         await loadFromDrive(notesFolderId, '');
         setSyncProgress(90);
         setHasSyncedWithDrive(true);
+        console.log('Sync completed successfully');
+      } else {
+        console.log('Already synced with Drive, skipping content load');
       }
       setSyncProgress(100);
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
+      // Show error to user
+      alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try signing in again.`);
     } finally {
       setIsLoading(false);
-      setSyncProgress(0);
+      setTimeout(() => setSyncProgress(0), 500); // Keep progress visible briefly
     }
   }, [hasSyncedWithDrive]); // loadFromDrive is defined below, using internal function
 
   const loadFromDrive = async (parentDriveId: string, parentPath: string) => {
     try {
+      console.log(`Loading files from Drive folder: ${parentPath || 'root'}`);
       const files = await driveService.listFiles(parentDriveId);
+      console.log(`Found ${files.length} files/folders`);
 
       for (const file of files) {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
@@ -709,8 +727,11 @@ export default function NotesPage() {
           // Check if folder already exists using callback to get latest state
           setFolders(prevFolders => {
             const existingFolder = prevFolders.find(f => f.driveFolderId === file.id);
+            // Also check by name and path to prevent duplicates with different IDs
+            const existingByPath = prevFolders.find(f => f.name === file.name && f.path === folderPath);
 
-            if (!existingFolder) {
+            if (!existingFolder && !existingByPath) {
+              console.log(`Creating local folder: ${file.name} at ${folderPath}`);
               const newFolder: Folder = {
                 id: Date.now().toString() + Math.random(),
                 name: file.name,
@@ -721,6 +742,12 @@ export default function NotesPage() {
               };
 
               return [...prevFolders, newFolder];
+            } else if (existingByPath && !existingByPath.driveFolderId) {
+              // Update existing folder with Drive ID if missing
+              console.log(`Linking existing folder ${file.name} to Drive`);
+              return prevFolders.map(f => 
+                f === existingByPath ? { ...f, driveFolderId: file.id } : f
+              );
             }
             return prevFolders; // No change if folder already exists
           });
@@ -730,17 +757,21 @@ export default function NotesPage() {
         } else if (file.name.endsWith('.md')) {
           // It's a markdown file
           const notePath = parentPath;
+          const noteTitle = file.name.replace('.md', '');
 
           // Check if note already exists using callback to get latest state
           setNotes(prevNotes => {
             const existingNote = prevNotes.find(n => n.driveFileId === file.id);
+            // Also check by title and path to prevent duplicates with different IDs
+            const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
 
-            if (!existingNote) {
+            if (!existingNote && !existingByTitlePath) {
+              console.log(`Creating local note: ${noteTitle} at ${notePath}`);
               // Load content and create new note
               driveService.getFile(file.id).then(content => {
                 const newNote: Note = {
                   id: Date.now().toString() + Math.random(),
-                  title: file.name.replace('.md', ''),
+                  title: noteTitle,
                   content: content,
                   path: notePath,
                   driveFileId: file.id,
@@ -757,10 +788,18 @@ export default function NotesPage() {
                   return currentNotes;
                 });
               }).catch(error => {
-                console.error('Failed to load file content:', error);
+                console.error('Failed to load note content for', noteTitle, ':', error);
               });
+
+              return prevNotes; // Return unchanged as we're loading content async
+            } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
+              // Update existing note with Drive ID if missing
+              console.log(`Linking existing note ${noteTitle} to Drive`);
+              return prevNotes.map(n => 
+                n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
+              );
             }
-            return prevNotes; // No immediate change
+            return prevNotes; // No change if note already exists
           });
         }
       }

@@ -9,6 +9,8 @@ interface DriveContextType {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   checkSignInStatus: () => Promise<void>;
+  refreshToken: () => Promise<void>;
+  getTokenStatus: () => any;
 }
 
 const DriveContext = createContext<DriveContextType | undefined>(undefined);
@@ -66,13 +68,35 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     setIsSignedIn(false);
   };
 
+  const refreshToken = async () => {
+    setIsLoading(true);
+    try {
+      const success = await driveService.refreshToken();
+      if (success) {
+        setIsSignedIn(true);
+      } else {
+        setIsSignedIn(false);
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      setIsSignedIn(false);
+    }
+    setIsLoading(false);
+  };
+
+  const getTokenStatus = () => {
+    return driveService.getTokenStatus();
+  };
+
   return (
     <DriveContext.Provider value={{
       isSignedIn,
       isLoading,
       signIn,
       signOut,
-      checkSignInStatus
+      checkSignInStatus,
+      refreshToken,
+      getTokenStatus
     }}>
       {children}
     </DriveContext.Provider>
