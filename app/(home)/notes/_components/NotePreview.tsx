@@ -53,17 +53,13 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
         {/* Main Content */}
         <div className="flex-1 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-56 py-6 overflow-y-auto">
-          <div className="prose prose-invert max-w-none prose-sm sm:prose-base lg:prose-lg">
+          <div className="prose prose-invert max-w-none">
             <style jsx>{`
-          /* Mobile optimizations */
+          /* Mobile optimizations - respect font-size settings */
           @media (max-width: 640px) {
             .prose {
-              font-size: 0.9rem !important;
               line-height: 1.6 !important;
             }
-            .prose h1 { font-size: 1.5rem !important; }
-            .prose h2 { font-size: 1.3rem !important; }
-            .prose h3 { font-size: 1.1rem !important; }
             .prose p { margin-bottom: 0.75rem !important; }
             .prose li { margin-bottom: 0.25rem !important; }
           }
