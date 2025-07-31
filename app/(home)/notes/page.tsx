@@ -879,6 +879,7 @@ export default function NotesPage() {
 
     try {
       setIsLoading(true);
+      setSyncProgress(10);
 
       let updatedNote = {
         ...selectedNote,
@@ -887,20 +888,27 @@ export default function NotesPage() {
         updatedAt: new Date().toISOString()
       };
 
+      setSyncProgress(30);
+
       // Update in Drive if signed in
       if (isSignedIn) {
         try {
           if (selectedNote.driveFileId) {
+            setSyncProgress(50);
             // Try to update existing file
             await driveService.updateFile(selectedNote.driveFileId, editContent);
+            setSyncProgress(80);
           } else {
+            setSyncProgress(40);
             // No Drive file ID, create new file
             const parentFolder = folders.find(f => f.path === selectedNote.path);
             const parentDriveId = parentFolder?.driveFolderId;
 
             if (parentDriveId) {
+              setSyncProgress(60);
               const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
               updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
+              setSyncProgress(80);
             }
           }
         } catch (driveError: unknown) {
@@ -916,8 +924,10 @@ export default function NotesPage() {
 
             if (parentDriveId) {
               try {
+                setSyncProgress(60);
                 const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
                 updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
+                setSyncProgress(80);
                 console.log('Created new file with ID:', newDriveFileId);
               } catch (createError) {
                 console.error('Failed to create new file:', createError);
@@ -935,6 +945,8 @@ export default function NotesPage() {
         }
       }
 
+      setSyncProgress(90);
+
       setNotes(notes.map(note =>
         note.id === selectedNote.id ? updatedNote : note
       ));
@@ -942,10 +954,20 @@ export default function NotesPage() {
       setIsEditing(false);
       // Disable split mode when saving
       setIsSplitMode(false);
+
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
     } catch (error) {
       console.error('Failed to save note:', error);
     } finally {
-      setIsLoading(false);
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
     }
   };
 
