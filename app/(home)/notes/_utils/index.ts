@@ -1,1 +1,2 @@
-export { MemoizedMarkdown, default as MarkdownRenderer } from './MarkdownRenderer';
+export { MemoizedMarkdown, default as MarkdownRenderer } from './markdownRenderer';
+export { OptimizedMarkdownBlocksAST } from './optimizedMarkdownBlocksAST';

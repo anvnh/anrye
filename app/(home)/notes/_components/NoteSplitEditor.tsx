@@ -2,8 +2,7 @@
 
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
-import { MemoizedMarkdown } from '../_utils';
-import { OptimizedMarkdownBlocksAST } from '../_utils/OptimizedMarkdownBlocksAST';
+import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
 import { EditorContextMenu } from './EditorContextMenu';
 
 
