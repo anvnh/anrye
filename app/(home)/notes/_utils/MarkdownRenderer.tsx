@@ -7,6 +7,22 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Note } from '../_components/types';
 import Prism from 'prismjs';
+import { visit } from 'unist-util-visit';
+import { 
+  PenTool, 
+  Info, 
+  CheckSquare, 
+  Flame, 
+  Check, 
+  HelpCircle, 
+  AlertTriangle, 
+  X, 
+  Zap, 
+  Bug, 
+  FileText, 
+  MessageSquare,
+  ClipboardList
+} from 'lucide-react';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -70,6 +86,188 @@ const updateCheckboxContent = (
   return content;
 };
 
+// Remark plugin to transform callouts
+const remarkCallouts = () => {
+  return (tree: any) => {
+    visit(tree, 'blockquote', (node: any) => {
+      if (node.children && node.children.length > 0) {
+        const firstChild = node.children[0];
+        if (firstChild.type === 'paragraph' && firstChild.children && firstChild.children.length > 0) {
+          const firstText = firstChild.children[0];
+          if (firstText.type === 'text' && firstText.value) {
+            const calloutMatch = firstText.value.match(/^\[!(\w+)\](?:\s+(.+))?/);
+            if (calloutMatch) {
+              const [, calloutType, title] = calloutMatch;
+              
+              // Transform the blockquote into a callout div
+              node.type = 'div';
+              node.data = {
+                hName: 'div',
+                hProperties: {
+                  className: 'callout',
+                  'data-callout-type': calloutType.toLowerCase(),
+                  'data-callout-title': title || ''
+                }
+              };
+              
+              // Remove the callout header from the first text node
+              firstText.value = firstText.value.replace(/^\[!\w+\](?:\s+.+)?/, '').trim();
+              if (!firstText.value) {
+                // Remove empty text node
+                firstChild.children.shift();
+                if (firstChild.children.length === 0) {
+                  node.children.shift();
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  };
+};
+
+// Callout component that matches Obsidian's styling
+const Callout: React.FC<{ type: string; title?: string; children: React.ReactNode }> = ({ type, title, children }) => {
+  const getCalloutStyles = (calloutType: string) => {
+    const styles = {
+      note: {
+        bg: 'bg-blue-900/20',
+        border: 'border-blue-500',
+        icon: PenTool,
+        iconColor: 'text-blue-400',
+        title: 'Note'
+      },
+      info: {
+        bg: 'bg-blue-900/20',
+        border: 'border-blue-500',
+        icon: Info,
+        iconColor: 'text-blue-400',
+        title: 'Info'
+      },
+      todo: {
+        bg: 'bg-blue-900/20',
+        border: 'border-blue-500',
+        icon: CheckSquare,
+        iconColor: 'text-blue-400',
+        title: 'Todo'
+      },
+      tip: {
+        bg: 'bg-teal-900/20',
+        border: 'border-teal-500',
+        icon: Flame,
+        iconColor: 'text-teal-400',
+        title: 'Tip'
+      },
+      success: {
+        bg: 'bg-green-900/20',
+        border: 'border-green-500',
+        icon: Check,
+        iconColor: 'text-green-400',
+        title: 'Success'
+      },
+      question: {
+        bg: 'bg-orange-900/20',
+        border: 'border-orange-500',
+        icon: HelpCircle,
+        iconColor: 'text-orange-400',
+        title: 'Question'
+      },
+      warning: {
+        bg: 'bg-yellow-900/20',
+        border: 'border-yellow-500',
+        icon: AlertTriangle,
+        iconColor: 'text-yellow-400',
+        title: 'Warning'
+      },
+      failure: {
+        bg: 'bg-red-900/20',
+        border: 'border-red-500',
+        icon: X,
+        iconColor: 'text-red-400',
+        title: 'Failure'
+      },
+      danger: {
+        bg: 'bg-red-900/20',
+        border: 'border-red-500',
+        icon: Zap,
+        iconColor: 'text-red-400',
+        title: 'Danger'
+      },
+      bug: {
+        bg: 'bg-red-900/20',
+        border: 'border-red-500',
+        icon: Bug,
+        iconColor: 'text-red-400',
+        title: 'Bug'
+      },
+      example: {
+        bg: 'bg-purple-900/20',
+        border: 'border-purple-500',
+        icon: FileText,
+        iconColor: 'text-purple-400',
+        title: 'Example'
+      },
+      quote: {
+        bg: 'bg-gray-800/30',
+        border: 'border-gray-500',
+        icon: MessageSquare,
+        iconColor: 'text-gray-400',
+        title: 'Quote'
+      },
+      // Aliases for compatibility
+      error: {
+        bg: 'bg-red-900/20',
+        border: 'border-red-500',
+        icon: Zap,
+        iconColor: 'text-red-400',
+        title: 'Danger'
+      },
+      important: {
+        bg: 'bg-teal-900/20',
+        border: 'border-teal-500',
+        icon: Flame,
+        iconColor: 'text-teal-400',
+        title: 'Tip'
+      },
+      abstract: {
+        bg: 'bg-teal-900/20',
+        border: 'border-teal-500',
+        icon: ClipboardList,
+        iconColor: 'text-teal-400',
+        title: 'Abstract'
+      },
+      help: {
+        bg: 'bg-orange-900/20',
+        border: 'border-orange-500',
+        icon: HelpCircle,
+        iconColor: 'text-orange-400',
+        title: 'Question'
+      }
+    };
+
+    return styles[calloutType as keyof typeof styles] || styles.note;
+  };
+
+  const calloutStyle = getCalloutStyles(type);
+  const displayTitle = title || calloutStyle.title;
+  const IconComponent = calloutStyle.icon;
+
+  return (
+    <div className={`my-4 rounded-lg border-l-4 ${calloutStyle.border} ${calloutStyle.bg} p-4`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
+          <IconComponent size={18} className={`${calloutStyle.iconColor}`} />
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-white mb-2">{displayTitle}</div>
+          <div className="text-gray-300">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   content,
   selectedNote,
@@ -130,7 +328,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
 
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
+      remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
       rehypePlugins={[rehypeKatex]}
       skipHtml={true}
       components={{
@@ -331,6 +529,27 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             <li className="text-gray-300" {...props}>{children}</li>
           );
         },
+        div: ({ children, className, ...props }) => {
+          if (className === 'callout') {
+            const calloutType = (props as any)['data-callout-type'];
+            const calloutTitle = (props as any)['data-callout-title'];
+            
+            return (
+              <Callout type={calloutType} title={calloutTitle}>
+                {children}
+              </Callout>
+            );
+          }
+          
+          if (className === 'math math-display') {
+            return (
+              <div className="math-display my-6 text-center overflow-x-auto" style={{ minHeight: '2.5em' }} {...props}>
+                <div className="inline-block">{children}</div>
+              </div>
+            );
+          }
+          return <div className={className} {...props}>{children}</div>;
+        },
         blockquote: ({ children, ...props }) => (
           <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
             {children}
@@ -391,16 +610,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         del: ({ children, ...props }) => (
           <del className="line-through text-gray-400" {...props}>{children}</del>
         ),
-        div: ({ children, className, ...props }) => {
-          if (className === 'math math-display') {
-            return (
-              <div className="math-display my-6 text-center overflow-x-auto" style={{ minHeight: '2.5em' }} {...props}>
-                <div className="inline-block">{children}</div>
-              </div>
-            );
-          }
-          return <div className={className} {...props}>{children}</div>;
-        },
+
         span: ({ children, className, ...props }) => {
           if (className === 'math math-inline') {
             return <span className="math-inline" {...props}>{children}</span>;

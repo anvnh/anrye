@@ -33,7 +33,7 @@ function splitMarkdownBlocksAST(content: string): { type: string; value: string;
   return blocks;
 }
 
-// Memoized block renderer with full MemoizedMarkdown features
+// Memoized block renderer with full MemoizedMarkdown features including callouts
 const MemoizedMarkdownBlock = React.memo(
   ({
     content,
