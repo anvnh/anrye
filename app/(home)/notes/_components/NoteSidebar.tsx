@@ -9,6 +9,7 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { NoteSidebarProps } from './types';
+import { isSafariIOSDevice } from '../../../lib/googleDrive';
 
 export default function NoteSidebar({
   notes,
@@ -231,6 +232,11 @@ export default function NoteSidebar({
             {!isSignedIn && (
               <div className="text-xs text-yellow-400 mt-2">
                 💡 Sign in to Google Drive to sync notes
+                {isSafariIOSDevice() && (
+                  <div className="text-xs text-orange-400 mt-1">
+                    🍎 Safari iOS: Enable popups or use Chrome app
+                  </div>
+                )}
               </div>
             )}
 

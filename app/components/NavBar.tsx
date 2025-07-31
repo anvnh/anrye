@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { User, LogOut, Cloud, CloudOff, Menu, X } from 'lucide-react';
 import { useDrive } from '../lib/driveContext';
 import { useAuth } from '../lib/auth';
+import { isSafariIOSDevice } from '../lib/googleDrive';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,6 +15,32 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
+
+  const handleDriveSignIn = async () => {
+    if (isSafariIOSDevice()) {
+      // Show Safari iOS specific instructions
+      const userConfirmed = confirm(
+        "Safari iOS Detected! 🍎\n\n" +
+        "Google Drive authentication works best with these steps:\n\n" +
+        "1. Allow popups for this site in Safari settings\n" +
+        "2. Or use Chrome/Firefox app for better experience\n\n" +
+        "Continue with Safari?"
+      );
+      
+      if (!userConfirmed) {
+        return;
+      }
+    }
+    
+    try {
+      await signIn();
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      if (isSafariIOSDevice()) {
+        alert('Authentication failed on Safari iOS. Please try:\n1. Using Chrome app\n2. Enabling popups in Safari settings');
+      }
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -78,10 +105,10 @@ export default function Navbar() {
                 </button>
               ) : (
                 <button
-                  onClick={signIn}
+                  onClick={handleDriveSignIn}
                   disabled={isLoading}
                   className="flex items-center space-x-2 px-3 py-2 rounded-md text-gray-400 hover:text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-50"
-                  title="Sign in to Google Drive"
+                  title={isSafariIOSDevice() ? "Sign in to Google Drive (Safari iOS - may need popup allowance)" : "Sign in to Google Drive"}
                 >
                   <CloudOff size={16} />
                   <span className="text-sm">
@@ -172,8 +199,8 @@ export default function Navbar() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      signIn();
+                    onClick={async () => {
+                      await handleDriveSignIn();
                       setIsMobileMenuOpen(false);
                     }}
                     disabled={isLoading}

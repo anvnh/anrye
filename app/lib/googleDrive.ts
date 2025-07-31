@@ -1,6 +1,15 @@
 import './types';
 import { getGoogleClientId, isGoogleClientIdConfigured } from './env';
 
+// Utility function to detect Safari iOS
+export const isSafariIOSDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+  const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|FxiOS/.test(userAgent);
+  return isIOS && isSafari;
+};
+
 interface DriveFile {
   id: string;
   name: string;
@@ -405,6 +414,11 @@ class GoogleDriveService {
     });
   }
 
+  // Detect if we're on Safari iOS
+  private isSafariIOS(): boolean {
+    return isSafariIOSDevice();
+  }
+
   private setupTokenClient(): void {
     const clientId = getGoogleClientId();
     
@@ -413,11 +427,15 @@ class GoogleDriveService {
     }
     
     if (window.google?.accounts?.oauth2) {
+      const isSafariIOS = this.isSafariIOS();
+      
       this.tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
         // Request offline access to get refresh token
         access_type: 'offline',
+        // Use redirect flow for Safari iOS to avoid popup blocking
+        ux_mode: isSafariIOS ? 'redirect' : 'popup',
         callback: (response: GoogleAuth) => {
           if (response.access_token) {
             this.accessToken = response.access_token;
@@ -458,31 +476,90 @@ class GoogleDriveService {
         return false;
       }
 
-      return new Promise((resolve) => {
+      const isSafariIOS = this.isSafariIOS();
+      
+      // Show Safari iOS specific message
+      if (isSafariIOS) {
+        console.log('🍎 Safari iOS detected - using redirect flow for better compatibility');
+      }
+
+      return new Promise((resolve, reject) => {
+        let resolved = false;
+        
+        // Set timeout for popup blocking detection
+        const timeoutId = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.log('⚠️ Authentication timeout - popup may have been blocked');
+            
+            if (isSafariIOS) {
+              alert('Safari on iOS detected. Please allow popups for this site in Safari settings, or try using Chrome app for better experience.');
+            } else {
+              alert('Popup may have been blocked. Please allow popups for this site and try again.');
+            }
+            resolve(false);
+          }
+        }, isSafariIOS ? 15000 : 30000); // Longer timeout for Safari iOS redirect
+
         // Update callback to resolve promise
         if (this.tokenClient) {
           this.tokenClient.callback = (response: GoogleAuth) => {
-            if (response.access_token) {
-              this.accessToken = response.access_token;
-              if (response.refresh_token) {
-                this.refreshToken = response.refresh_token;
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timeoutId);
+              
+              if (response.access_token) {
+                this.accessToken = response.access_token;
+                if (response.refresh_token) {
+                  this.refreshToken = response.refresh_token;
+                }
+                this.saveToken(response.access_token, response.expires_in, response.refresh_token);
+                console.log('✅ Sign in successful, tokens received');
+                resolve(true);
+              } else if (response.error) {
+                console.log('❌ Sign in failed with error:', response.error);
+                
+                // Handle specific errors
+                if (response.error === 'popup_blocked_by_browser' || response.error === 'popup_closed_by_user') {
+                  if (isSafariIOS) {
+                    alert('Authentication was blocked. Please try:\n1. Enable popups for this site in Safari settings\n2. Or use Chrome app for better compatibility');
+                  } else {
+                    alert('Authentication popup was blocked. Please allow popups for this site and try again.');
+                  }
+                }
+                resolve(false);
+              } else {
+                console.log('❌ Sign in failed, no access token received');
+                resolve(false);
               }
-              this.saveToken(response.access_token, response.expires_in, response.refresh_token);
-              console.log('Sign in successful, tokens received');
-              resolve(true);
-            } else {
-              console.log('Sign in failed, no access token received');
-              resolve(false);
             }
           };
           
-          // Request access token with prompt to ensure refresh token
-          this.tokenClient.requestAccessToken({ prompt: 'consent' });
+          try {
+            // Request access token with prompt to ensure refresh token
+            // Use 'select_account' for Safari iOS to be less aggressive than 'consent'
+            const promptType = isSafariIOS ? 'select_account' : 'consent';
+            this.tokenClient.requestAccessToken({ prompt: promptType });
+          } catch (error) {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timeoutId);
+              console.error('Error requesting access token:', error);
+              
+              if (isSafariIOS) {
+                alert('Safari iOS authentication error. Please try using Chrome app or enabling popups in Safari settings.');
+              }
+              resolve(false);
+            }
+          }
         } else {
+          resolved = true;
+          clearTimeout(timeoutId);
           resolve(false);
         }
       });
     } catch (error) {
+      console.error('Sign in error:', error);
       return false;
     }
   }
