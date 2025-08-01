@@ -975,5 +975,6 @@ class GoogleDriveService {
   }
 }
 
+export { GoogleDriveService };
 export const driveService = new GoogleDriveService();
 

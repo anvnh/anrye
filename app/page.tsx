@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
+import RecentActivity from "./components/RecentActivity";
 
 export default function Home() {
   const [loveTime, setLoveTime] = useState({
@@ -66,7 +67,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="text-center">
               <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                Welcome to AnRye
+                Welcome to AnRye Notes
               </h1>
               <p className="text-xl md:text-2xl mb-8 opacity-90">
                 Personal website with utilities and notes
@@ -146,6 +147,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+        {/* Recent Activity Section */}
+        <RecentActivity />
 
         {/* Footer */}
         <footer className="text-white py-8 bg-secondary">
