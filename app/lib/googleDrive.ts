@@ -864,6 +864,115 @@ class GoogleDriveService {
       throw error;
     }
   }
+
+  async findOrCreateLoveFolder(): Promise<string> {
+    try {
+      await this.ensureApiLoaded();
+      await this.setAccessToken();
+      
+      // Look for existing "Love" folder
+      const response = await window.gapi.client.drive.files.list({
+        q: "name='Love' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents",
+        fields: 'files(id,name,parents)'
+      });
+
+      if (response.result.files && response.result.files.length > 0) {
+        if (response.result.files.length > 1) {
+          console.warn(`Found ${response.result.files.length} Love folders. Using the first one.`);
+        }
+        return response.result.files[0].id;
+      }
+
+      // Create Love folder if it doesn't exist
+      return await this.createFolder('Love');
+    } catch (error: any) {
+      // Check if it's a 401 error and handle it
+      if (error.status === 401) {
+        await this.handleApiError(error);
+        
+        // Try once more with fresh authentication
+        try {
+          const signInSuccess = await this.signIn();
+          if (signInSuccess) {
+            await this.setAccessToken();
+            
+            const retryResponse = await window.gapi.client.drive.files.list({
+              q: "name='Love' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents",
+              fields: 'files(id,name,parents)'
+            });
+            
+            if (retryResponse.result.files && retryResponse.result.files.length > 0) {
+              return retryResponse.result.files[0].id;
+            }
+            
+            return await this.createFolder('Love');
+          }
+        } catch (retryError) {
+          throw retryError;
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  async uploadImage(name: string, imageFile: File, parentId?: string): Promise<string> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+    
+    const boundary = '-------314159265358979323846';
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    const metadata = {
+      'name': name,
+      'parents': parentId ? [parentId] : undefined,
+    };
+
+    // Convert File to base64
+    const reader = new FileReader();
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // Remove data:image/xxx;base64, prefix
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageFile);
+    });
+
+    const multipartRequestBody =
+      delimiter +
+      'Content-Type: application/json\r\n\r\n' +
+      JSON.stringify(metadata) +
+      delimiter +
+      `Content-Type: ${imageFile.type}\r\n` +
+      'Content-Transfer-Encoding: base64\r\n\r\n' +
+      base64Data +
+      close_delim;
+
+    const request = window.gapi.client.request({
+      'path': 'https://www.googleapis.com/upload/drive/v3/files',
+      'method': 'POST',
+      'params': {'uploadType': 'multipart'},
+      'headers': {
+        'Content-Type': 'multipart/related; boundary="' + boundary + '"'
+      },
+      'body': multipartRequestBody
+    });
+
+    const response = await request;
+    return response.result.id;
+  }
+
+  async getAccessToken(): Promise<string | null> {
+    if (!this.accessToken) {
+      const isValid = await this.validateAndRefreshToken();
+      if (!isValid) {
+        return null;
+      }
+    }
+    return this.accessToken;
+  }
 }
 
 export const driveService = new GoogleDriveService();

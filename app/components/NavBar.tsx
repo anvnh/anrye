@@ -64,6 +64,17 @@ export default function Navbar() {
             >
               Notes
             </Link>
+            
+            <Link 
+              href="/milestones" 
+              className={`px-3 py-2 rounded-md hover:bg-gray-700 transition-colors ${
+                isActive('/milestones') 
+                  ? 'font-semibold text-white' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              Milestones
+            </Link>
 
             {/* Google Drive Status */}
             <div className="flex items-center">
@@ -155,6 +166,18 @@ export default function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Notes
+              </Link>
+              
+              <Link 
+                href="/milestones" 
+                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  isActive('/milestones') 
+                    ? 'bg-gray-700 text-white' 
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                }`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Milestones
               </Link>
 
               {/* Mobile Google Drive Status */}

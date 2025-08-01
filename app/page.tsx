@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Heart } from 'lucide-react';
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
 
 export default function Home() {
@@ -129,6 +131,17 @@ export default function Home() {
                 </div>
                 <div className="text-xs text-gray-400">Seconds</div>
               </div>
+            </div>
+            
+            {/* Milestones Link */}
+            <div className="mt-8 text-center">
+              <Link 
+                href="/milestones"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-main text-white rounded-lg font-medium transition-colors shadow-lg"
+              >
+                <Heart size={20} />
+                View Love Milestones
+              </Link>
             </div>
           </div>
         </div>
