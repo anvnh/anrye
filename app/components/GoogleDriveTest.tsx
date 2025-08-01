@@ -9,10 +9,7 @@ export default function GoogleDriveTest() {
   const [tokenStatus, setTokenStatus] = useState<any>(null);
 
   const testGoogleDrive = () => {
-    console.log('=== Google Drive Environment Test ===');
-    console.log('NEXT_PUBLIC_GOOGLE_CLIENT_ID:', process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Client ID configured?', !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+    
     
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) {

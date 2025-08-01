@@ -34,12 +34,9 @@ export function DriveProvider({ children }: { children: ReactNode }) {
 
   const checkSignInStatus = async () => {
     try {
-      console.log('Checking Google Drive sign-in status...');
       const signedIn = await driveService.isSignedIn();
-      console.log('Sign-in status:', signedIn);
       setIsSignedIn(signedIn);
     } catch (error) {
-      console.log('Error checking sign-in status:', error);
       setIsSignedIn(false);
     } finally {
       setIsLoading(false);
@@ -47,11 +44,9 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async () => {
-    console.log('Attempting to sign in to Google Drive...');
     setIsLoading(true);
     try {
       const success = await driveService.signIn();
-      console.log('Sign-in result:', success);
       if (success) {
         setIsSignedIn(true);
       } else {

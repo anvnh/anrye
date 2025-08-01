@@ -96,7 +96,7 @@ cx + dy
 ## Code Example
 
 \`\`\`javascript
-console.log("Hello World!");
+
 \`\`\`
 
 ## Table Example

@@ -153,7 +153,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       });
 
       if (response.ok) {
-        console.log('Saved shared note to server:', shortIdToUse);
+
       } else {
         console.error('Failed to save shared note to server');
       }
@@ -265,7 +265,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
       }
 
-      console.log('Updated shared note settings:', shortIdToUpdate, settingsToSave);
+      
     } catch (err) {
       console.error('Error updating shared note settings:', err);
     }

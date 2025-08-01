@@ -119,7 +119,7 @@ export default function NotesPage() {
     setNotes([]);
     setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
     setHasSyncedWithDrive(false);
-    console.log('All data cleared');
+
   };
 
   // Add to window for debugging (remove in production)
@@ -671,17 +671,14 @@ export default function NotesPage() {
     try {
       setIsLoading(true);
       setSyncProgress(10);
-      console.log('Starting sync with Google Drive...');
-      
       const notesFolderId = await driveService.findOrCreateNotesFolder();
-      console.log('Notes folder ID:', notesFolderId);
 
       setSyncProgress(30);
       // Update root folder with Drive ID if not already set
       setFolders(prev => {
         const rootFolder = prev.find(f => f.id === 'root');
         if (rootFolder && !rootFolder.driveFolderId) {
-          console.log('Linking root folder to Drive Notes folder');
+  
           return prev.map(folder =>
             folder.id === 'root'
               ? { ...folder, driveFolderId: notesFolderId }
@@ -694,13 +691,10 @@ export default function NotesPage() {
       setSyncProgress(50);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
-        console.log('Loading content from Drive...');
         await loadFromDrive(notesFolderId, '');
         setSyncProgress(90);
         setHasSyncedWithDrive(true);
-        console.log('Sync completed successfully');
       } else {
-        console.log('Already synced with Drive, skipping content load');
       }
       setSyncProgress(100);
     } catch (error) {
@@ -715,9 +709,7 @@ export default function NotesPage() {
 
   const loadFromDrive = async (parentDriveId: string, parentPath: string) => {
     try {
-      console.log(`Loading files from Drive folder: ${parentPath || 'root'}`);
       const files = await driveService.listFiles(parentDriveId);
-      console.log(`Found ${files.length} files/folders`);
 
       for (const file of files) {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
@@ -731,7 +723,7 @@ export default function NotesPage() {
             const existingByPath = prevFolders.find(f => f.name === file.name && f.path === folderPath);
 
             if (!existingFolder && !existingByPath) {
-              console.log(`Creating local folder: ${file.name} at ${folderPath}`);
+      
               const newFolder: Folder = {
                 id: Date.now().toString() + Math.random(),
                 name: file.name,
@@ -744,7 +736,7 @@ export default function NotesPage() {
               return [...prevFolders, newFolder];
             } else if (existingByPath && !existingByPath.driveFolderId) {
               // Update existing folder with Drive ID if missing
-              console.log(`Linking existing folder ${file.name} to Drive`);
+      
               return prevFolders.map(f => 
                 f === existingByPath ? { ...f, driveFolderId: file.id } : f
               );
@@ -766,7 +758,7 @@ export default function NotesPage() {
             const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
 
             if (!existingNote && !existingByTitlePath) {
-              console.log(`Creating local note: ${noteTitle} at ${notePath}`);
+      
               // Load content and create new note
               driveService.getFile(file.id).then(content => {
                 const newNote: Note = {
@@ -794,7 +786,7 @@ export default function NotesPage() {
               return prevNotes; // Return unchanged as we're loading content async
             } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
               // Update existing note with Drive ID if missing
-              console.log(`Linking existing note ${noteTitle} to Drive`);
+      
               return prevNotes.map(n => 
                 n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
               );
@@ -1030,7 +1022,7 @@ export default function NotesPage() {
                 const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
                 updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
                 setSyncProgress(80);
-                console.log('Created new file with ID:', newDriveFileId);
+
               } catch (createError) {
                 console.error('Failed to create new file:', createError);
                 // Remove the invalid driveFileId

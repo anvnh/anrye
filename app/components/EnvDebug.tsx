@@ -13,7 +13,7 @@ export default function EnvDebug() {
       // Add more env vars if needed
     };
     
-    console.log('Environment debug info:', debugInfo);
+  
     setEnvData(debugInfo);
   }, []);
 

@@ -47,7 +47,7 @@ export default function SharedNotePage() {
 
       if (response.ok) {
         const sharedNote = await response.json();
-        // console.log('Loaded shared note from server:', sharedNote);
+    
 
         setNote(sharedNote.note);
         setShareSettings(sharedNote.settings);
@@ -63,11 +63,7 @@ export default function SharedNotePage() {
 
       // Fallback to localStorage for development/backward compatibility
       const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
-      console.log('Falling back to localStorage. All shared notes:', sharedNotes);
-      console.log('Looking for shareId:', shareId);
-
       const sharedNote = sharedNotes[shareId];
-      console.log('Found shared note in localStorage:', sharedNote);
 
       if (!sharedNote) {
         setError('Shared note not found');

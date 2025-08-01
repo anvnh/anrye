@@ -449,7 +449,7 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
               }, 0);
             })
             .catch(() => {
-              console.log('Use Ctrl+V to paste, or allow clipboard access when prompted');
+  
             });
         }
       }

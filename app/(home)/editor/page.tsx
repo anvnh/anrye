@@ -49,7 +49,7 @@ export default function EditorPage() {
             id: '1',
             name: 'main.js',
             content: `// Welcome to the Code Editor!
-console.log("Hello, World!");
+
 
 function greet(name) {
     return \`Hello, \${name}!\`;
@@ -57,7 +57,7 @@ function greet(name) {
 
 // Try editing this code
 const message = greet("Developer");
-console.log(message);
+
 
 // You can run JavaScript code here!
 `,
@@ -294,7 +294,7 @@ console.log(message);
     const getTemplateForLanguage = (lang: string): string => {
         const templates: Record<string, string> = {
             javascript: `// JavaScript file
-console.log("Hello from JavaScript!");
+
 
 function example() {
     // Your code here
@@ -313,7 +313,7 @@ const user: User = {
     age: 25
 };
 
-console.log(user);`,
+    `,
             html: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -531,7 +531,7 @@ Welcome to **Markdown**!
 ### Code Example
 
 \`\`\`javascript
-console.log("Hello from Markdown!");
+
 \`\`\`
 
 > This is a blockquote
