@@ -154,8 +154,27 @@ export default function Home() {
         {/* Footer */}
         <footer className="text-white py-8 bg-secondary">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              {/* Copyright */}
+              <div className="text-center md:text-left">
+                <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>
+              </div>
+              
+              {/* Links */}
+              <div className="flex items-center space-x-6">
+                <Link 
+                  href="/privacy"
+                  className="text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  Privacy Policy
+                </Link>
+                <Link 
+                  href="/terms"
+                  className="text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  Terms of Service
+                </Link>
+              </div>
             </div>
           </div>
         </footer>
