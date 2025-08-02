@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Share, Copy, Eye, Edit3, Lock, Globe, User, CheckCircle2Icon, ChevronDownIcon } from 'lucide-react';
+import { Share, Copy, Eye, Lock, Globe, User, CheckCircle2Icon, ChevronDownIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -35,11 +35,8 @@ interface ShareDropdownProps {
 
 interface ShareSettings {
   sharingUrl: string;
-  editMode: 'edit' | 'view';
   readPermission: 'public' | 'password-required';
-  writePermission: 'only-me' | 'password-required';
   readPassword?: string;
-  writePassword?: string;
   expireAt?: string | null;
   selectedTime: string;
 }
@@ -47,11 +44,8 @@ interface ShareSettings {
 export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownProps) {
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     sharingUrl: '',
-    editMode: 'edit',
     readPermission: 'public',
-    writePermission: 'only-me',
     readPassword: '',
-    writePassword: '',
     expireAt: null,
     selectedTime: '00:00:00'
   });
@@ -87,11 +81,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         setShareSettings(prev => ({
           ...prev,
           sharingUrl: `${window.location.origin}/shared/${finalShortId}`,
-          editMode: existingSettings.editMode || 'edit',
           readPermission: existingSettings.readPermission || 'public',
-          writePermission: existingSettings.writePermission || 'only-me',
           readPassword: existingSettings.readPassword || '',
-          writePassword: existingSettings.writePassword || '',
           expireAt: existingSettings.expireAt || null
         }));
       } else {
@@ -131,11 +122,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
       // Get current settings
       const currentSettings = {
-        editMode: shareSettings.editMode,
         readPermission: shareSettings.readPermission,
-        writePermission: shareSettings.writePermission,
         readPassword: shareSettings.readPassword,
-        writePassword: shareSettings.writePassword,
         expireAt: shareSettings.expireAt
       };
 
@@ -157,15 +145,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       } else {
         console.error('Failed to save shared note to server');
       }
-
-      // Also keep localStorage as backup for now
-      // const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
-      // sharedNotes[shortIdToUse] = {
-      //   note: noteToShare,
-      //   settings: currentSettings,
-      //   createdAt: new Date().toISOString()
-      // };
-      // localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
 
     } catch (err) {
       console.error('Error saving shared note:', err);
@@ -200,10 +179,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       if (key === 'readPermission' && value === 'password-required' && !prev.readPassword) {
         const newPassword = generatePassword();
         newSettings.readPassword = newPassword;
-      }
-      if (key === 'writePermission' && value === 'password-required' && !prev.writePassword) {
-        const newPassword = generatePassword();
-        newSettings.writePassword = newPassword;
       }
 
       // Update expireAt when date or time changes
@@ -242,11 +217,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
           shortId: shortIdToUpdate,
           note: noteToShare,
           settings: {
-            editMode: settingsToSave.editMode,
             readPermission: settingsToSave.readPermission,
-            writePermission: settingsToSave.writePermission,
-            readPassword: settingsToSave.readPassword,
-            writePassword: settingsToSave.writePassword
+            readPassword: settingsToSave.readPassword
           }
         })
       });
@@ -255,11 +227,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
       if (sharedNotes[shortIdToUpdate]) {
         sharedNotes[shortIdToUpdate].settings = {
-          editMode: settingsToSave.editMode,
           readPermission: settingsToSave.readPermission,
-          writePermission: settingsToSave.writePermission,
-          readPassword: settingsToSave.readPassword,
-          writePassword: settingsToSave.writePassword
+          readPassword: settingsToSave.readPassword
         };
         sharedNotes[shortIdToUpdate].note = noteToShare;
         localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
@@ -286,10 +255,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       let changed = false;
       if (prev.readPermission === 'password-required') {
         newSettings.readPassword = generatePassword();
-        changed = true;
-      }
-      if (prev.writePermission === 'password-required') {
-        newSettings.writePassword = generatePassword();
         changed = true;
       }
       return newSettings;
@@ -356,15 +321,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                 <option value="forever">Forever</option>
                 <option value="custom">Choose date/time</option>
               </select>
-              {/* {shareSettings.expireAt !== null && (
-                <input
-                  type="datetime-local"
-                  value={shareSettings.expireAt?.slice(0, 16) || ''}
-                  onChange={e => updateShareSettings('expireAt', e.target.value)}
-                  className="px-2 py-1 rounded bg-gray-700 text-white text-xs border-none outline-none"
-                  min={new Date().toISOString().slice(0, 16)}
-                />
-              )} */}
 
               {shareSettings.expireAt !== null && (
                 <div className="flex flex-col gap-3">
@@ -491,62 +447,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                 </div>
               )}
             </div>
-
-            {/* Write Permissions */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-white">
-                  Write
-                </span>
-              </div>
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
-                  <input
-                    type="radio"
-                    name="writePermission"
-                    value="only-me"
-                    checked={shareSettings.writePermission === 'only-me'}
-                    onChange={(e) => updateShareSettings('writePermission', e.target.value)}
-                    className="text-blue-600"
-                  />
-                  <Lock size={14} />
-                  <span>
-                    Only me
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
-                  <input
-                    type="radio"
-                    name="writePermission"
-                    value="password-required"
-                    checked={shareSettings.writePermission === 'password-required'}
-                    onChange={(e) => updateShareSettings('writePermission', e.target.value)}
-                    className="text-blue-600"
-                  />
-                  <User size={14} />
-                  <span>Required password</span>
-                </label>
-              </div>
-
-              {/* Show password when password-required is selected */}
-              {shareSettings.writePermission === 'password-required' && shareSettings.writePassword && (
-                <div className="mt-2 p-2 bg-gray-600 rounded text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Password:</span>
-                    <div className="flex items-center gap-2">
-                      <code className="text-yellow-300 font-mono">{shareSettings.writePassword}</code>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(shareSettings.writePassword || '')}
-                        className="text-blue-400 hover:text-blue-300"
-                        title="Copy password"
-                      >
-                        <Copy size={12} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           <DropdownMenuSeparator className="bg-gray-700" />
@@ -561,14 +461,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                 <span className="px-3 py-2 text-xs text-gray-400 bg-gray-600 rounded-l border-r border-gray-500">
                   {getShortUrl()}
                 </span>
-                {/* <select
-                  value={shareSettings.editMode}
-                  onChange={(e) => updateShareSettings('editMode', e.target.value)}
-                  className="w-full items-center px-2 py-2 text-xs bg-gray-700 text-white border-none outline-none"
-                >
-                  <option value="edit">/edit</option>
-                  <option value="view">/view</option>
-                </select> */}
                 <span className='text-[13px] px-3 font-light text-gray-400'>
                   /view
                 </span>

@@ -1,20 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { NoteRegularEditor } from '@/app/(home)/notes/_components';
+import { gsap } from 'gsap';
 import { MemoizedMarkdown } from '@/app/(home)/notes/_utils';
 import NoteOutlineSidebar from '@/app/(home)/notes/_components/NoteOutlineSidebar';
 import { Note } from '@/app/(home)/notes/_components/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from 'lucide-react';
+import { List, X } from 'lucide-react';
 
 interface ShareSettings {
-  editMode: 'edit' | 'view';
   readPermission: 'public' | 'password-required';
-  writePermission: 'only-me' | 'password-required';
   readPassword?: string;
-  writePassword?: string;
 }
 
 export default function SharedNotePage() {
@@ -25,14 +23,67 @@ export default function SharedNotePage() {
   const [shareSettings, setShareSettings] = useState<ShareSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [passwordPrompt, setPasswordPrompt] = useState<'read' | 'write' | null>(null);
+  const [passwordPrompt, setPasswordPrompt] = useState<'read' | null>(null);
   const [enteredPassword, setEnteredPassword] = useState('');
   const [hasReadAccess, setHasReadAccess] = useState(false);
-  const [hasWriteAccess, setHasWriteAccess] = useState(false);
+  const [isOutlineOpen, setIsOutlineOpen] = useState(false);
 
   const [passwordError, setPasswordError] = useState(false);
+
+  const outlineRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // GSAP animations for outline
+  useEffect(() => {
+    if (!outlineRef.current || !backdropRef.current) return;
+
+    const outline = outlineRef.current;
+    const backdrop = backdropRef.current;
+
+    if (isOutlineOpen) {
+      // Animate backdrop fade in
+      gsap.fromTo(backdrop, 
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power2.out" }
+      );
+
+      // Animate outline slide in from left
+      gsap.fromTo(outline,
+        { x: -320, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power2.out" }
+      );
+    } else {
+      // Animate backdrop fade out
+      gsap.to(backdrop, { opacity: 0, duration: 0.2, ease: "power2.in" });
+
+      // Animate outline slide out to left
+      gsap.to(outline, { x: -320, opacity: 0, duration: 0.3, ease: "power2.in" });
+    }
+  }, [isOutlineOpen]);
+
+  // Button animation on hover
+  useEffect(() => {
+    if (!buttonRef.current) return;
+
+    const button = buttonRef.current;
+
+    const handleMouseEnter = () => {
+      gsap.to(button, { scale: 1.05, duration: 0.2, ease: "power2.out" });
+    };
+
+    const handleMouseLeave = () => {
+      gsap.to(button, { scale: 1, duration: 0.2, ease: "power2.out" });
+    };
+
+    button.addEventListener('mouseenter', handleMouseEnter);
+    button.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      button.removeEventListener('mouseenter', handleMouseEnter);
+      button.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
 
   useEffect(() => {
     loadSharedNote();
@@ -47,11 +98,10 @@ export default function SharedNotePage() {
 
       if (response.ok) {
         const sharedNote = await response.json();
-    
+
 
         setNote(sharedNote.note);
         setShareSettings(sharedNote.settings);
-        setEditContent(sharedNote.note.content);
 
         // Check access permissions
         if (sharedNote.settings.readPermission === 'public') {
@@ -72,7 +122,6 @@ export default function SharedNotePage() {
 
       setNote(sharedNote.note);
       setShareSettings(sharedNote.settings);
-      setEditContent(sharedNote.note.content);
 
       // Check access permissions
       if (sharedNote.settings.readPermission === 'public') {
@@ -93,60 +142,15 @@ export default function SharedNotePage() {
     return false;
   };
 
-  const canEdit = (settings: ShareSettings): boolean => {
-    if (settings.writePermission === 'only-me') return false;
-    if (settings.writePermission === 'password-required') return hasWriteAccess;
-    return false;
-  };
-
-  const checkPassword = (type: 'read' | 'write') => {
+  const checkPassword = (type: 'read') => {
     if (!shareSettings) return;
-    const correctPasswordValue = type === 'read' ? shareSettings.readPassword : shareSettings.writePassword;
+    const correctPasswordValue = shareSettings.readPassword;
     if (enteredPassword === correctPasswordValue) {
-      if (type === 'read') {
-        setHasReadAccess(true);
-      } else {
-        setHasWriteAccess(true);
-      }
+      setHasReadAccess(true);
       setPasswordPrompt(null);
       setEnteredPassword('');
     } else {
-      // alert(`Incorrect password. Expected: ${correctPasswordValue}, Got: ${enteredPassword}`);
       setPasswordError(true);
-    }
-  };
-
-  const handleSaveEdit = () => {
-    if (!note || !shareSettings) return;
-
-    try {
-      // Update the shared note content
-      const sharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
-      if (sharedNotes[shareId]) {
-        sharedNotes[shareId].note.content = editContent;
-        sharedNotes[shareId].note.lastModified = new Date().toISOString();
-        localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
-
-        setNote(prev => prev ? { ...prev, content: editContent, lastModified: new Date().toISOString() } : null);
-        setIsEditing(false);
-      }
-    } catch (err) {
-      console.error('Error saving shared note:', err);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditContent(note?.content || '');
-    setIsEditing(false);
-  };
-
-  const handleEditClick = () => {
-    if (!shareSettings) return;
-
-    if (shareSettings.writePermission === 'password-required' && !hasWriteAccess) {
-      setPasswordPrompt('write');
-    } else {
-      setIsEditing(true);
     }
   };
 
@@ -200,7 +204,9 @@ export default function SharedNotePage() {
                       Please verify your password and try again.
                     </p>
                     <ul className="list-inside list-disc text-xs sm:text-sm mt-2">
-                      <li>Check for typos</li>
+                      <li>
+                        Check for typos
+                      </li>
                       <li>Ask the note owner for the correct password</li>
                     </ul>
                   </AlertDescription>
@@ -244,94 +250,56 @@ export default function SharedNotePage() {
               <h1 className="text-lg sm:text-xl font-semibold text-white truncate">{note.title}</h1>
               <p className="text-xs sm:text-sm text-gray-400">Shared Note</p>
             </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {shareSettings.editMode === 'edit' && canEdit(shareSettings) && (
-                <>
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={handleSaveEdit}
-                        className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs sm:text-sm"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-2 sm:px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs sm:text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleEditClick}
-                      className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs sm:text-sm"
-                    >
-                      Edit
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Password Prompt Modal */}
-        {passwordPrompt && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 p-4 sm:p-6 rounded-lg max-w-md w-full mx-4">
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">
-                Password Required for {passwordPrompt === 'write' ? 'Editing' : 'Reading'}
-              </h3>
-              <input
-                type="password"
-                value={enteredPassword}
-                onChange={(e) => setEnteredPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none mb-3 sm:mb-4 text-sm sm:text-base"
-                onKeyPress={(e) => e.key === 'Enter' && checkPassword(passwordPrompt)}
-                autoFocus
-              />
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => checkPassword(passwordPrompt)}
-                  className="flex-1 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base"
-                >
-                  Submit
-                </button>
-                <button
-                  onClick={() => {
-                    setPasswordPrompt(null);
-                    setEnteredPassword('');
-                  }}
-                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm sm:text-base"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Content */}
-        <div className="flex-1">
-          {isEditing ? (
-            <NoteRegularEditor
-              editContent={editContent}
-              setEditContent={setEditContent}
-            />
-          ) : (
-            <div className="h-full flex">
-              {/* Outline Sidebar */}
-              <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
-                <NoteOutlineSidebar content={note.content} />
-              </div>
-              {/* Main Content */}
-              <div className="flex-1 px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main">
-                <MemoizedMarkdown content={note.content} />
+        <div className="flex-1 relative">
+          {/* Mobile Outline Toggle Button */}
+          <div className="lg:hidden absolute top-4 right-4 z-50">
+            <button
+              ref={buttonRef}
+              onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+              className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+              title="Toggle outline"
+            >
+              {isOutlineOpen ? <X size={20} /> : <List size={20} />}
+            </button>
+          </div>
+
+          {/* Mobile Outline Overlay */}
+          {isOutlineOpen && (
+            <div className="lg:hidden fixed inset-0 z-40">
+              {/* Backdrop */}
+              <div 
+                ref={backdropRef}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsOutlineOpen(false)}
+              />
+              
+              {/* Outline Panel */}
+              <div 
+                ref={outlineRef}
+                className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
+              >
+                <div className="h-full">
+                  <NoteOutlineSidebar content={note.content} />
+                </div>
               </div>
             </div>
           )}
+
+          <div className="h-full flex">
+            {/* Desktop Outline Sidebar */}
+            <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
+              <NoteOutlineSidebar content={note.content} />
+            </div>
+            
+            {/* Main Content */}
+            <div className="flex-1 px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main">
+              <MemoizedMarkdown content={note.content} />
+            </div>
+          </div>
         </div>
       </div>
     </>
