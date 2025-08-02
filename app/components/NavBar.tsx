@@ -65,17 +65,6 @@ export default function Navbar() {
               Notes
             </Link>
             
-            <Link 
-              href="/milestones" 
-              className={`px-3 py-2 rounded-md hover:bg-gray-700 transition-colors ${
-                isActive('/milestones') 
-                  ? 'font-semibold text-white' 
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              Milestones
-            </Link>
-
             {/* Google Drive Status */}
             <div className="flex items-center">
               {isSignedIn ? (

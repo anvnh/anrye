@@ -117,7 +117,7 @@ export default function RecentActivity() {
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              className="cursor-pointer p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
               title="Refresh activities"
             >
               <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
 import RecentActivity from "./components/RecentActivity";
+import LoveTimerHoverCard from "./components/LoveTimerHoverCard";
 
 export default function Home() {
   const [loveTime, setLoveTime] = useState({
@@ -62,91 +63,14 @@ export default function Home() {
   return (
     <AuthenticatedLayout>
       <div className="h-full flex flex-col overflow-y-auto">
-        {/* Hero Section */}
+        {/* Hero Section with Love Timer Hover */}
         <div className="text-white bg-gradient-main">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                Welcome to AnRye Notes
-              </h1>
-              <p className="text-xl md:text-2xl mb-8 opacity-90">
-                Personal website with utilities and notes
-              </p>
+              <LoveTimerHoverCard loveTime={loveTime} />
             </div>
           </div>
         </div>
-
-        {/* Love Timer Section */}
-        <div className="py-12 bg-secondary">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-8">
-              <p className="text-2xl font-bold text-white">
-                Since 22/08/2024
-              </p>
-            </div>
-
-            <div className="rounded-xl p-6 bg-main">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold mb-2 text-white">
-                  {loveTime.years}
-                </div>
-                <div className="text-sm text-gray-400 font-medium">
-                  Years
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold mb-2 text-white">
-                  {loveTime.months}
-                </div>
-                <div className="text-sm text-gray-400 font-medium">
-                  Months
-                </div>
-              </div>
-              <div className="text-center col-span-2 md:col-span-1">
-                <div className="text-3xl md:text-4xl font-bold mb-2 text-white">
-                  {loveTime.days}
-                </div>
-                <div className="text-sm text-gray-400 font-medium">
-                  Days
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-xl md:text-2xl font-bold mb-1 text-gray-300">
-                  {loveTime.hours}
-                </div>
-                <div className="text-xs text-gray-400">Hours</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl md:text-2xl font-bold mb-1 text-gray-300">
-                  {loveTime.minutes}
-                </div>
-                <div className="text-xs text-gray-400">Minutes</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl md:text-2xl font-bold mb-1 text-gray-300">
-                  {loveTime.seconds}
-                </div>
-                <div className="text-xs text-gray-400">Seconds</div>
-              </div>
-            </div>
-            
-            {/* Milestones Link */}
-            <div className="mt-8 text-center">
-              <Link 
-                href="/milestones"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-main text-white rounded-lg font-medium transition-colors shadow-lg"
-              >
-                <Heart size={20} />
-                View Love Milestones
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
 
         {/* Recent Activity Section */}
         <RecentActivity />
