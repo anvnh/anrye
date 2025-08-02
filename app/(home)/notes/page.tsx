@@ -1239,6 +1239,16 @@ export default function NotesPage() {
     setIsSplitMode(false);
   };
 
+  const closeNote = () => {
+    setSelectedNote(null);
+    setEditTitle('');
+    setEditContent('');
+    setIsEditing(false);
+    setIsSplitMode(false);
+    // Remove from localStorage
+    localStorage.removeItem('selected-note-id');
+  };
+
   // Scroll synchronization state for split mode (passed to components)
   const [isScrollingSynced, setIsScrollingSynced] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1312,6 +1322,7 @@ export default function NotesPage() {
                   startEdit={startEdit}
                   isMobileSidebarOpen={isMobileSidebarOpen}
                   onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                  onCloseNote={closeNote}
                 />
 
                 {/* Note Content */}

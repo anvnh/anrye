@@ -25,6 +25,7 @@ interface NoteNavbarProps {
   startEdit: () => void;
   isMobileSidebarOpen: boolean;
   onToggleMobileSidebar: () => void;
+  onCloseNote: () => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -48,6 +49,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   startEdit,
   isMobileSidebarOpen,
   onToggleMobileSidebar,
+  onCloseNote,
 }) => (
   <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
     <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -76,6 +78,18 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       </div>
 
       <div className="flex items-center space-x-1 flex-shrink-0">
+        {/* Close Note Button */}
+        <button
+          onClick={onCloseNote}
+          className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          title="Close Note"
+        >
+          <X size={16} />
+          <span className="hidden sm:inline">
+            Close
+          </span>
+        </button>
+
         {/* Share Button */}
         <ShareDropdown
           noteId={selectedNote.id}
@@ -94,7 +108,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+\\)`}
           >
             <Split size={14} className="lg:w-4 lg:h-4" />
-            <span>Split View</span>
+            <span>
+              Split View
+            </span>
           </button>
         )}
 
