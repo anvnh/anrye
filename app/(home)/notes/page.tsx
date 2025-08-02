@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import { FileText, Edit, Save, X, Split, Settings2Icon, Menu } from 'lucide-react';
 import 'katex/dist/katex.min.css';
@@ -31,6 +31,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
+// Lazy load the drive service
+const loadDriveService = async () => {
+  if (typeof window !== 'undefined') {
+    return await import('../../lib/googleDrive');
+  }
+  return null;
+};
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="h-full flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
+    <div className="text-center">
+      <FileText className="text-primary animate-pulse mx-auto mb-4" size={48} />
+      <p className="text-white">Loading notes...</p>
+    </div>
+  </div>
+);
 
 export default function NotesPage() {
   // Font settings
@@ -103,6 +121,7 @@ export default function NotesPage() {
 
   // Track if we've already synced with Drive
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Split-screen mode state
   const [isSplitMode, setIsSplitMode] = useState(false);
@@ -146,56 +165,70 @@ export default function NotesPage() {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedNotes = localStorage.getItem('notes-new'); // Đổi từ 'notes-drive' thành 'notes-new' để thống nhất
-    const savedFolders = localStorage.getItem('folders-new');
-    const savedSidebarWidth = localStorage.getItem('sidebar-width');
-    const savedHasSynced = localStorage.getItem('has-synced-drive');
+    const initializeData = async () => {
+      try {
+        const savedNotes = localStorage.getItem('notes-new'); // Đổi từ 'notes-drive' thành 'notes-new' để thống nhất
+        const savedFolders = localStorage.getItem('folders-new');
+        const savedSidebarWidth = localStorage.getItem('sidebar-width');
+        const savedHasSynced = localStorage.getItem('has-synced-drive');
 
-    if (savedNotes) {
-      const parsedNotes = JSON.parse(savedNotes);
-      // Remove duplicate notes based on driveFileId or id
-      const uniqueNotes = parsedNotes.filter((note: Note, index: number, array: Note[]) => {
-        if (note.driveFileId) {
-          // If note has driveFileId, use that for uniqueness
-          return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
-        } else {
-          // If no driveFileId, use regular id
-          return array.findIndex(n => n.id === note.id) === index;
+        if (savedNotes) {
+          const parsedNotes = JSON.parse(savedNotes);
+          // Remove duplicate notes based on driveFileId or id
+          const uniqueNotes = parsedNotes.filter((note: Note, index: number, array: Note[]) => {
+            if (note.driveFileId) {
+              // If note has driveFileId, use that for uniqueness
+              return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
+            } else {
+              // If no driveFileId, use regular id
+              return array.findIndex(n => n.id === note.id) === index;
+            }
+          });
+          setNotes(uniqueNotes);
         }
-      });
-      setNotes(uniqueNotes);
-    }
 
-    if (savedFolders) {
-      const parsedFolders = JSON.parse(savedFolders);
-      // Remove duplicate folders based on driveFolderId or id
-      const uniqueFolders = parsedFolders.filter((folder: Folder, index: number, array: Folder[]) => {
-        if (folder.driveFolderId) {
-          // If folder has driveFolderId, use that for uniqueness
-          return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
-        } else {
-          // If no driveFolderId, use regular id
-          return array.findIndex(f => f.id === folder.id) === index;
+        if (savedFolders) {
+          const parsedFolders = JSON.parse(savedFolders);
+          // Remove duplicate folders based on driveFolderId or id
+          const uniqueFolders = parsedFolders.filter((folder: Folder, index: number, array: Folder[]) => {
+            if (folder.driveFolderId) {
+              // If folder has driveFolderId, use that for uniqueness
+              return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
+            } else {
+              // If no driveFolderId, use regular id
+              return array.findIndex(f => f.id === folder.id) === index;
+            }
+          });
+          setFolders(uniqueFolders);
         }
-      });
-      setFolders(uniqueFolders);
-    }
 
-    if (savedSidebarWidth) {
-      setSidebarWidth(parseInt(savedSidebarWidth));
-    }
+        if (savedSidebarWidth) {
+          setSidebarWidth(parseInt(savedSidebarWidth));
+        }
 
-    if (savedHasSynced) {
-      setHasSyncedWithDrive(JSON.parse(savedHasSynced));
-    }
+        if (savedHasSynced) {
+          setHasSyncedWithDrive(JSON.parse(savedHasSynced));
+        }
 
-    // Sync with Drive if signed in and haven't synced yet
-    if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
-      syncWithDrive();
-    } else if (!isSignedIn) {
-      // Reset sync flag when signed out
-      setHasSyncedWithDrive(false);
-    }
+        // Then check Google Drive status (slower, but non-blocking)
+        setTimeout(async () => {
+          // Sync with Drive if signed in and haven't synced yet
+          if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
+            syncWithDrive();
+          } else if (!isSignedIn) {
+            // Reset sync flag when signed out
+            setHasSyncedWithDrive(false);
+          }
+        }, 100);
+
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize notes:', error);
+        setIsInitialized(true);
+      }
+    };
+
+    initializeData();
   }, [isSignedIn]); // syncWithDrive is defined below, dependency not needed here
 
   // Save data to localStorage
@@ -671,7 +704,11 @@ export default function NotesPage() {
     try {
       setIsLoading(true);
       setSyncProgress(10);
-      const notesFolderId = await driveService.findOrCreateNotesFolder();
+      
+      const driveModule = await loadDriveService();
+      if (!driveModule) return;
+      
+      const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
 
       setSyncProgress(30);
       // Update root folder with Drive ID if not already set
@@ -691,7 +728,7 @@ export default function NotesPage() {
       setSyncProgress(50);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
-        await loadFromDrive(notesFolderId, '');
+        await loadFromDrive(notesFolderId, '', driveModule.driveService);
         setSyncProgress(90);
         setHasSyncedWithDrive(true);
       } else {
@@ -707,7 +744,7 @@ export default function NotesPage() {
     }
   }, [hasSyncedWithDrive]); // loadFromDrive is defined below, using internal function
 
-  const loadFromDrive = async (parentDriveId: string, parentPath: string) => {
+  const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any) => {
     try {
       const files = await driveService.listFiles(parentDriveId);
 
@@ -745,7 +782,7 @@ export default function NotesPage() {
           });
 
           // Recursively load subfolders
-          await loadFromDrive(file.id, folderPath);
+          await loadFromDrive(file.id, folderPath, driveService);
         } else if (file.name.endsWith('.md')) {
           // It's a markdown file
           const notePath = parentPath;
@@ -760,7 +797,7 @@ export default function NotesPage() {
             if (!existingNote && !existingByTitlePath) {
       
               // Load content and create new note
-              driveService.getFile(file.id).then(content => {
+              driveService.getFile(file.id).then((content: string) => {
                 const newNote: Note = {
                   id: Date.now().toString() + Math.random(),
                   title: noteTitle,
@@ -779,7 +816,7 @@ export default function NotesPage() {
                   }
                   return currentNotes;
                 });
-              }).catch(error => {
+              }).catch((error: any) => {
                 console.error('Failed to load note content for', noteTitle, ':', error);
               });
 
@@ -1184,6 +1221,15 @@ export default function NotesPage() {
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScrollSource = useRef<'raw' | 'preview' | null>(null);
   const scrollThrottleRef = useRef<number | null>(null);
+
+  // Show loading spinner while initializing
+  if (!isInitialized) {
+    return (
+      <AuthenticatedLayout>
+        <LoadingSpinner />
+      </AuthenticatedLayout>
+    );
+  }
 
   return (
     <AuthenticatedLayout>

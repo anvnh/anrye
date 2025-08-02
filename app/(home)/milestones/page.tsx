@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { Heart, Plus, Upload, Calendar, Image, Trash2, Edit, Save, X } from 'lucide-react';
 import { Milestone, MilestoneImage } from './_components/types';
 import { MilestoneImageViewer } from './_components/MilestoneImageViewer';
@@ -17,12 +17,31 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+// Lazy load the drive service
+const loadDriveService = async () => {
+  if (typeof window !== 'undefined') {
+    return await import('@/app/lib/googleDrive');
+  }
+  return null;
+};
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-gradient-main flex items-center justify-center">
+    <div className="text-center">
+      <Heart className="text-primary animate-pulse mx-auto mb-4" size={48} />
+      <p className="text-white">Loading milestones...</p>
+    </div>
+  </div>
+);
+
 export default function MilestonesPage() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [syncProgress, setSyncProgress] = useState<number>(0);
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState<boolean>(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
   // Create/Edit milestone states
   const [isCreating, setIsCreating] = useState<boolean>(false);
@@ -38,40 +57,70 @@ export default function MilestonesPage() {
   const [milestoneToDelete, setMilestoneToDelete] = useState<Milestone | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
 
-  // Load data from localStorage on mount
+  // Initialize data asynchronously
   useEffect(() => {
-    const savedMilestones = localStorage.getItem('milestones-love');
-    const savedHasSynced = localStorage.getItem('has-synced-love-drive');
-
-    if (savedMilestones) {
-      setMilestones(JSON.parse(savedMilestones));
-    }
-    // Don't create default milestone - leave empty if no data exists
-
-    if (savedHasSynced) {
-      setHasSyncedWithDrive(JSON.parse(savedHasSynced));
-    }
-  }, []);
-
-  // Check sign-in status
-  useEffect(() => {
-    const checkSignInStatus = async () => {
+    const initializeData = async () => {
       try {
-        const signedIn = await driveService.isSignedIn();
-        setIsSignedIn(signedIn);
-        
-        // Sync with Drive if signed in and haven't synced yet
-        if (signedIn && !hasSyncedWithDrive) {
-          syncWithDrive();
+        // Load data from localStorage first (fast)
+        const savedMilestones = localStorage.getItem('milestones-love');
+        const savedHasSynced = localStorage.getItem('has-synced-love-drive');
+
+        if (savedMilestones) {
+          setMilestones(JSON.parse(savedMilestones));
         }
+
+        if (savedHasSynced) {
+          setHasSyncedWithDrive(JSON.parse(savedHasSynced));
+        }
+
+        // Then check Google Drive status (slower, but non-blocking)
+        setTimeout(async () => {
+          try {
+            const driveModule = await loadDriveService();
+            if (driveModule) {
+              const signedIn = await driveModule.driveService.isSignedIn();
+              setIsSignedIn(signedIn);
+              
+              // Sync with Drive if signed in and haven't synced yet
+              if (signedIn && !hasSyncedWithDrive) {
+                syncWithDrive();
+              }
+            }
+          } catch (error) {
+            console.error('Failed to check sign-in status:', error);
+            setIsSignedIn(false);
+          }
+        }, 100);
+
+        setIsInitialized(true);
       } catch (error) {
-        console.error('Failed to check sign-in status:', error);
-        setIsSignedIn(false);
+        console.error('Failed to initialize milestones:', error);
+        setIsInitialized(true);
       }
     };
 
-    checkSignInStatus();
-  }, [hasSyncedWithDrive]);
+    initializeData();
+  }, []);
+
+  // Check sign-in status (moved to async initialization)
+  // useEffect(() => {
+  //   const checkSignInStatus = async () => {
+  //     try {
+  //       const signedIn = await driveService.isSignedIn();
+  //       setIsSignedIn(signedIn);
+        
+  //       // Sync with Drive if signed in and haven't synced yet
+  //       if (signedIn && !hasSyncedWithDrive) {
+  //         syncWithDrive();
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to check sign-in status:', error);
+  //       setIsSignedIn(false);
+  //     }
+  //   };
+
+  //   checkSignInStatus();
+  // }, [hasSyncedWithDrive]);
 
   // Save to localStorage whenever milestones change
   useEffect(() => {
@@ -87,13 +136,16 @@ export default function MilestonesPage() {
       setIsLoading(true);
       setSyncProgress(10);
       
+      const driveModule = await loadDriveService();
+      if (!driveModule) return;
+      
       // Find or create Love folder
-      const loveFolderId = await driveService.findOrCreateLoveFolder();
+      const loveFolderId = await driveModule.driveService.findOrCreateLoveFolder();
       setSyncProgress(50);
       
       // Load existing milestones from Drive
       if (!hasSyncedWithDrive) {
-        await loadFromDrive(loveFolderId);
+        await loadFromDrive(loveFolderId, driveModule.driveService);
         setHasSyncedWithDrive(true);
       }
       setSyncProgress(90);
@@ -109,7 +161,7 @@ export default function MilestonesPage() {
     }
   }, [hasSyncedWithDrive]);
 
-  const loadFromDrive = async (loveFolderId: string) => {
+  const loadFromDrive = async (loveFolderId: string, driveService: any) => {
     try {
       const files = await driveService.listFiles(loveFolderId);
       
@@ -164,25 +216,28 @@ export default function MilestonesPage() {
       // Upload images to Drive if signed in
       if (isSignedIn && formData.images.length > 0) {
         setSyncProgress(30);
-        const loveFolderId = await driveService.findOrCreateLoveFolder();
-        
-        for (let i = 0; i < formData.images.length; i++) {
-          const image = formData.images[i];
-          setSyncProgress(30 + (40 * (i + 1) / formData.images.length));
+        const driveModule = await loadDriveService();
+        if (driveModule) {
+          const loveFolderId = await driveModule.driveService.findOrCreateLoveFolder();
           
-          const imageId = await driveService.uploadImage(
-            `${milestoneId}-${image.name}`,
-            image,
-            loveFolderId
-          );
-          
-          uploadedImages.push({
-            id: Date.now().toString() + i,
-            name: image.name,
-            driveFileId: imageId,
-            size: image.size,
-            type: image.type
-          });
+          for (let i = 0; i < formData.images.length; i++) {
+            const image = formData.images[i];
+            setSyncProgress(30 + (40 * (i + 1) / formData.images.length));
+            
+            const imageId = await driveModule.driveService.uploadImage(
+              `${milestoneId}-${image.name}`,
+              image,
+              loveFolderId
+            );
+            
+            uploadedImages.push({
+              id: Date.now().toString() + i,
+              name: image.name,
+              driveFileId: imageId,
+              size: image.size,
+              type: image.type
+            });
+          }
         }
       }
 
@@ -203,13 +258,16 @@ export default function MilestonesPage() {
       // Save milestone data to Drive if signed in
       if (isSignedIn) {
         setSyncProgress(80);
-        const loveFolderId = await driveService.findOrCreateLoveFolder();
-        const milestoneFileId = await driveService.uploadFile(
-          `milestone-${milestoneId}.json`,
-          JSON.stringify(milestoneData, null, 2),
-          loveFolderId
-        );
-        milestoneData.driveFileId = milestoneFileId;
+        const driveModule = await loadDriveService();
+        if (driveModule) {
+          const loveFolderId = await driveModule.driveService.findOrCreateLoveFolder();
+          const milestoneFileId = await driveModule.driveService.uploadFile(
+            `milestone-${milestoneId}.json`,
+            JSON.stringify(milestoneData, null, 2),
+            loveFolderId
+          );
+          milestoneData.driveFileId = milestoneFileId;
+        }
       }
 
       setSyncProgress(90);
@@ -264,12 +322,15 @@ export default function MilestonesPage() {
       // Delete from Drive if signed in
       if (isSignedIn && milestoneToDelete.driveFileId) {
         setSyncProgress(30);
-        await driveService.deleteFile(milestoneToDelete.driveFileId);
-        
-        // Delete associated images
-        for (const image of milestoneToDelete.images) {
-          if (image.driveFileId) {
-            await driveService.deleteFile(image.driveFileId);
+        const driveModule = await loadDriveService();
+        if (driveModule) {
+          await driveModule.driveService.deleteFile(milestoneToDelete.driveFileId);
+          
+          // Delete associated images
+          for (const image of milestoneToDelete.images) {
+            if (image.driveFileId) {
+              await driveModule.driveService.deleteFile(image.driveFileId);
+            }
           }
         }
         setSyncProgress(80);
@@ -313,6 +374,11 @@ export default function MilestonesPage() {
   const sortedMilestones = [...milestones].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+
+  // Show loading spinner while initializing
+  if (!isInitialized) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-main">

@@ -1,8 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import { ImageIcon } from 'lucide-react';
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="h-full flex items-center justify-center bg-main">
+    <div className="text-center">
+      <ImageIcon className="text-primary animate-pulse mx-auto mb-4" size={48} />
+      <p className="text-white">Loading utilities...</p>
+    </div>
+  </div>
+);
 
 export default function UtilsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import AuthenticatedLayout from '../../components/AuthenticatedLayout';
 import {
     Play,
@@ -13,17 +13,59 @@ import {
     Terminal
 } from 'lucide-react';
 
-// CodeMirror imports
-import { EditorView, basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
-import { oneDark } from '@codemirror/theme-one-dark';
-import { javascript } from '@codemirror/lang-javascript';
-import { html } from '@codemirror/lang-html';
-import { css } from '@codemirror/lang-css';
-import { json } from '@codemirror/lang-json';
-import { python } from '@codemirror/lang-python';
-import { markdown } from '@codemirror/lang-markdown';
-import { cpp } from '@codemirror/lang-cpp';
+// Lazy load CodeMirror
+const loadCodeMirror = async () => {
+  if (typeof window !== 'undefined') {
+    const [
+      { EditorView, basicSetup },
+      { EditorState },
+      { oneDark },
+      { javascript },
+      { html },
+      { css },
+      { json },
+      { python },
+      { markdown },
+      { cpp }
+    ] = await Promise.all([
+      import('codemirror'),
+      import('@codemirror/state'),
+      import('@codemirror/theme-one-dark'),
+      import('@codemirror/lang-javascript'),
+      import('@codemirror/lang-html'),
+      import('@codemirror/lang-css'),
+      import('@codemirror/lang-json'),
+      import('@codemirror/lang-python'),
+      import('@codemirror/lang-markdown'),
+      import('@codemirror/lang-cpp')
+    ]);
+    
+    return {
+      EditorView,
+      basicSetup,
+      EditorState,
+      oneDark,
+      javascript,
+      html,
+      css,
+      json,
+      python,
+      markdown,
+      cpp
+    };
+  }
+  return null;
+};
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="h-full flex items-center justify-center bg-main">
+    <div className="text-center">
+      <Code2 className="text-primary animate-pulse mx-auto mb-4" size={48} />
+      <p className="text-white">Loading editor...</p>
+    </div>
+  </div>
+);
 
 interface CodeFile {
     id: string;
@@ -88,28 +130,32 @@ const message = greet("Developer");
     });
 
     const editorRef = useRef<HTMLDivElement>(null);
-    const editorViewRef = useRef<EditorView | null>(null);
+    const editorViewRef = useRef<any>(null);
     const outputRef = useRef<HTMLDivElement>(null);
+    const [isCodeMirrorLoaded, setIsCodeMirrorLoaded] = useState(false);
+    const [codeMirrorModule, setCodeMirrorModule] = useState<any>(null);
 
     // Get language extension for CodeMirror
     const getLanguageExtension = (language: string) => {
+        if (!codeMirrorModule) return [];
+        
         switch (language) {
             case 'javascript':
             case 'typescript':
-                return javascript();
+                return codeMirrorModule.javascript();
             case 'html':
-                return html();
+                return codeMirrorModule.html();
             case 'css':
-                return css();
+                return codeMirrorModule.css();
             case 'json':
-                return json();
+                return codeMirrorModule.json();
             case 'python':
-                return python();
+                return codeMirrorModule.python();
             case 'markdown':
-                return markdown();
+                return codeMirrorModule.markdown();
             case 'cpp':
             case 'c':
-                return cpp();
+                return codeMirrorModule.cpp();
             default:
                 return [];
         }
@@ -128,18 +174,33 @@ const message = greet("Developer");
         { id: 'markdown', name: 'Markdown', ext: 'md' }
     ];
 
-    // Load settings from localStorage
+    // Load settings from localStorage and CodeMirror
     useEffect(() => {
-        const savedSettings = localStorage.getItem('editor-settings');
-        const savedFiles = localStorage.getItem('editor-files');
+        const initializeEditor = async () => {
+            try {
+                const savedSettings = localStorage.getItem('editor-settings');
+                const savedFiles = localStorage.getItem('editor-files');
 
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings));
-        }
+                if (savedSettings) {
+                    setSettings(JSON.parse(savedSettings));
+                }
 
-        if (savedFiles) {
-            setFiles(JSON.parse(savedFiles));
-        }
+                if (savedFiles) {
+                    setFiles(JSON.parse(savedFiles));
+                }
+
+                // Load CodeMirror asynchronously
+                const cmModule = await loadCodeMirror();
+                if (cmModule) {
+                    setCodeMirrorModule(cmModule);
+                    setIsCodeMirrorLoaded(true);
+                }
+            } catch (error) {
+                console.error('Failed to initialize editor:', error);
+            }
+        };
+
+        initializeEditor();
     }, []);
 
     // Save settings and files to localStorage
@@ -188,26 +249,26 @@ const message = greet("Developer");
 
     // Initialize CodeMirror
     useEffect(() => {
-        if (!editorRef.current || !activeFile) return;
+        if (!editorRef.current || !activeFile || !isCodeMirrorLoaded || !codeMirrorModule) return;
 
         // Clean up previous editor
         if (editorViewRef.current) {
             editorViewRef.current.destroy();
         }
 
-        const startState = EditorState.create({
+        const startState = codeMirrorModule.EditorState.create({
             doc: activeFile.content,
             extensions: [
-                basicSetup,
-                settings.theme === 'dark' ? oneDark : [],
+                codeMirrorModule.basicSetup,
+                settings.theme === 'dark' ? codeMirrorModule.oneDark : [],
                 getLanguageExtension(activeFile.language),
-                EditorView.updateListener.of((update) => {
+                codeMirrorModule.EditorView.updateListener.of((update: any) => {
                     if (update.docChanged) {
                         const content = update.state.doc.toString();
                         updateFileContent(content);
                     }
                 }),
-                EditorView.theme({
+                codeMirrorModule.EditorView.theme({
                     '&': { fontSize: `${settings.fontSize}px` },
                     '.cm-editor': {
                         height: '100%',
@@ -226,7 +287,7 @@ const message = greet("Developer");
             ]
         });
 
-        const view = new EditorView({
+        const view = new codeMirrorModule.EditorView({
             state: startState,
             parent: editorRef.current
         });
@@ -238,7 +299,7 @@ const message = greet("Developer");
                 editorViewRef.current.destroy();
             }
         };
-    }, [activeFile?.id, settings.theme, settings.fontSize, activeFile?.language]);
+    }, [activeFile?.id, settings.theme, settings.fontSize, activeFile?.language, isCodeMirrorLoaded, codeMirrorModule]);
 
     // Update editor content when activeFile changes
     useEffect(() => {
@@ -710,6 +771,15 @@ Welcome to **Markdown**!
         a.click();
         URL.revokeObjectURL(url);
     };
+
+    // Show loading spinner while CodeMirror is loading
+    if (!isCodeMirrorLoaded) {
+        return (
+            <AuthenticatedLayout>
+                <LoadingSpinner />
+            </AuthenticatedLayout>
+        );
+    }
 
     return (
         <AuthenticatedLayout>
