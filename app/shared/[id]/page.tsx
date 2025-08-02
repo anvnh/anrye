@@ -10,11 +10,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from 'lucide-react';
 import { List, X } from 'lucide-react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ShareSettings {
   readPermission: 'public' | 'password-required';
@@ -255,29 +254,16 @@ export default function SharedNotePage() {
         <div className="bg-secondary border-b border-gray-700 px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
             <div className="min-w-0 flex-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <h1 className="text-lg sm:text-xl font-semibold text-white truncate cursor-pointer select-none" 
-                         onTouchStart={(e) => {
-                           // Prevent default touch behavior
-                           e.preventDefault();
-                         }}
-                         onTouchEnd={(e) => {
-                           // Show tooltip on long press
-                           const target = e.currentTarget;
-                           setTimeout(() => {
-                             target.click();
-                           }, 500);
-                         }}>
-                      {note.title}
-                    </h1>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="text-sm">{note.title}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <h1 className="text-lg sm:text-xl font-semibold text-white truncate cursor-pointer select-none hover:text-blue-300 transition-colors">
+                    {note.title}
+                  </h1>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" className="max-w-xs bg-secondary border-gray-600">
+                  <p className="text-sm text-white">{note.title}</p>
+                </PopoverContent>
+              </Popover>
               <p className="text-xs sm:text-sm text-gray-400">Shared Note</p>
             </div>
           </div>
