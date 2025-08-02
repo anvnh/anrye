@@ -9,6 +9,12 @@ import { Note } from '@/app/(home)/notes/_components/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from 'lucide-react';
 import { List, X } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ShareSettings {
   readPermission: 'public' | 'password-required';
@@ -27,12 +33,14 @@ export default function SharedNotePage() {
   const [enteredPassword, setEnteredPassword] = useState('');
   const [hasReadAccess, setHasReadAccess] = useState(false);
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
+  const [showTitleTooltip, setShowTitleTooltip] = useState(false);
 
   const [passwordError, setPasswordError] = useState(false);
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   // GSAP animations for outline
   useEffect(() => {
@@ -43,7 +51,7 @@ export default function SharedNotePage() {
 
     if (isOutlineOpen) {
       // Animate backdrop fade in
-      gsap.fromTo(backdrop, 
+      gsap.fromTo(backdrop,
         { opacity: 0 },
         { opacity: 1, duration: 0.3, ease: "power2.out" }
       );
@@ -247,54 +255,76 @@ export default function SharedNotePage() {
         <div className="bg-secondary border-b border-gray-700 px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-xl font-semibold text-white truncate">{note.title}</h1>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <h1 className="text-lg sm:text-xl font-semibold text-white truncate cursor-pointer select-none" 
+                         onTouchStart={(e) => {
+                           // Prevent default touch behavior
+                           e.preventDefault();
+                         }}
+                         onTouchEnd={(e) => {
+                           // Show tooltip on long press
+                           const target = e.currentTarget;
+                           setTimeout(() => {
+                             target.click();
+                           }, 500);
+                         }}>
+                      {note.title}
+                    </h1>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="text-sm">{note.title}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <p className="text-xs sm:text-sm text-gray-400">Shared Note</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 relative">
-          {/* Mobile Outline Toggle Button */}
-          <div className="lg:hidden absolute top-4 right-4 z-50">
-            <button
-              ref={buttonRef}
-              onClick={() => setIsOutlineOpen(!isOutlineOpen)}
-              className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
-              title="Toggle outline"
-            >
-              {isOutlineOpen ? <X size={20} /> : <List size={20} />}
-            </button>
-          </div>
-
-          {/* Mobile Outline Overlay */}
-          {isOutlineOpen && (
-            <div className="lg:hidden fixed inset-0 z-40">
-              {/* Backdrop */}
-              <div 
-                ref={backdropRef}
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={() => setIsOutlineOpen(false)}
-              />
-              
-              {/* Outline Panel */}
-              <div 
-                ref={outlineRef}
-                className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
+        <div className="flex-1">
+          <div className="h-full flex relative">
+            {/* Mobile Outline Toggle Button */}
+            <div className="lg:hidden fixed top-20 right-4 z-50">
+              <button
+                ref={buttonRef}
+                onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+                className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+                title="Toggle outline"
               >
-                <div className="h-full">
-                  <NoteOutlineSidebar content={note.content} />
+                {isOutlineOpen ? <X size={20} /> : <List size={20} />}
+              </button>
+            </div>
+
+            {/* Mobile Outline Overlay */}
+            {isOutlineOpen && (
+              <div className="lg:hidden fixed inset-0 z-40">
+                {/* Backdrop */}
+                <div
+                  ref={backdropRef}
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setIsOutlineOpen(false)}
+                />
+
+                {/* Outline Panel */}
+                <div
+                  ref={outlineRef}
+                  className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
+                >
+                  <div className="h-full">
+                    <NoteOutlineSidebar content={note.content} />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="h-full flex">
             {/* Desktop Outline Sidebar */}
             <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
               <NoteOutlineSidebar content={note.content} />
             </div>
-            
+
             {/* Main Content */}
             <div className="flex-1 px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main">
               <MemoizedMarkdown content={note.content} />
