@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  FileText, 
-  Heart, 
-  Settings, 
-  Edit, 
-  Clock, 
+import {
+  FileText,
+  Heart,
+  Settings,
+  Edit,
+  Clock,
   Calendar,
   ArrowRight,
   RefreshCw
@@ -26,7 +26,7 @@ import {
 const getTimeAgo = (date: Date): string => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return 'Just now';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -101,28 +101,49 @@ export default function RecentActivity() {
     fetchActivities();
   };
 
-  // Don't render anything if user is not signed in
   if (!isSignedIn) {
-    return null;
+    return (
+      <div className="py-12 bg-secondary">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center space-x-4 mb-4">
+              <h2 className="text-3xl font-bold text-white">
+                Recent Activity
+              </h2>
+            </div>
+            <p className="text-gray-400">
+              Sign in to see your recent activities
+            </p>
+          </div>
+
+          <div className="text-center py-8">
+            <div className="text-gray-500 text-lg">
+              None
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="py-12 bg-secondary">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-4 mb-4">
-            <h2 className="text-3xl font-bold text-white">
-              Recent Activity
-            </h2>
+          <div className="flex items-center justify-center space-x-2 mb-4">
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="cursor-pointer p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              className="cursor-pointer p-2 text-white hover:text-gray-500 transition-colors disabled:opacity-50"
               title="Refresh activities"
             >
               <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
+            <h2 className="text-3xl font-bold text-white">
+              Recent Activity
+            </h2>
           </div>
+
           <div className="text-center mb-4">
             <span className="text-sm text-green-400">✓ Connected to Google Drive</span>
           </div>
@@ -202,40 +223,37 @@ export default function RecentActivity() {
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
+                      <PaginationPrevious
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        className={`${
-                          currentPage === 1 
-                            ? 'pointer-events-none opacity-50 text-gray-500' 
-                            : 'cursor-pointer text-gray-300 hover:text-white hover:bg-gray-700'
-                        } transition-colors`}
+                        className={`${currentPage === 1
+                          ? 'pointer-events-none opacity-50 text-gray-500'
+                          : 'cursor-pointer text-gray-300 hover:text-white hover:bg-gray-700'
+                          } transition-colors`}
                       />
                     </PaginationItem>
-                    
+
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <PaginationItem key={page}>
                         <PaginationLink
                           isActive={currentPage === page}
                           onClick={() => setCurrentPage(page)}
-                          className={`cursor-pointer transition-colors ${
-                            currentPage === page
-                              ? 'bg-main text-white border-gray-600 hover:bg-gray-700 hover:text-white'
-                              : 'text-gray-300 hover:text-white hover:bg-gray-700 border-gray-600'
-                          }`}
+                          className={`cursor-pointer transition-colors ${currentPage === page
+                            ? 'bg-main text-white border-gray-600 hover:bg-gray-700 hover:text-white'
+                            : 'text-gray-300 hover:text-white hover:bg-gray-700 border-gray-600'
+                            }`}
                         >
                           {page}
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    
+
                     <PaginationItem>
-                      <PaginationNext 
+                      <PaginationNext
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        className={`${
-                          currentPage === totalPages 
-                            ? 'pointer-events-none opacity-50 text-gray-500' 
-                            : 'cursor-pointer text-gray-300 hover:text-white hover:bg-gray-700'
-                        } transition-colors`}
+                        className={`${currentPage === totalPages
+                          ? 'pointer-events-none opacity-50 text-gray-500'
+                          : 'cursor-pointer text-gray-300 hover:text-white hover:bg-gray-700'
+                          } transition-colors`}
                       />
                     </PaginationItem>
                   </PaginationContent>
