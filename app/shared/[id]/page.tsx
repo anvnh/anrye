@@ -152,18 +152,18 @@ export default function SharedNotePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-main flex items-center justify-center">
-        <div className="text-white text-lg">Loading shared note...</div>
+      <div className="min-h-screen bg-main flex items-center justify-center p-4">
+        <div className="text-white text-base sm:text-lg text-center">Loading shared note...</div>
       </div>
     );
   }
 
   if (error || !note || !shareSettings) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center text-white">
-          <h1 className="text-2xl font-bold mb-4">404</h1>
-          <p className="text-gray-400">{error || 'Shared note not found'}</p>
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">404</h1>
+          <p className="text-gray-400 text-sm sm:text-base">{error || 'Shared note not found'}</p>
         </div>
       </div>
     );
@@ -172,34 +172,34 @@ export default function SharedNotePage() {
   if (!canRead(shareSettings)) {
     if (shareSettings.readPermission === 'password-required' && !hasReadAccess) {
       return (
-        <div className="min-h-screen bg-main flex items-center justify-center">
-          <div className="bg-secondary p-6 rounded-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold text-white mb-4">
+        <div className="min-h-screen bg-main flex items-center justify-center p-4">
+          <div className="bg-secondary p-4 sm:p-6 rounded-lg max-w-md w-full mx-4">
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
               Password Required
             </h2>
-            <p className="text-gray-400 mb-4">
+            <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">
               This note requires a password to view.
             </p>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <input
                 type="password"
                 value={enteredPassword}
                 onChange={(e) => setEnteredPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full px-3 py-2 bg-main text-white rounded-md border-gray-600 focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-main text-white rounded-md border-gray-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base"
                 onKeyPress={(e) => e.key === 'Enter' && checkPassword('read')}
               />
               {passwordError && (
-                <Alert variant="destructive" className='mt-4 bg-main border-none'>
+                <Alert variant="destructive" className='mt-3 sm:mt-4 bg-main border-none'>
                   <AlertCircleIcon />
                   <AlertTitle>
                     Wrong Password
                   </AlertTitle>
                   <AlertDescription>
-                    <p>
+                    <p className="text-sm">
                       Please verify your password and try again.
                     </p>
-                    <ul className="list-inside list-disc text-sm">
+                    <ul className="list-inside list-disc text-xs sm:text-sm mt-2">
                       <li>Check for typos</li>
                       <li>Ask the note owner for the correct password</li>
                     </ul>
@@ -209,7 +209,7 @@ export default function SharedNotePage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => checkPassword('read')}
-                  className="flex-1 px-4 py-2 cursor-pointer bg-gradient-main text-white rounded"
+                  className="flex-1 px-3 sm:px-4 py-2 cursor-pointer bg-gradient-main text-white rounded text-sm sm:text-base"
                 >
                   Access Note
                 </button>
@@ -221,12 +221,12 @@ export default function SharedNotePage() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center text-white">
-          <h1 className="text-2xl font-bold mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
             Access Denied
           </h1>
-          <p className="text-gray-400">
+          <p className="text-gray-400 text-sm sm:text-base">
             You don't have permission to view this note
           </p>
         </div>
@@ -238,27 +238,27 @@ export default function SharedNotePage() {
     <>
       <div className="min-h-screen bg-main flex flex-col">
         {/* Header */}
-        <div className="bg-secondary border-b border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-white">{note.title}</h1>
-              <p className="text-sm text-gray-400">Shared Note</p>
+        <div className="bg-secondary border-b border-gray-700 px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl font-semibold text-white truncate">{note.title}</h1>
+              <p className="text-xs sm:text-sm text-gray-400">Shared Note</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {shareSettings.editMode === 'edit' && canEdit(shareSettings) && (
                 <>
                   {isEditing ? (
                     <>
                       <button
                         onClick={handleSaveEdit}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                        className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs sm:text-sm"
                       >
                         Save
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
+                        className="px-2 sm:px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs sm:text-sm"
                       >
                         Cancel
                       </button>
@@ -266,7 +266,7 @@ export default function SharedNotePage() {
                   ) : (
                     <button
                       onClick={handleEditClick}
-                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs sm:text-sm"
                     >
                       Edit
                     </button>
@@ -279,9 +279,9 @@ export default function SharedNotePage() {
 
         {/* Password Prompt Modal */}
         {passwordPrompt && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-white mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 p-4 sm:p-6 rounded-lg max-w-md w-full mx-4">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">
                 Password Required for {passwordPrompt === 'write' ? 'Editing' : 'Reading'}
               </h3>
               <input
@@ -289,14 +289,14 @@ export default function SharedNotePage() {
                 value={enteredPassword}
                 onChange={(e) => setEnteredPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none mb-4"
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none mb-3 sm:mb-4 text-sm sm:text-base"
                 onKeyPress={(e) => e.key === 'Enter' && checkPassword(passwordPrompt)}
                 autoFocus
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => checkPassword(passwordPrompt)}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base"
                 >
                   Submit
                 </button>
@@ -305,7 +305,7 @@ export default function SharedNotePage() {
                     setPasswordPrompt(null);
                     setEnteredPassword('');
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -327,7 +327,7 @@ export default function SharedNotePage() {
                 <NoteOutlineSidebar content={note.content} />
               </div>
               {/* Main Content */}
-              <div className="flex-1 px-64 py-6 h-full bg-main">
+              <div className="flex-1 px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main">
                 <MemoizedMarkdown content={note.content} />
               </div>
             </div>
