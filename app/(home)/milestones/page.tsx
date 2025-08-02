@@ -5,6 +5,17 @@ import { Heart, Plus, Upload, Calendar, Image, Trash2, Edit, Save, X } from 'luc
 import { Milestone, MilestoneImage } from './_components/types';
 import { MilestoneImageViewer } from './_components/MilestoneImageViewer';
 import { driveService } from '@/app/lib/googleDrive';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function MilestonesPage() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -23,6 +34,10 @@ export default function MilestonesPage() {
     images: [] as File[]
   });
 
+  // Delete confirmation dialog state
+  const [milestoneToDelete, setMilestoneToDelete] = useState<Milestone | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+
   // Load data from localStorage on mount
   useEffect(() => {
     const savedMilestones = localStorage.getItem('milestones-love');
@@ -30,19 +45,8 @@ export default function MilestonesPage() {
 
     if (savedMilestones) {
       setMilestones(JSON.parse(savedMilestones));
-    } else {
-      // Add default milestone if no data exists
-      const defaultMilestone: Milestone = {
-        id: 'default-1',
-        title: 'First Meet ❤️',
-        description: 'The day we first met and our love story began',
-        date: '2024-08-22',
-        images: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setMilestones([defaultMilestone]);
     }
+    // Don't create default milestone - leave empty if no data exists
 
     if (savedHasSynced) {
       setHasSyncedWithDrive(JSON.parse(savedHasSynced));
@@ -243,22 +247,27 @@ export default function MilestonesPage() {
   };
 
   const deleteMilestone = async (milestoneId: string) => {
-    if (!confirm('Bạn có chắc muốn xóa milestone này?')) return;
+    const milestone = milestones.find(m => m.id === milestoneId);
+    if (!milestone) return;
+
+    setMilestoneToDelete(milestone);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!milestoneToDelete) return;
 
     try {
       setIsLoading(true);
       setSyncProgress(10);
 
-      const milestone = milestones.find(m => m.id === milestoneId);
-      if (!milestone) return;
-
       // Delete from Drive if signed in
-      if (isSignedIn && milestone.driveFileId) {
+      if (isSignedIn && milestoneToDelete.driveFileId) {
         setSyncProgress(30);
-        await driveService.deleteFile(milestone.driveFileId);
+        await driveService.deleteFile(milestoneToDelete.driveFileId);
         
         // Delete associated images
-        for (const image of milestone.images) {
+        for (const image of milestoneToDelete.images) {
           if (image.driveFileId) {
             await driveService.deleteFile(image.driveFileId);
           }
@@ -267,7 +276,7 @@ export default function MilestonesPage() {
       }
 
       // Remove from local state
-      setMilestones(prev => prev.filter(m => m.id !== milestoneId));
+      setMilestones(prev => prev.filter(m => m.id !== milestoneToDelete?.id));
       setSyncProgress(100);
 
       setTimeout(() => setSyncProgress(0), 500);
@@ -276,6 +285,13 @@ export default function MilestonesPage() {
     } finally {
       setTimeout(() => setIsLoading(false), 700);
     }
+    setIsDeleteDialogOpen(false);
+    setMilestoneToDelete(null);
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setMilestoneToDelete(null);
   };
 
   const cancelEdit = () => {
@@ -500,6 +516,28 @@ export default function MilestonesPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className='bg-main text-white border-none shadow-md'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Are you sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-gray-300'>
+              This will delete the milestone and all associated images.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete} className='text-black hover:bg-gray-200 cursor-pointer'>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className='text-white hover:bg-red-500 cursor-pointer'>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

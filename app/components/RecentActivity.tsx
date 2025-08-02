@@ -101,6 +101,11 @@ export default function RecentActivity() {
     fetchActivities();
   };
 
+  // Don't render anything if user is not signed in
+  if (!isSignedIn) {
+    return null;
+  }
+
   return (
     <div className="py-12 bg-secondary">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -118,13 +123,11 @@ export default function RecentActivity() {
               <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          {isSignedIn && (
-            <div className="text-center mb-4">
-              <span className="text-sm text-green-400">✓ Connected to Google Drive</span>
-            </div>
-          )}
+          <div className="text-center mb-4">
+            <span className="text-sm text-green-400">✓ Connected to Google Drive</span>
+          </div>
           <p className="text-gray-400">
-            {isSignedIn ? 'Your latest activities from Google Drive' : 'Connect to Google Drive to see your activities'}
+            Your latest activities from Google Drive
           </p>
         </div>
 
@@ -148,18 +151,10 @@ export default function RecentActivity() {
         ) : activities.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-400 mb-4">
-              {isSignedIn ? 'No recent activities found' : 'Sign in to Google Drive to see your activities'}
+              No recent activities found
             </p>
-            {!isSignedIn && (
-              <Link
-                href="/"
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-main text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <span>Connect Google Drive</span>
-              </Link>
-            )}
           </div>
-                ) : (
+        ) : (
           <>
             <div className="space-y-4">
               {currentActivities.map((activity) => (
