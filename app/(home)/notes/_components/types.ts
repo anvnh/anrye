@@ -40,6 +40,8 @@ export interface NoteSidebarProps {
   onSetIsCreatingNote: (creating: boolean) => void;
   onDeleteFolder: (folderId: string) => void;
   onDeleteNote: (noteId: string) => void;
+  onRenameFolder: (folderId: string, newName: string) => void;
+  onRenameNote: (noteId: string, newName: string) => void;
   onDragStart: (e: React.DragEvent, type: 'note' | 'folder', id: string) => void;
   onDragOver: (e: React.DragEvent, targetId: string) => void;
   onDragLeave: () => void;

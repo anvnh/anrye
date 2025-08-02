@@ -3,6 +3,7 @@ import { Save, X, Edit, Split, Menu } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
+import { driveService } from '@/app/lib/googleDrive';
 
 interface NoteNavbarProps {
   selectedNote: Note;
@@ -58,6 +59,26 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       setInputWidth(Math.max(editTitle.length + 2, 10));
     }
   }, [editTitle, isEditing]);
+
+  const handleSaveNote = async () => {
+    try {
+      // Save note locally first
+      saveNote();
+      
+      // If note has Google Drive file ID, rename it on Google Drive too
+      if (selectedNote.driveFileId) {
+        try {
+          await driveService.renameFile(selectedNote.driveFileId, editTitle);
+          console.log('Note renamed on Google Drive successfully');
+        } catch (error) {
+          console.error('Failed to rename note on Google Drive:', error);
+          // Don't throw error here, local save is more important
+        }
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  };
 
   return (
   <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
@@ -144,7 +165,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         {isEditing ? (
           <>
             <button
-              onClick={saveNote}
+              onClick={handleSaveNote}
               className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
               title="Save"
             >

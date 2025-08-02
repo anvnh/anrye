@@ -795,6 +795,32 @@ class GoogleDriveService {
     });
   }
 
+  async renameFile(fileId: string, newName: string): Promise<void> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+    await window.gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newName
+      })
+    });
+  }
+
+  async renameFolder(folderId: string, newName: string): Promise<void> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+    await window.gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${folderId}`,
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newName
+      })
+    });
+  }
+
   async listFiles(parentId?: string): Promise<DriveFile[]> {
     await this.ensureApiLoaded();
     await this.setAccessToken();

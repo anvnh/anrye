@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -28,6 +28,8 @@ export default function NoteSidebar({
   onSetIsCreatingNote,
   onDeleteFolder,
   onDeleteNote,
+  onRenameFolder,
+  onRenameNote,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -126,6 +128,13 @@ export default function NoteSidebar({
                   <>
                     <ContextMenuSeparator className="bg-gray-600 mx-1" />
                     <ContextMenuItem
+                      className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                      onClick={() => onRenameFolder(folder.id, folder.name)}
+                    >
+                      <Type size={16} className="mr-2" />
+                      Rename Folder
+                    </ContextMenuItem>
+                    <ContextMenuItem
                       variant="default"
                       className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300 rounded-md mx-1 my-0.5"
                       onClick={() => onDeleteFolder(folder.id)}
@@ -190,6 +199,13 @@ export default function NoteSidebar({
                 >
                   <Edit size={16} className="mr-2" />
                   Open Note
+                </ContextMenuItem>
+                <ContextMenuItem
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  onClick={() => onRenameNote(note.id, note.title)}
+                >
+                  <Type size={16} className="mr-2" />
+                  Rename Note
                 </ContextMenuItem>
                 <ContextMenuSeparator className="bg-gray-600 mx-1" />
                 <ContextMenuItem

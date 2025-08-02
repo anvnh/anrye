@@ -8,6 +8,7 @@ import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, ShareDropdown } from './_components';
+import RenameDialog from './_components/RenameDialog';
 import NoteNavbar from './_components/NoteNavbar';
 import SettingsDropdown from './_components/SettingsDropdown';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
@@ -128,6 +129,14 @@ export default function NotesPage() {
 
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // Rename dialog state
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [renameItem, setRenameItem] = useState<{
+    id: string;
+    currentName: string;
+    type: 'file' | 'folder';
+  } | null>(null);
 
   // Utility function to clear all localStorage data (for debugging)
   const clearAllData = () => {
@@ -1220,6 +1229,96 @@ export default function NotesPage() {
     }
   };
 
+  const renameFolder = async (folderId: string, currentName: string) => {
+    const folderToRename = folders.find(f => f.id === folderId);
+    if (!folderToRename || folderId === 'root') return;
+
+    setRenameItem({
+      id: folderId,
+      currentName,
+      type: 'folder'
+    });
+    setIsRenameDialogOpen(true);
+  };
+
+  const handleRenameConfirm = async (newName: string) => {
+    if (!renameItem) return;
+
+    try {
+      setIsLoading(true);
+      setSyncProgress(10);
+
+      if (renameItem.type === 'folder') {
+        const folderToRename = folders.find(f => f.id === renameItem.id);
+        if (!folderToRename) return;
+
+        // Update folder name in Drive if signed in and has Drive folder ID
+        if (isSignedIn && folderToRename.driveFolderId) {
+          setSyncProgress(30);
+          await driveService.renameFolder(folderToRename.driveFolderId, newName);
+          setSyncProgress(60);
+        }
+
+        // Update folder locally
+        setFolders(folders.map(folder => {
+          if (folder.id === renameItem.id) {
+            return { ...folder, name: newName };
+          }
+          return folder;
+        }));
+      } else {
+        const noteToRename = notes.find(n => n.id === renameItem.id);
+        if (!noteToRename) return;
+
+        // Update note title in Drive if signed in and has Drive file ID
+        if (isSignedIn && noteToRename.driveFileId) {
+          setSyncProgress(30);
+          await driveService.renameFile(noteToRename.driveFileId, newName);
+          setSyncProgress(60);
+        }
+
+        // Update note locally
+        setNotes(notes.map(note => {
+          if (note.id === renameItem.id) {
+            return { ...note, title: newName };
+          }
+          return note;
+        }));
+
+        // Update selected note if it's the one being renamed
+        if (selectedNote && selectedNote.id === renameItem.id) {
+          setSelectedNote({ ...selectedNote, title: newName });
+        }
+      }
+
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
+    } catch (error) {
+      console.error('Failed to rename item:', error);
+    } finally {
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
+    }
+  };
+
+  const renameNote = async (noteId: string, currentTitle: string) => {
+    const noteToRename = notes.find(n => n.id === noteId);
+    if (!noteToRename) return;
+
+    setRenameItem({
+      id: noteId,
+      currentName: currentTitle,
+      type: 'file'
+    });
+    setIsRenameDialogOpen(true);
+  };
+
   const startEdit = () => {
     if (!selectedNote) return;
     setIsEditing(true);
@@ -1287,6 +1386,8 @@ export default function NotesPage() {
             onSetIsCreatingNote={setIsCreatingNote}
             onDeleteFolder={deleteFolder}
             onDeleteNote={deleteNote}
+            onRenameFolder={renameFolder}
+            onRenameNote={renameNote}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -1613,6 +1714,18 @@ export default function NotesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Rename Dialog */}
+        <RenameDialog
+          isOpen={isRenameDialogOpen}
+          onClose={() => {
+            setIsRenameDialogOpen(false);
+            setRenameItem(null);
+          }}
+          onConfirm={handleRenameConfirm}
+          currentName={renameItem?.currentName || ''}
+          type={renameItem?.type || 'file'}
+        />
       </div>
     </AuthenticatedLayout>
   );
