@@ -135,8 +135,10 @@ export default function NotesPage() {
     localStorage.removeItem('folders-new');
     localStorage.removeItem('has-synced-drive');
     localStorage.removeItem('sidebar-width');
+    localStorage.removeItem('selected-note-id');
     setNotes([]);
     setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+    setSelectedNote(null);
     setHasSyncedWithDrive(false);
 
   };
@@ -171,6 +173,7 @@ export default function NotesPage() {
         const savedFolders = localStorage.getItem('folders-new');
         const savedSidebarWidth = localStorage.getItem('sidebar-width');
         const savedHasSynced = localStorage.getItem('has-synced-drive');
+        const savedSelectedNoteId = localStorage.getItem('selected-note-id');
 
         if (savedNotes) {
           const parsedNotes = JSON.parse(savedNotes);
@@ -208,6 +211,17 @@ export default function NotesPage() {
 
         if (savedHasSynced) {
           setHasSyncedWithDrive(JSON.parse(savedHasSynced));
+        }
+
+        // Restore selected note if exists
+        if (savedSelectedNoteId) {
+          const parsedNotes = savedNotes ? JSON.parse(savedNotes) : [];
+          const noteToRestore = parsedNotes.find((note: Note) => note.id === savedSelectedNoteId);
+          if (noteToRestore) {
+            setSelectedNote(noteToRestore);
+            setEditContent(noteToRestore.content || '');
+            setEditTitle(noteToRestore.title || '');
+          }
         }
 
         // Then check Google Drive status (slower, but non-blocking)
@@ -277,6 +291,15 @@ export default function NotesPage() {
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
   }, [hasSyncedWithDrive]);
+
+  // Save selected note to localStorage
+  useEffect(() => {
+    if (selectedNote) {
+      localStorage.setItem('selected-note-id', selectedNote.id);
+    } else {
+      localStorage.removeItem('selected-note-id');
+    }
+  }, [selectedNote]);
   // Handle screen resize - disable split mode on mobile
   useEffect(() => {
     const handleResize = () => {
