@@ -120,21 +120,17 @@ export default function QuickActions() {
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">100%</div>
             <div className="text-gray-400 text-sm">Privacy Focused</div>
+            <div className="text-gray-400 text-xs mt-1">Your data stays private</div>
           </div>
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">24/7</div>
             <div className="text-gray-400 text-sm">Always Available</div>
+            <div className="text-gray-400 text-xs mt-1">Access anytime, anywhere</div>
           </div>
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">∞</div>
-            <div className='flex flex-col'>
-              <div className="text-gray-400 text-sm">
-                Unlimited Notes.
-              </div>
-              <div className="text-gray-400 text-sm">
-                Store right in your Google Drive.
-              </div>
-            </div>
+            <div className="text-gray-400 text-sm">Unlimited Notes</div>
+            <div className="text-gray-400 text-xs mt-1">Store in Google Drive</div>
           </div>
         </div>
       </div>

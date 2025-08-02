@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, X, Edit, Split, Menu } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
@@ -50,7 +50,16 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   isMobileSidebarOpen,
   onToggleMobileSidebar,
   onCloseNote,
-}) => (
+}) => {
+  const [inputWidth, setInputWidth] = useState(10);
+
+  useEffect(() => {
+    if (isEditing) {
+      setInputWidth(Math.max(editTitle.length + 2, 10));
+    }
+  }, [editTitle, isEditing]);
+
+  return (
   <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
     <div className="flex items-center justify-between gap-2 sm:gap-4">
       <div className="flex items-center min-w-0 flex-1">
@@ -64,12 +73,17 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         </button>
         
         {isEditing ? (
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white min-w-0 flex-1"
-          />
+          <div className="flex-1 min-w-0">
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white min-w-0"
+              style={{ 
+                width: `${inputWidth}ch` 
+              }}
+            />
+          </div>
         ) : (
           <h1 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0" title={selectedNote.title}>
             {selectedNote.title}
@@ -160,7 +174,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       {new Date(selectedNote.updatedAt).toLocaleString()}
     </p>
   </div>
-);
+  );
+}
 
 export default NoteNavbar;
 
