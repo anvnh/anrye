@@ -343,7 +343,7 @@ class GoogleDriveService {
   async loadGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
       
-      if (window.gapi && this.tokenClient) {
+      if (window.gapi?.client?.drive && this.tokenClient) {
         resolve();
         return;
       }
@@ -351,7 +351,7 @@ class GoogleDriveService {
       // Load Google API script first
       const loadGapi = () => {
         return new Promise<void>((gapiResolve, gapiReject) => {
-          if (window.gapi) {
+          if (window.gapi?.client?.drive) {
             gapiResolve();
             return;
           }
@@ -364,6 +364,13 @@ class GoogleDriveService {
                 await window.gapi.client.init({
                   discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
                 });
+                
+                // Verify that drive API is loaded
+                if (!window.gapi.client.drive) {
+                  gapiReject(new Error('Google Drive API failed to load'));
+                  return;
+                }
+                
                 gapiResolve();
               } catch (error) {
                 gapiReject(error);
@@ -558,8 +565,40 @@ class GoogleDriveService {
     this.clearSavedToken();
     this.tokenClient = null;
     
+    // Also clear GAPI client to force reload
+    if (window.gapi?.client) {
+      try {
+        // Clear the token from GAPI client
+        window.gapi.client.setToken({ access_token: '' });
+      } catch (e) {
+        // Silent fail
+      }
+    }
+    
     // Force fresh sign in
     return await this.signIn();
+  }
+
+  // Reset Google API completely
+  public async resetGoogleAPI(): Promise<void> {
+    // Clear everything
+    this.accessToken = null;
+    this.refreshToken = null;
+    this.clearSavedToken();
+    this.tokenClient = null;
+    
+    // Clear GAPI client
+    if (window.gapi?.client) {
+      try {
+        window.gapi.client.setToken({ access_token: '' });
+        // Force reload API
+        await window.gapi.client.init({
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+      } catch (e) {
+        console.error('Error resetting GAPI client:', e);
+      }
+    }
   }
 
   // Public method to manually refresh token
@@ -676,8 +715,13 @@ class GoogleDriveService {
   }
 
   private async ensureApiLoaded(): Promise<void> {
-    if (!window.gapi?.client) {
+    if (!window.gapi?.client?.drive) {
       await this.loadGoogleAPI();
+    }
+    
+    // Double check that drive API is available
+    if (!window.gapi?.client?.drive) {
+      throw new Error('Google Drive API is not loaded. Please try signing in again.');
     }
   }
 
@@ -705,6 +749,24 @@ class GoogleDriveService {
     try {
       return await apiCall();
     } catch (error: unknown) {
+      console.error('Google Drive API call failed:', error);
+      
+      // Check if it's a specific GAPI error
+      if (typeof error === 'object' && error !== null) {
+        const gapiError = error as any;
+        if (gapiError.message && gapiError.message.includes('gapi.client.drive is undefined')) {
+          throw new Error("can't access property \"files\", window.gapi.client.drive is undefined. Please try signing in again.");
+        }
+      }
+      
+      // Check for common error patterns
+      if (error instanceof Error) {
+        if (error.message.includes('gapi.client.drive is undefined') || 
+            error.message.includes('Cannot read properties of undefined')) {
+          throw new Error("can't access property \"files\", window.gapi.client.drive is undefined. Please try signing in again.");
+        }
+      }
+      
       const needsRefresh = await this.handleApiError(error as { status?: number });
       if (needsRefresh) {
         throw new Error('TOKEN_EXPIRED');
@@ -740,6 +802,7 @@ class GoogleDriveService {
     const metadata = {
       'name': name,
       'parents': parentId ? [parentId] : undefined,
+      'mimeType': 'text/plain'
     };
 
     const multipartRequestBody =
@@ -850,10 +913,7 @@ class GoogleDriveService {
       });
 
       if (response.result.files && response.result.files.length > 0) {
-        // If multiple Notes folders exist, use the first one and log a warning
-        if (response.result.files.length > 1) {
-          console.warn(`Found ${response.result.files.length} Notes folders. Using the first one.`);
-        }
+        // If multiple Notes folders exist, use the first one
         return response.result.files[0].id;
       }
 
@@ -903,9 +963,6 @@ class GoogleDriveService {
       });
 
       if (response.result.files && response.result.files.length > 0) {
-        if (response.result.files.length > 1) {
-          console.warn(`Found ${response.result.files.length} Love folders. Using the first one.`);
-        }
         return response.result.files[0].id;
       }
 

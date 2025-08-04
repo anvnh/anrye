@@ -69,7 +69,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       if (selectedNote.driveFileId) {
         try {
           await driveService.renameFile(selectedNote.driveFileId, editTitle);
-          console.log('Note renamed on Google Drive successfully');
+          // Note renamed on Google Drive successfully
         } catch (error) {
           console.error('Failed to rename note on Google Drive:', error);
           // Don't throw error here, local save is more important

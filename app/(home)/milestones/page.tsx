@@ -5,6 +5,7 @@ import { Heart, Plus, Upload, Calendar, Image, Trash2, Edit, Save, X } from 'luc
 import { Milestone, MilestoneImage } from './_components/types';
 import { MilestoneImageViewer } from './_components/MilestoneImageViewer';
 import { driveService } from '@/app/lib/googleDrive';
+import { useDrive } from '@/app/lib/driveContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,7 @@ const LoadingSpinner = () => (
 );
 
 export default function MilestonesPage() {
+  const { forceReAuthenticate } = useDrive();
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -154,6 +156,22 @@ export default function MilestonesPage() {
       setSyncProgress(100);
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
+      
+      // Check if it's a GAPI error that needs reset
+      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
+        console.log('Attempting to reset Google API and re-authenticate...');
+        try {
+          await forceReAuthenticate();
+          // Retry sync once after re-authentication
+          setTimeout(() => {
+            syncWithDrive();
+          }, 1000);
+          return;
+        } catch (retryError) {
+          console.error('Failed to re-authenticate:', retryError);
+        }
+      }
+      
       alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);

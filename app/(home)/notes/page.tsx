@@ -78,11 +78,11 @@ export default function NotesPage() {
   }, [fontSize]);
   // Tab size state for editor
   const [tabSize, setTabSize] = useState(2);
-  const { isSignedIn } = useDrive();
+  const { isSignedIn, forceReAuthenticate } = useDrive();
 
   // Theme list
   const themeOptions = [
-    { value: 'latte', label: 'Catppuccin Lattle' },
+    { value: 'latte', label: 'Catppuccin Latte' },
     { value: 'macchiato', label: 'Catppuccin Macchiato' },
     { value: 'frappe', label: 'Catppuccin Frappe' },
     { value: 'mocha', label: 'Catppuccin Mocha' },
@@ -768,6 +768,22 @@ export default function NotesPage() {
       setSyncProgress(100);
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
+      
+      // Check if it's a GAPI error that needs reset
+      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
+        console.log('Attempting to reset Google API and re-authenticate...');
+        try {
+          await forceReAuthenticate();
+          // Retry sync once after re-authentication
+          setTimeout(() => {
+            syncWithDrive();
+          }, 1000);
+          return;
+        } catch (retryError) {
+          console.error('Failed to re-authenticate:', retryError);
+        }
+      }
+      
       // Show error to user
       alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try signing in again.`);
     } finally {
@@ -775,6 +791,113 @@ export default function NotesPage() {
       setTimeout(() => setSyncProgress(0), 500); // Keep progress visible briefly
     }
   }, [hasSyncedWithDrive]); // loadFromDrive is defined below, using internal function
+
+  const forceSync = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setSyncProgress(10);
+      
+      const driveModule = await loadDriveService();
+      if (!driveModule) return;
+      
+      const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
+      setSyncProgress(20);
+
+      // Get all files and folders from Drive
+      const getAllDriveFiles = async (parentId: string, currentPath: string = ''): Promise<{files: any[], folders: any[]}> => {
+        const files = await driveModule.driveService.listFiles(parentId);
+        const driveFiles: any[] = [];
+        const driveFolders: any[] = [];
+
+        for (const file of files) {
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            driveFolders.push({
+              ...file,
+              path: currentPath ? `${currentPath}/${file.name}` : file.name
+            });
+            // Recursively get subfolders and files
+            const subResults = await getAllDriveFiles(file.id, currentPath ? `${currentPath}/${file.name}` : file.name);
+            driveFiles.push(...subResults.files);
+            driveFolders.push(...subResults.folders);
+          } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
+            driveFiles.push({
+              ...file,
+              path: currentPath,
+              title: file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name
+            });
+          }
+        }
+
+        return { files: driveFiles, folders: driveFolders };
+      };
+
+      setSyncProgress(30);
+      const { files: driveFiles, folders: driveFolders } = await getAllDriveFiles(notesFolderId);
+      
+      // Create sets of Drive file and folder IDs for quick lookup
+      const driveFileIds = new Set(driveFiles.map(f => f.id));
+      const driveFolderIds = new Set([notesFolderId, ...driveFolders.map(f => f.id)]);
+
+      setSyncProgress(50);
+
+      // Remove local notes that don't exist on Drive
+      setNotes(prevNotes => {
+        const notesToKeep = prevNotes.filter(note => {
+          if (!note.driveFileId) return true; // Keep local-only notes
+          const exists = driveFileIds.has(note.driveFileId);
+          return exists;
+        });
+        return notesToKeep;
+      });
+
+      setSyncProgress(60);
+
+      // Remove local folders that don't exist on Drive
+      setFolders(prevFolders => {
+        const foldersToKeep = prevFolders.filter(folder => {
+          if (folder.id === 'root') return true; // Always keep root
+          if (!folder.driveFolderId) return true; // Keep local-only folders
+          const exists = driveFolderIds.has(folder.driveFolderId);
+          return exists;
+        });
+        return foldersToKeep;
+      });
+
+      setSyncProgress(70);
+
+      // Load/update from Drive (this will add new files and update existing ones)
+      await loadFromDrive(notesFolderId, '', driveModule.driveService);
+      
+      setSyncProgress(90);
+      
+      // Mark as synced
+      setHasSyncedWithDrive(true);
+      setSyncProgress(100);
+      
+    } catch (error) {
+      console.error('Force sync failed:', error);
+      
+      // Check if it's a GAPI error that needs reset
+      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
+        console.log('Attempting to reset Google API and re-authenticate...');
+        try {
+          await forceReAuthenticate();
+          // Retry sync once after re-authentication
+          setTimeout(() => {
+            forceSync();
+          }, 1000);
+          return;
+        } catch (retryError) {
+          console.error('Failed to re-authenticate:', retryError);
+        }
+      }
+      
+      alert(`Force sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setSyncProgress(0), 500);
+    }
+  }, []);
 
   const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any) => {
     try {
@@ -815,10 +938,10 @@ export default function NotesPage() {
 
           // Recursively load subfolders
           await loadFromDrive(file.id, folderPath, driveService);
-        } else if (file.name.endsWith('.md')) {
-          // It's a markdown file
+        } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
+          // It's a markdown file (either has .md extension, text/markdown, or text/plain mime type)
           const notePath = parentPath;
-          const noteTitle = file.name.replace('.md', '');
+          const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
 
           // Check if note already exists using callback to get latest state
           setNotes(prevNotes => {
@@ -943,7 +1066,9 @@ export default function NotesPage() {
       let driveFileId;
       if (isSignedIn && parentDriveId) {
         setSyncProgress(60);
-        driveFileId = await driveService.uploadFile(`${newNoteName}.md`, initialContent, parentDriveId);
+        // Ensure the filename has .md extension
+        const fileName = newNoteName.endsWith('.md') ? newNoteName : `${newNoteName}.md`;
+        driveFileId = await driveService.uploadFile(fileName, initialContent, parentDriveId);
         setSyncProgress(80);
       }
 
@@ -998,8 +1123,10 @@ export default function NotesPage() {
 
       if (isSignedIn && parentDriveId) {
         setSyncProgress(50);
+        // Ensure the filename has .md extension
+        const fileName = title.endsWith('.md') ? title : `${title}.md`;
         driveFileId = await driveService.uploadFile(
-          title + '.md',
+          fileName,
           content,
           parentDriveId
         );
@@ -1080,7 +1207,6 @@ export default function NotesPage() {
           // If file not found (404), create new file
           const error = driveError as { status?: number; result?: { error?: { code?: number } } };
           if (error.status === 404 || (error.result?.error?.code === 404)) {
-            console.log('File not found on Drive, creating new file...');
 
             const parentFolder = folders.find(f => f.path === selectedNote.path);
             const parentDriveId = parentFolder?.driveFolderId;
@@ -1395,6 +1521,7 @@ export default function NotesPage() {
             onSetDragOver={setDragOver}
             onSetIsResizing={setIsResizing}
             onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
+            onForceSync={forceSync}
           />
 
           {/* Main content area */}

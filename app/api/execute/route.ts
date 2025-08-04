@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
                     }
                 }
             } catch (cleanupError) {
-                console.warn('Could not cleanup temp files:', cleanupError);
+                // Cleanup failed, but continue
             }
 
             return NextResponse.json({

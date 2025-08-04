@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type, RefreshCw } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -36,7 +36,8 @@ export default function NoteSidebar({
   onDrop,
   onSetDragOver,
   onSetIsResizing,
-  onSetIsMobileSidebarOpen
+  onSetIsMobileSidebarOpen,
+  onForceSync
 }: NoteSidebarProps) {
 
   const getNotesInPath = (path: string) => {
@@ -251,9 +252,31 @@ export default function NoteSidebar({
             }}
           >
           <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0 rounded-t-2xl">
-            <h2 className="text-xl font-bold text-white mb-2">
-              Notes
-            </h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-white">
+                Notes
+              </h2>
+              
+              {isSignedIn && onForceSync && (
+                <button
+                  onClick={onForceSync}
+                  disabled={isLoading}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
+                    ${isLoading 
+                      ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95'
+                    }
+                  `}
+                  title="Force sync with Google Drive - removes local files not found on Drive"
+                >
+                  <RefreshCw 
+                    size={12} 
+                    className={`${isLoading ? 'animate-spin' : ''}`} 
+                  />
+                </button>
+              )}
+            </div>
 
             {!isSignedIn && (
               <div className="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/20">

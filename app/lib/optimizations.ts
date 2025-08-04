@@ -6,7 +6,6 @@ export const loadDriveService = async () => {
     try {
       return await import('./googleDrive');
     } catch (error) {
-      console.error('Failed to load Google Drive service:', error);
       return null;
     }
   }
@@ -55,7 +54,6 @@ export const loadCodeMirror = async () => {
         cpp
       };
     } catch (error) {
-      console.error('Failed to load CodeMirror:', error);
       return null;
     }
   }
@@ -66,10 +64,16 @@ export const loadCodeMirror = async () => {
 export const loadKaTeX = async () => {
   if (typeof window !== 'undefined') {
     try {
-      await import('katex/dist/katex.min.css');
-      return true;
+      // Dynamically load KaTeX CSS
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css';
+      document.head.appendChild(link);
+      
+      // Load KaTeX library
+      const katex = await import('katex');
+      return katex;
     } catch (error) {
-      console.error('Failed to load KaTeX:', error);
       return false;
     }
   }
@@ -130,7 +134,6 @@ export const optimizedLocalStorage = {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error('Failed to get from localStorage:', error);
       return null;
     }
   },
@@ -140,7 +143,6 @@ export const optimizedLocalStorage = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error('Failed to set to localStorage:', error);
       return false;
     }
   },
@@ -150,7 +152,6 @@ export const optimizedLocalStorage = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.error('Failed to remove from localStorage:', error);
       return false;
     }
   }
@@ -169,7 +170,7 @@ export const performanceMonitor = {
       performance.mark(`${name}-end`);
       performance.measure(name, `${name}-start`, `${name}-end`);
       const measure = performance.getEntriesByName(name)[0];
-      console.log(`${name} took ${measure.duration}ms`);
+      // Performance measurement completed
     }
   }
 }; 

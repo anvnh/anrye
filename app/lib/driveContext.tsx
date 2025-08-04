@@ -11,6 +11,8 @@ interface DriveContextType {
   checkSignInStatus: () => Promise<void>;
   refreshToken: () => Promise<void>;
   getTokenStatus: () => any;
+  forceReAuthenticate: () => Promise<void>;
+  resetGoogleAPI: () => Promise<void>;
 }
 
 const DriveContext = createContext<DriveContextType | undefined>(undefined);
@@ -66,7 +68,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const refreshToken = async () => {
     setIsLoading(true);
     try {
-      const success = await driveService.refreshToken();
+      const success = await driveService.refreshAccessToken();
       if (success) {
         setIsSignedIn(true);
       } else {
@@ -74,6 +76,34 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Token refresh failed:', error);
+      setIsSignedIn(false);
+    }
+    setIsLoading(false);
+  };
+
+  const forceReAuthenticate = async () => {
+    setIsLoading(true);
+    try {
+      const success = await driveService.forceReAuthenticate();
+      if (success) {
+        setIsSignedIn(true);
+      } else {
+        setIsSignedIn(false);
+      }
+    } catch (error) {
+      console.error('Force re-authentication failed:', error);
+      setIsSignedIn(false);
+    }
+    setIsLoading(false);
+  };
+
+  const resetGoogleAPI = async () => {
+    setIsLoading(true);
+    try {
+      await driveService.resetGoogleAPI();
+      setIsSignedIn(false);
+    } catch (error) {
+      console.error('Reset Google API failed:', error);
       setIsSignedIn(false);
     }
     setIsLoading(false);
@@ -91,7 +121,9 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       signOut,
       checkSignInStatus,
       refreshToken,
-      getTokenStatus
+      getTokenStatus,
+      forceReAuthenticate,
+      resetGoogleAPI
     }}>
       {children}
     </DriveContext.Provider>

@@ -49,4 +49,5 @@ export interface NoteSidebarProps {
   onSetDragOver: (dragOver: string | null) => void;
   onSetIsResizing: (isResizing: boolean) => void;
   onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
+  onForceSync?: () => void;
 }
