@@ -421,7 +421,9 @@ export default function TermsOfService() {
                     <Mail className="h-5 w-5 text-gray-400" />
                     <div>
                       <p className="font-semibold text-gray-300">Email</p>
-                      <p className="text-gray-400">legal@anrye.com</p>
+                      <p className="text-gray-400">
+                        soranryenyn.2208@gmail.com
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

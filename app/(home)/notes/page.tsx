@@ -982,6 +982,23 @@ export default function NotesPage() {
               return prevNotes.map(n => 
                 n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
               );
+            } else if (existingNote) {
+              // Note exists, update content from Drive
+              driveService.getFile(file.id).then((content: string) => {
+                setNotes(currentNotes => {
+                  return currentNotes.map(n => 
+                    n.driveFileId === file.id 
+                      ? { 
+                          ...n, 
+                          content: content,
+                          updatedAt: file.modifiedTime 
+                        } 
+                      : n
+                  );
+                });
+              }).catch((error: any) => {
+                console.error('Failed to update note content for', noteTitle, ':', error);
+              });
             }
             return prevNotes; // No change if note already exists
           });
