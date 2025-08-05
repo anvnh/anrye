@@ -130,6 +130,14 @@ export default function NotesPage() {
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
+  // Desktop sidebar visibility state
+  const [isSidebarHidden, setIsSidebarHidden] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar-hidden') === 'true';
+    }
+    return false;
+  });
+  
   // Rename dialog state
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [renameItem, setRenameItem] = useState<{
@@ -144,11 +152,13 @@ export default function NotesPage() {
     localStorage.removeItem('folders-new');
     localStorage.removeItem('has-synced-drive');
     localStorage.removeItem('sidebar-width');
+    localStorage.removeItem('sidebar-hidden');
     localStorage.removeItem('selected-note-id');
     setNotes([]);
     setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
     setSelectedNote(null);
     setHasSyncedWithDrive(false);
+    setIsSidebarHidden(false);
 
   };
 
@@ -296,6 +306,16 @@ export default function NotesPage() {
     localStorage.setItem('sidebar-width', sidebarWidth.toString());
   }, [sidebarWidth]);
 
+  // Save sidebar visibility to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar-hidden', isSidebarHidden.toString());
+  }, [isSidebarHidden]);
+
+  // Toggle sidebar visibility
+  const toggleSidebar = () => {
+    setIsSidebarHidden(!isSidebarHidden);
+  };
+
   // Save sync status to localStorage
   useEffect(() => {
     localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
@@ -357,6 +377,14 @@ export default function NotesPage() {
         }
       }
 
+      // Ctrl/Cmd + B to toggle sidebar (desktop only)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+          toggleSidebar();
+        }
+      }
+
       // Ctrl/Cmd + Shift + S to toggle split mode (legacy, desktop only)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
         e.preventDefault();
@@ -387,7 +415,7 @@ export default function NotesPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isSplitMode, selectedNote]);
+  }, [isEditing, isSplitMode, selectedNote, toggleSidebar]);
 
   // Handle sidebar resize
   useEffect(() => {
@@ -1547,6 +1575,7 @@ export default function NotesPage() {
             dragOver={dragOver}
             isResizing={isResizing}
             isMobileSidebarOpen={isMobileSidebarOpen}
+            isSidebarHidden={isSidebarHidden}
             onToggleFolder={toggleFolder}
             onSelectNote={setSelectedNote}
             onSetSelectedPath={setSelectedPath}
@@ -1563,11 +1592,12 @@ export default function NotesPage() {
             onSetDragOver={setDragOver}
             onSetIsResizing={setIsResizing}
             onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
+            onToggleSidebar={toggleSidebar}
             onForceSync={forceSync}
           />
 
           {/* Main content area */}
-          <div className="flex-1 flex flex-col overflow-hidden lg:rounded-l-2xl">
+          <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarHidden ? 'lg:rounded-2xl' : 'lg:rounded-l-2xl'}`}>
             {selectedNote ? (
               <>
                 {/* Note Header */}
@@ -1593,6 +1623,8 @@ export default function NotesPage() {
                   isMobileSidebarOpen={isMobileSidebarOpen}
                   onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
                   onCloseNote={closeNote}
+                  isSidebarHidden={isSidebarHidden}
+                  onToggleSidebar={toggleSidebar}
                 />
 
                 {/* Note Content */}

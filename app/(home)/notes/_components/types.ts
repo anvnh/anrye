@@ -33,6 +33,7 @@ export interface NoteSidebarProps {
   dragOver: string | null;
   isResizing: boolean;
   isMobileSidebarOpen: boolean;
+  isSidebarHidden: boolean;
   onToggleFolder: (folderId: string) => void;
   onSelectNote: (note: Note) => void;
   onSetSelectedPath: (path: string) => void;
@@ -49,5 +50,6 @@ export interface NoteSidebarProps {
   onSetDragOver: (dragOver: string | null) => void;
   onSetIsResizing: (isResizing: boolean) => void;
   onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
+  onToggleSidebar: () => void;
   onForceSync?: () => void;
 }

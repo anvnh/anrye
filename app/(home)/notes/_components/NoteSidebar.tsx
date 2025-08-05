@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -20,6 +20,7 @@ export default function NoteSidebar({
   sidebarWidth,
   dragOver,
   isMobileSidebarOpen,
+  isSidebarHidden,
   // isResizing, // Currently unused but kept for future feature
   onToggleFolder,
   onSelectNote,
@@ -37,6 +38,7 @@ export default function NoteSidebar({
   onSetDragOver,
   onSetIsResizing,
   onSetIsMobileSidebarOpen,
+  onToggleSidebar,
   onForceSync
 }: NoteSidebarProps) {
 
@@ -235,6 +237,8 @@ export default function NoteSidebar({
         />
       )}
 
+
+
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
@@ -244,7 +248,9 @@ export default function NoteSidebar({
               ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
               lg:relative lg:translate-x-0
               ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
+              ${isSidebarHidden ? 'lg:hidden' : ''}
               shadow-xl rounded-r-2xl
+              transition-all duration-300 ease-in-out
             `}
             style={{
               width: `${sidebarWidth}px`,
@@ -253,9 +259,28 @@ export default function NoteSidebar({
           >
           <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0 rounded-t-2xl">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-bold text-white">
-                Notes
-              </h2>
+              <div className="flex items-center gap-2">
+                {/* Toggle Button for Desktop */}
+                <button
+                  onClick={onToggleSidebar}
+                  className={`
+                    hidden lg:flex items-center justify-center
+                    w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
+                    hover:bg-gray-600/60 hover:scale-105 active:scale-95
+                    text-gray-400 hover:text-gray-300
+                  `}
+                  title={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
+                >
+                  {isSidebarHidden ? (
+                    <PanelLeftOpen size={16} />
+                  ) : (
+                    <PanelLeftClose size={16} />
+                  )}
+                </button>
+                <h2 className="text-xl font-bold text-white">
+                  Notes
+                </h2>
+              </div>
               
               {isSignedIn && onForceSync && (
                 <button

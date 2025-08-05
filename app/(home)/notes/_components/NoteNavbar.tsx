@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Edit, Split, Menu } from 'lucide-react';
+import { Save, X, Edit, Split, Menu, PanelLeftOpen } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
@@ -27,6 +27,8 @@ interface NoteNavbarProps {
   isMobileSidebarOpen: boolean;
   onToggleMobileSidebar: () => void;
   onCloseNote: () => void;
+  isSidebarHidden: boolean;
+  onToggleSidebar: () => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -51,6 +53,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   isMobileSidebarOpen,
   onToggleMobileSidebar,
   onCloseNote,
+  isSidebarHidden,
+  onToggleSidebar,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
@@ -84,6 +88,17 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         >
           <Menu size={18} className="sm:w-5 sm:h-5" />
         </button>
+
+        {/* Desktop Sidebar Toggle - Only show when sidebar is hidden */}
+        {isSidebarHidden && (
+          <button
+            onClick={onToggleSidebar}
+            className="hidden lg:flex p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
+            title="Show sidebar"
+          >
+            <PanelLeftOpen size={18} className="sm:w-5 sm:h-5" />
+          </button>
+        )}
         
         {isEditing ? (
           <div className="flex-1 min-w-0">
