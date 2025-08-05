@@ -23,22 +23,23 @@ import {
   Quote,
   ChevronRight
 } from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+} from '@/components/ui/context-menu';
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
   editContent: string;
   setEditContent: (content: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
-}
-
-interface MenuItem {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  shortcut?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  children?: MenuItem[];
 }
 
 export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
@@ -50,10 +51,6 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
   const [selectedText, setSelectedText] = useState('');
   const [selectionStart, setSelectionStart] = useState(0);
   const [selectionEnd, setSelectionEnd] = useState(0);
-  const [contextMenuVisible, setContextMenuVisible] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const updateSelection = useCallback(() => {
     if (textareaRef?.current) {
@@ -162,27 +159,50 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
     }, 0);
   }, [selectedText, editContent, selectionStart, selectionEnd, setEditContent, textareaRef]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    updateSelection();
-    setContextMenuPosition({ x: e.clientX, y: e.clientY });
-    setContextMenuVisible(true);
-    setActiveSubmenu(null);
-  }, [updateSelection]);
-
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-      setContextMenuVisible(false);
-      setActiveSubmenu(null);
+  const handleCopy = useCallback(() => {
+    if (selectedText) {
+      navigator.clipboard.writeText(selectedText);
     }
-  }, []);
+  }, [selectedText]);
 
-  useEffect(() => {
-    if (contextMenuVisible) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+  const handleCut = useCallback(() => {
+    if (selectedText) {
+      navigator.clipboard.writeText(selectedText);
+      const before = editContent.substring(0, selectionStart);
+      const after = editContent.substring(selectionEnd);
+      setEditContent(before + after);
     }
-  }, [contextMenuVisible, handleClickOutside]);
+  }, [selectedText, editContent, selectionStart, selectionEnd, setEditContent]);
+
+  const handlePaste = useCallback(() => {
+    if (textareaRef?.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
+      
+      navigator.clipboard.readText()
+        .then(text => {
+          const before = editContent.substring(0, selectionStart);
+          const after = editContent.substring(selectionEnd);
+          setEditContent(before + text + after);
+          
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newPos = selectionStart + text.length;
+              textareaRef.current.setSelectionRange(newPos, newPos);
+            }
+          }, 0);
+        })
+        .catch(() => {
+          // Handle clipboard read error
+        });
+    }
+  }, [editContent, selectionStart, selectionEnd, setEditContent, textareaRef]);
+
+  const handleSelectAll = useCallback(() => {
+    if (textareaRef?.current) {
+      textareaRef.current.select();
+    }
+  }, [textareaRef]);
 
   // Keyboard shortcuts for formatting
   useEffect(() => {
@@ -268,282 +288,151 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
     };
   }, [wrapText, insertHeading, insertAtCursor, textareaRef]);
 
-  const menuItems: MenuItem[] = [
-    // Format submenu - only show if text is selected
-         ...(selectedText ? [{
-       id: 'format',
-       label: 'Format',
-       icon: <Type className="mr-2 h-4 w-4" />,
-       onClick: () => {},
-       children: [
-        {
-          id: 'bold',
-          label: 'Bold',
-          icon: <Bold className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('**')
-        },
-        {
-          id: 'italic',
-          label: 'Italic',
-          icon: <Italic className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('*')
-        },
-        {
-          id: 'strikethrough',
-          label: 'Strikethrough',
-          icon: <Strikethrough className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('~~')
-        },
-        {
-          id: 'highlight',
-          label: 'Highlight',
-          icon: <Highlighter className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('==')
-        },
-        { id: 'separator1', label: '', onClick: () => {} },
-        {
-          id: 'code',
-          label: 'Code',
-          icon: <Code className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('`')
-        },
-        {
-          id: 'codeBlock',
-          label: 'Code Block',
-          icon: <Code className="mr-2 h-4 w-4" />,
-          onClick: () => wrapText('```\n', '\n```')
-        },
-        { id: 'separator2', label: '', onClick: () => {} },
-        {
-          id: 'clearFormatting',
-          label: 'Clear Formatting',
-          icon: <Eraser className="mr-2 h-4 w-4" />,
-          onClick: clearFormatting
-        }
-      ]
-    }] : []),
-    
-         // Paragraph submenu
-     {
-       id: 'paragraph',
-       label: 'Paragraph',
-       icon: <Hash className="mr-2 h-4 w-4" />,
-       onClick: () => {},
-       children: [
-        {
-          id: 'h1',
-          label: 'Heading 1',
-          icon: <Heading1 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(1)
-        },
-        {
-          id: 'h2',
-          label: 'Heading 2',
-          icon: <Heading2 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(2)
-        },
-        {
-          id: 'h3',
-          label: 'Heading 3',
-          icon: <Heading3 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(3)
-        },
-        {
-          id: 'h4',
-          label: 'Heading 4',
-          icon: <Heading4 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(4)
-        },
-        {
-          id: 'h5',
-          label: 'Heading 5',
-          icon: <Heading5 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(5)
-        },
-        {
-          id: 'h6',
-          label: 'Heading 6',
-          icon: <Heading6 className="mr-2 h-4 w-4" />,
-          onClick: () => insertHeading(6)
-        },
-        { id: 'separator3', label: '', onClick: () => {} },
-        {
-          id: 'bulletList',
-          label: 'Bullet List',
-          icon: <List className="mr-2 h-4 w-4" />,
-          onClick: () => insertAtCursor('- ')
-        },
-        {
-          id: 'numberedList',
-          label: 'Numbered List',
-          icon: <ListOrdered className="mr-2 h-4 w-4" />,
-          onClick: () => insertAtCursor('1. ')
-        },
-        {
-          id: 'taskList',
-          label: 'Task List',
-          icon: <CheckSquare className="mr-2 h-4 w-4" />,
-          onClick: () => insertAtCursor('- [ ] ')
-        },
-        { id: 'separator4', label: '', onClick: () => {} },
-        {
-          id: 'quote',
-          label: 'Quote',
-          icon: <Quote className="mr-2 h-4 w-4" />,
-          onClick: () => insertAtCursor('> ')
-        },
-        {
-          id: 'horizontalRule',
-          label: 'Horizontal Rule',
-          icon: <Hash className="mr-2 h-4 w-4" />,
-          onClick: () => insertAtCursor('\n---\n')
-        }
-      ]
-    },
-    
-    { id: 'separator5', label: '', onClick: () => {} },
-    
-    // Standard editing actions
-    {
-      id: 'copy',
-      label: 'Copy',
-      disabled: !selectedText,
-      onClick: () => {
-        if (selectedText) {
-          navigator.clipboard.writeText(selectedText);
-        }
-      }
-    },
-    {
-      id: 'cut',
-      label: 'Cut',
-      disabled: !selectedText,
-      onClick: () => {
-        if (selectedText) {
-          navigator.clipboard.writeText(selectedText);
-          const before = editContent.substring(0, selectionStart);
-          const after = editContent.substring(selectionEnd);
-          setEditContent(before + after);
-        }
-      }
-    },
-    {
-      id: 'paste',
-      label: 'Paste',
-      onClick: () => {
-        if (textareaRef?.current) {
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(selectionStart, selectionEnd);
-          
-          navigator.clipboard.readText()
-            .then(text => {
-              const before = editContent.substring(0, selectionStart);
-              const after = editContent.substring(selectionEnd);
-              setEditContent(before + text + after);
-              
-              setTimeout(() => {
-                if (textareaRef.current) {
-                  const newPos = selectionStart + text.length;
-                  textareaRef.current.setSelectionRange(newPos, newPos);
-                }
-              }, 0);
-            })
-            .catch(() => {
-  
-            });
-        }
-      }
-    },
-    
-    { id: 'separator6', label: '', onClick: () => {} },
-    
-    {
-      id: 'selectAll',
-      label: 'Select All',
-      onClick: () => {
-        if (textareaRef?.current) {
-          textareaRef.current.select();
-        }
-      }
-    }
-  ];
-
-  const renderMenuItem = (item: MenuItem) => {
-    if (item.id.startsWith('separator')) {
-      return <div key={item.id} className="h-px bg-gray-600 my-1" />;
-    }
-
-    return (
-      <div
-        key={item.id}
-        className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-gray-700 hover:text-white ${
-          item.disabled ? 'text-gray-500 cursor-not-allowed' : 'text-gray-300'
-        }`}
-        onClick={() => {
-          if (!item.disabled && item.onClick) {
-            item.onClick();
-            setContextMenuVisible(false);
-            setActiveSubmenu(null);
-          }
-        }}
-        onMouseEnter={() => {
-          if (item.children) {
-            setActiveSubmenu(item.id);
-          }
-        }}
-      >
-        <div className="flex items-center">
-          {item.icon}
-          <span>{item.label}</span>
-        </div>
-        <div className="flex items-center">
-          {item.shortcut && (
-            <span className="text-xs text-gray-400 ml-4">{item.shortcut}</span>
-          )}
-          {item.children && (
-            <ChevronRight className="ml-2 h-4 w-4 text-gray-400" />
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderSubmenu = (item: MenuItem) => {
-    if (!item.children) return null;
-
-    return (
-      <div
-        key={`submenu-${item.id}`}
-        className={`absolute left-full top-0 w-48 bg-[#31363F] border border-gray-600 rounded-md shadow-lg z-50 ${
-          activeSubmenu === item.id ? 'block' : 'hidden'
-        }`}
-      >
-        {item.children.map(renderMenuItem)}
-      </div>
-    );
-  };
-
   return (
-    <>
-      <div onContextMenu={handleContextMenu} className="w-full h-full">
+    <ContextMenu onOpenChange={() => updateSelection()}>
+      <ContextMenuTrigger asChild>
         {children}
-      </div>
-      
-      {contextMenuVisible && (
-        <div
-          ref={contextMenuRef}
-          className="fixed z-50 w-64 bg-[#31363F] border border-gray-600 rounded-md shadow-lg"
-          style={{
-            left: contextMenuPosition.x,
-            top: contextMenuPosition.y,
-          }}
-        >
-          <div className="relative">
-            {menuItems.map(renderMenuItem)}
-            {menuItems.map(renderSubmenu)}
-          </div>
-        </div>
-      )}
-    </>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-64 bg-secondary text-gray-300 border-gray-600">
+        {selectedText && (
+          <>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Type className="mr-2 h-4 w-4" />
+                <span>Format</span>
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className='bg-secondary text-gray-300 border-gray-600'>
+                <ContextMenuItem onClick={() => wrapText('**')}>
+                  <Bold className="mr-2 h-4 w-4" />
+                  <span>Bold</span>
+                  <ContextMenuShortcut>Ctrl+B</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => wrapText('*')}>
+                  <Italic className="mr-2 h-4 w-4" />
+                  <span>Italic</span>
+                  <ContextMenuShortcut>Ctrl+I</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => wrapText('~~')}>
+                  <Strikethrough className="mr-2 h-4 w-4" />
+                  <span>Strikethrough</span>
+                  <ContextMenuShortcut>Ctrl+Shift+X</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => wrapText('==')}>
+                  <Highlighter className="mr-2 h-4 w-4" />
+                  <span>Highlight</span>
+                  <ContextMenuShortcut>Ctrl+Shift+H</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => wrapText('`')}>
+                  <Code className="mr-2 h-4 w-4" />
+                  <span>Code</span>
+                  <ContextMenuShortcut>Ctrl+E</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => wrapText('```\n', '\n```')}>
+                  <Code className="mr-2 h-4 w-4" />
+                  <span>Code Block</span>
+                  <ContextMenuShortcut>Ctrl+Shift+E</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={clearFormatting}>
+                  <Eraser className="mr-2 h-4 w-4" />
+                  <span>Clear Formatting</span>
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSeparator />
+          </>
+        )}
+
+        {/* Paragraph submenu */}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <Hash className="mr-2 h-4 w-4" />
+            <span>Paragraph</span>
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className='bg-secondary text-gray-300 border-gray-600'>
+            <ContextMenuItem onClick={() => insertHeading(1)}>
+              <Heading1 className="mr-2 h-4 w-4" />
+              <span>Heading 1</span>
+              <ContextMenuShortcut>Ctrl+1</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertHeading(2)}>
+              <Heading2 className="mr-2 h-4 w-4" />
+              <span>Heading 2</span>
+              <ContextMenuShortcut>Ctrl+2</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertHeading(3)}>
+              <Heading3 className="mr-2 h-4 w-4" />
+              <span>Heading 3</span>
+              <ContextMenuShortcut>Ctrl+3</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertHeading(4)}>
+              <Heading4 className="mr-2 h-4 w-4" />
+              <span>Heading 4</span>
+              <ContextMenuShortcut>Ctrl+4</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertHeading(5)}>
+              <Heading5 className="mr-2 h-4 w-4" />
+              <span>Heading 5</span>
+              <ContextMenuShortcut>Ctrl+5</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertHeading(6)}>
+              <Heading6 className="mr-2 h-4 w-4" />
+              <span>Heading 6</span>
+              <ContextMenuShortcut>Ctrl+6</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => insertAtCursor('- ')}>
+              <List className="mr-2 h-4 w-4" />
+              <span>Bullet List</span>
+              <ContextMenuShortcut>Ctrl+Shift+*</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertAtCursor('1. ')}>
+              <ListOrdered className="mr-2 h-4 w-4" />
+              <span>Numbered List</span>
+              <ContextMenuShortcut>Ctrl+Shift+&</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertAtCursor('- [ ] ')}>
+              <CheckSquare className="mr-2 h-4 w-4" />
+              <span>Task List</span>
+              <ContextMenuShortcut>Ctrl+Shift+(</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => insertAtCursor('> ')}>
+              <Quote className="mr-2 h-4 w-4" />
+              <span>Quote</span>
+              <ContextMenuShortcut>Ctrl+Shift+&gt;</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => insertAtCursor('\n---\n')}>
+              <Hash className="mr-2 h-4 w-4" />
+              <span>Horizontal Rule</span>
+            </ContextMenuItem>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+
+        <ContextMenuSeparator className='bg-[#4a5565]'/>
+
+        {/* Standard editing actions */}
+        <ContextMenuItem onClick={handleCopy} disabled={!selectedText}>
+          <span>Copy</span>
+          <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleCut} disabled={!selectedText}>
+          <span>Cut</span>
+          <ContextMenuShortcut>Ctrl+X</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handlePaste}>
+          <span>Paste</span>
+          <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
+        </ContextMenuItem>
+
+        <ContextMenuSeparator />
+
+        <ContextMenuItem onClick={handleSelectAll}>
+          <span>Select All</span>
+          <ContextMenuShortcut>Ctrl+A</ContextMenuShortcut>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
