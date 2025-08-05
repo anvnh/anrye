@@ -65,16 +65,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       // Save note locally first
       saveNote();
       
-      // If note has Google Drive file ID, rename it on Google Drive too
-      if (selectedNote.driveFileId) {
-        try {
-          await driveService.renameFile(selectedNote.driveFileId, editTitle);
-          // Note renamed on Google Drive successfully
-        } catch (error) {
-          console.error('Failed to rename note on Google Drive:', error);
-          // Don't throw error here, local save is more important
-        }
-      }
+      // Note: The rename logic is now handled in the saveNote function
+      // No need to rename separately here as it's already done in saveNote
     } catch (error) {
       console.error('Error saving note:', error);
     }

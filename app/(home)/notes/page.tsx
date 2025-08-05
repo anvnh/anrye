@@ -1188,9 +1188,16 @@ export default function NotesPage() {
       setIsLoading(true);
       setSyncProgress(10);
 
+      // Ensure the new title has .md extension if the original file had .md
+      const originalTitle = selectedNote.title;
+      const hasOriginalExtension = originalTitle.endsWith('.md');
+      const newTitle = hasOriginalExtension && !editTitle.endsWith('.md') 
+        ? `${editTitle}.md` 
+        : editTitle;
+
       let updatedNote = {
         ...selectedNote,
-        title: editTitle,
+        title: newTitle,
         content: editContent,
         updatedAt: new Date().toISOString()
       };
@@ -1204,6 +1211,11 @@ export default function NotesPage() {
             setSyncProgress(50);
             // Try to update existing file
             await driveService.updateFile(selectedNote.driveFileId, editContent);
+            
+            // If title changed, also rename the file
+            if (selectedNote.title !== newTitle) {
+              await driveService.renameFile(selectedNote.driveFileId, newTitle);
+            }
             setSyncProgress(80);
           } else {
             setSyncProgress(40);
@@ -1213,7 +1225,7 @@ export default function NotesPage() {
 
             if (parentDriveId) {
               setSyncProgress(60);
-              const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
+              const newDriveFileId = await driveService.uploadFile(newTitle, editContent, parentDriveId);
               updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
               setSyncProgress(80);
             }
@@ -1231,7 +1243,7 @@ export default function NotesPage() {
             if (parentDriveId) {
               try {
                 setSyncProgress(60);
-                const newDriveFileId = await driveService.uploadFile(`${editTitle}.md`, editContent, parentDriveId);
+                const newDriveFileId = await driveService.uploadFile(newTitle, editContent, parentDriveId);
                 updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
                 setSyncProgress(80);
 
@@ -1416,21 +1428,34 @@ export default function NotesPage() {
         // Update note title in Drive if signed in and has Drive file ID
         if (isSignedIn && noteToRename.driveFileId) {
           setSyncProgress(30);
-          await driveService.renameFile(noteToRename.driveFileId, newName);
+          // Ensure the new name has .md extension if the original file had .md
+          const originalName = renameItem.currentName;
+          const hasOriginalExtension = originalName.endsWith('.md');
+          const newFileName = hasOriginalExtension && !newName.endsWith('.md') 
+            ? `${newName}.md` 
+            : newName;
+          await driveService.renameFile(noteToRename.driveFileId, newFileName);
           setSyncProgress(60);
         }
+
+        // Ensure the new name has .md extension if the original file had .md
+        const originalName = renameItem.currentName;
+        const hasOriginalExtension = originalName.endsWith('.md');
+        const newFileName = hasOriginalExtension && !newName.endsWith('.md') 
+          ? `${newName}.md` 
+          : newName;
 
         // Update note locally
         setNotes(notes.map(note => {
           if (note.id === renameItem.id) {
-            return { ...note, title: newName };
+            return { ...note, title: newFileName };
           }
           return note;
         }));
 
         // Update selected note if it's the one being renamed
         if (selectedNote && selectedNote.id === renameItem.id) {
-          setSelectedNote({ ...selectedNote, title: newName });
+          setSelectedNote({ ...selectedNote, title: newFileName });
         }
       }
 

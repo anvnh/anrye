@@ -22,12 +22,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Check for auth token
-  const token = request.cookies.get('auth-token')?.value;
+  // TEMPORARILY DISABLED: Check for auth token
+  // const token = request.cookies.get('auth-token')?.value;
   
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  // if (!token) {
+  //   return NextResponse.redirect(new URL('/login', request.url));
+  // }
   
   // For now, we'll just check if token exists (not validating JWT in middleware)
   // JWT validation will happen in API routes

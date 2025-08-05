@@ -802,7 +802,7 @@ class GoogleDriveService {
     const metadata = {
       'name': name,
       'parents': parentId ? [parentId] : undefined,
-      'mimeType': 'text/plain'
+      'mimeType': 'application/octet-stream'
     };
 
     const multipartRequestBody =
