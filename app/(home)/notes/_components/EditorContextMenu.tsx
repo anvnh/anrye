@@ -289,7 +289,12 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
   }, [wrapText, insertHeading, insertAtCursor, textareaRef]);
 
   return (
-    <ContextMenu onOpenChange={() => updateSelection()}>
+    <ContextMenu onOpenChange={(open) => {
+      if (open) {
+        // Update selection when context menu opens
+        updateSelection();
+      }
+    }}>
       <ContextMenuTrigger asChild>
         {children}
       </ContextMenuTrigger>
@@ -322,7 +327,7 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
                   <span>Highlight</span>
                   <ContextMenuShortcut>Ctrl+Shift+H</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuSeparator />
+                <ContextMenuSeparator className='bg-[#4a5565]'/>
                 <ContextMenuItem onClick={() => wrapText('`')}>
                   <Code className="mr-2 h-4 w-4" />
                   <span>Code</span>
@@ -333,14 +338,14 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
                   <span>Code Block</span>
                   <ContextMenuShortcut>Ctrl+Shift+E</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuSeparator />
+                <ContextMenuSeparator className='bg-[#4a5565]'/>
                 <ContextMenuItem onClick={clearFormatting}>
                   <Eraser className="mr-2 h-4 w-4" />
                   <span>Clear Formatting</span>
                 </ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
-            <ContextMenuSeparator />
+            <ContextMenuSeparator className='bg-[#4a5565]'/>
           </>
         )}
 
@@ -381,7 +386,7 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
               <span>Heading 6</span>
               <ContextMenuShortcut>Ctrl+6</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuSeparator />
+            <ContextMenuSeparator className='bg-[#4a5565]'/>
             <ContextMenuItem onClick={() => insertAtCursor('- ')}>
               <List className="mr-2 h-4 w-4" />
               <span>Bullet List</span>
@@ -397,7 +402,7 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
               <span>Task List</span>
               <ContextMenuShortcut>Ctrl+Shift+(</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuSeparator />
+            <ContextMenuSeparator className='bg-[#4a5565]'/>
             <ContextMenuItem onClick={() => insertAtCursor('> ')}>
               <Quote className="mr-2 h-4 w-4" />
               <span>Quote</span>
@@ -426,7 +431,7 @@ export const EditorContextMenu: React.FC<EditorContextMenuProps> = ({
           <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
         </ContextMenuItem>
 
-        <ContextMenuSeparator />
+        <ContextMenuSeparator className='bg-[#4a5565]'/>
 
         <ContextMenuItem onClick={handleSelectAll}>
           <span>Select All</span>

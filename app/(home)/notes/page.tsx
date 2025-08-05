@@ -107,9 +107,9 @@ export default function NotesPage() {
   // Theme state
   const [currentTheme, setCurrentTheme] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'lattle';
+      return localStorage.getItem('theme') || 'latte';
     }
-    return 'lattle';
+    return 'latte';
   });
 
   // Drag & Drop and Context Menu states

@@ -9,7 +9,35 @@ import { cn } from "@/lib/utils"
 function ContextMenu({
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
+  return (
+    <ContextMenuPrimitive.Root 
+      data-slot="context-menu" 
+      onOpenChange={(open) => {
+        // Prevent text selection from being lost when context menu opens
+        if (open) {
+          // Store current selection
+          const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+          if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+            const selectionStart = activeElement.selectionStart;
+            const selectionEnd = activeElement.selectionEnd;
+            
+            // Restore selection after a brief delay to ensure context menu is rendered
+            setTimeout(() => {
+              if (activeElement === document.activeElement) {
+                activeElement.setSelectionRange(selectionStart, selectionEnd);
+              }
+            }, 0);
+          }
+        }
+        
+        // Call the original onOpenChange if provided
+        if (props.onOpenChange) {
+          props.onOpenChange(open);
+        }
+      }}
+      {...props}
+    />
+  )
 }
 
 function ContextMenuTrigger({
