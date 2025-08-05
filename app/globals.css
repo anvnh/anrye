@@ -271,3 +271,105 @@ body {
   color: #FFFFFF;
   border: #31363F solid 1px;
 }
+
+/* Custom Elegant Scrollbar Styles */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 117, 149, 0.3);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 117, 149, 0.5);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(107, 117, 149, 0.7);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 117, 149, 0.3) transparent;
+}
+
+/* Dark theme specific scrollbar colors */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(107, 117, 149, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 117, 149, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb:active {
+  background: rgba(107, 117, 149, 0.8);
+}
+
+.dark * {
+  scrollbar-color: rgba(107, 117, 149, 0.4) transparent;
+}
+
+/* Light theme specific scrollbar colors */
+:root ::-webkit-scrollbar-thumb {
+  background: rgba(107, 117, 149, 0.2);
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 117, 149, 0.4);
+}
+
+:root ::-webkit-scrollbar-thumb:active {
+  background: rgba(107, 117, 149, 0.6);
+}
+
+:root * {
+  scrollbar-color: rgba(107, 117, 149, 0.2) transparent;
+}
+
+/* Special styling for editor areas */
+.raw-content::-webkit-scrollbar,
+.preview-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.raw-content::-webkit-scrollbar-thumb,
+.preview-content::-webkit-scrollbar-thumb {
+  background: rgba(107, 117, 149, 0.2);
+  border-radius: 3px;
+}
+
+.raw-content::-webkit-scrollbar-thumb:hover,
+.preview-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 117, 149, 0.4);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar for specific elements when not needed */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
