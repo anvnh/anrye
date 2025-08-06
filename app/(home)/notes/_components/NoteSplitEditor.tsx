@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
-import { EditorContextMenu } from './EditorContextMenu';
+import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 
@@ -374,33 +374,32 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           width: `${leftPaneWidth}%`
         }}
       >
+        <EditorToolbar
+          editContent={editContent}
+          setEditContent={setEditContent}
+          textareaRef={textareaRef}
+        />
         <div className="flex-1 px-4 py-4 overflow-hidden">
-          <EditorContextMenu
-            editContent={editContent}
-            setEditContent={setEditContent}
-            textareaRef={textareaRef}
-          >
-            <textarea
-              ref={textareaRef}
-              value={editContent}
-              onChange={handleContentChange}
-              onScroll={handleRawScroll}
-              onKeyDown={handleKeyDown}
-              className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
-              placeholder="Write your note in Markdown..."
-              style={{
-                scrollBehavior: 'auto',
-                backgroundColor: '#31363F',
-                // Performance optimizations
-                willChange: 'scroll-position',
-                containIntrinsicSize: '1px 1000px'
-              }}
-              spellCheck={false}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-            />
-          </EditorContextMenu>
+          <textarea
+            ref={textareaRef}
+            value={editContent}
+            onChange={handleContentChange}
+            onScroll={handleRawScroll}
+            onKeyDown={handleKeyDown}
+            className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
+            placeholder="Write your note in Markdown..."
+            style={{
+              scrollBehavior: 'auto',
+              backgroundColor: '#31363F',
+              // Performance optimizations
+              willChange: 'scroll-position',
+              containIntrinsicSize: '1px 1000px'
+            }}
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+          />
         </div>
       </div>
 

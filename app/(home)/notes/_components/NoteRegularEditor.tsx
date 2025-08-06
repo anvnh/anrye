@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { EditorContextMenu } from './EditorContextMenu';
+import { EditorToolbar } from './EditorToolbar';
 
 
 interface NoteRegularEditorProps {
@@ -84,12 +84,13 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   return (
-    <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-6 h-full bg-secondary">
-      <EditorContextMenu 
+    <div className="flex flex-col h-full bg-secondary">
+      <EditorToolbar 
         editContent={editContent} 
         setEditContent={setEditContent}
         textareaRef={textareaRef}
-      >
+      />
+      <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-6">
         <textarea
           ref={textareaRef}
           value={editContent}
@@ -99,7 +100,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           placeholder="Write your note in Markdown..."
           style={{ backgroundColor: '#111111' }}
         />
-      </EditorContextMenu>
+      </div>
     </div>
   );
 };

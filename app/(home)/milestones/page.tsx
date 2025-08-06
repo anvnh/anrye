@@ -229,7 +229,7 @@ export default function MilestonesPage() {
       setSyncProgress(10);
 
       const milestoneId = editingId || Date.now().toString();
-      let uploadedImages: MilestoneImage[] = [];
+      const uploadedImages: MilestoneImage[] = [];
 
       // Upload images to Drive if signed in
       if (isSignedIn && formData.images.length > 0) {

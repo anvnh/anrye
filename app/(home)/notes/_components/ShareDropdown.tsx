@@ -183,12 +183,12 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
       // Update expireAt when date or time changes
       if (key === 'expireAt' && value) {
-        let time = newSettings.selectedTime || format(new Date(), 'HH:mm:ss');
-        let datePart = value.split('T')[0];
+        const time = newSettings.selectedTime || format(new Date(), 'HH:mm:ss');
+        const datePart = value.split('T')[0];
         newSettings.expireAt = `${datePart}T${time}`;
       }
       if (key === 'selectedTime' && newSettings.expireAt) {
-        let datePart = newSettings.expireAt.split('T')[0];
+        const datePart = newSettings.expireAt.split('T')[0];
         newSettings.expireAt = `${datePart}T${value}`;
       }
 
@@ -248,7 +248,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
     const newShortId = generateShortId();
     setShortId(newShortId);
     setShareSettings(prev => {
-      let newSettings = {
+      const newSettings = {
         ...prev,
         sharingUrl: `${window.location.origin}/shared/${newShortId}`
       };
