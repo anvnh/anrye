@@ -119,15 +119,6 @@ export const MilestoneImageViewer: React.FC<MilestoneImageViewerProps> = ({
     }
   };
 
-  return (
-    <div className="mt-4">
-      <div className="flex items-center gap-2 mb-3">
-        <ImageIcon size={16} className="text-primary" />
-        <span className="text-sm font-medium text-gray-300">
-          Images ({images.length})
-        </span>
-      </div>
-
   // Render image grid item
   const renderImageItem = (image: MilestoneImage, index: number) => (
     <div key={image.id} className="relative group">
@@ -221,10 +212,12 @@ export const MilestoneImageViewer: React.FC<MilestoneImageViewerProps> = ({
               <X size={20} />
             </button>
             
-            <img
+            <LazyImage
               src={imageUrls[selectedImage]}
               alt={images.find(img => img.id === selectedImage)?.name || ''}
               className="max-w-full max-h-full object-contain rounded-lg"
+              loading="eager"
+              preload={true}
             />
             
             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">

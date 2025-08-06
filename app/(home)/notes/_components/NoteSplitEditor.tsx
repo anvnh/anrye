@@ -4,6 +4,8 @@ import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
 import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
 import { EditorContextMenu } from './EditorContextMenu';
+import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
+import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 
 
 interface NoteSplitEditorProps {
@@ -52,8 +54,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  // Debounced content for markdown rendering to reduce lag
-  const [debouncedContent, setDebouncedContent] = useState(editContent);
+  // Enhanced debounced content for markdown rendering with adaptive delay
+  const [debouncedContent, cancelDebounce, isPending] = useAdvancedDebounce(editContent, {
+    delay: 300,
+    maxWait: 1000,
+    leading: false,
+    trailing: true
+  });
 
   const pendingUpdateRef = useRef<string | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -67,13 +74,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const CACHE_DURATION = 150; // ms
   const THROTTLE_DELAY = 8; // ~120fps
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedContent(editContent);
-    }, 500); // 500ms debounce for markdown rendering
-
-    return () => clearTimeout(timer);
-  }, [editContent]);
+  // Remove the old debounce effect since we're using the advanced hook
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setDebouncedContent(editContent);
+  //   }, 500);
+  //   return () => clearTimeout(timer);
+  // }, [editContent]);
 
   // Handle resizing between panes
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -298,10 +305,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }
   }, [setEditContent, tabSize]);
 
-  // Optimized onChange handler
+  // Optimized onChange handler with performance monitoring
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    performanceMonitor.start('content-change');
+    
     const newValue = e.target.value;
-
     setEditContent(newValue);
 
     // Batch updates to avoid excessive re-renders
@@ -316,24 +324,41 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         // Trigger any expensive operations here if needed
         pendingUpdateRef.current = null;
       }
+      performanceMonitor.end('content-change');
     }, 50);
   }, [setEditContent]);
 
-  // Optimized real-time preview with debounced content (block-based AST, đầy đủ tính năng)
+  // Optimized real-time preview with enhanced debounced content and performance monitoring
   const realtimePreview = useMemo(() => {
-    return (
-      <OptimizedMarkdownBlocksAST
-        content={debouncedContent}
-        notes={notes}
-        selectedNote={selectedNote}
-        setEditContent={setEditContent}
-        setNotes={setNotes}
-        setSelectedNote={setSelectedNote}
-        isSignedIn={isSignedIn}
-        driveService={driveService}
-      />
+    performanceMonitor.start('preview-render');
+    
+    const preview = (
+      <div className="relative">
+        {isPending && (
+          <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+            Updating...
+          </div>
+        )}
+        <OptimizedMarkdownBlocksAST
+          content={debouncedContent}
+          notes={notes}
+          selectedNote={selectedNote}
+          setEditContent={setEditContent}
+          setNotes={setNotes}
+          setSelectedNote={setSelectedNote}
+          isSignedIn={isSignedIn}
+          driveService={driveService}
+        />
+      </div>
     );
-  }, [debouncedContent, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
+    
+    // Use RAF for non-blocking rendering
+    batchDOMUpdates(() => {
+      performanceMonitor.end('preview-render');
+    });
+    
+    return preview;
+  }, [debouncedContent, isPending, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
   useEffect(() => {
     scrollHeightCache.current = {};
