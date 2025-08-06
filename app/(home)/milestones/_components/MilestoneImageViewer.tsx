@@ -119,15 +119,6 @@ export const MilestoneImageViewer: React.FC<MilestoneImageViewerProps> = ({
     }
   };
 
-  return (
-    <div className="mt-4">
-      <div className="flex items-center gap-2 mb-3">
-        <ImageIcon size={16} className="text-primary" />
-        <span className="text-sm font-medium text-gray-300">
-          Images ({images.length})
-        </span>
-      </div>
-
   // Render image grid item
   const renderImageItem = (image: MilestoneImage, index: number) => (
     <div key={image.id} className="relative group">
