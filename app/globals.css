@@ -411,6 +411,146 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Next.js Error Overlay Fix */
+/* Ensure Next.js error overlay displays properly */
+#__next-error-overlay,
+#__next-error-overlay *,
+[data-nextjs-dialog-overlay],
+[data-nextjs-dialog-overlay] * {
+  z-index: 999999 !important;
+  position: fixed !important;
+  overflow: visible !important;
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Specific fix for Next.js error dialog */
+[data-nextjs-dialog-overlay] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 999999 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+[data-nextjs-dialog-overlay] > div {
+  position: relative !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  overflow: auto !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin: 20px !important;
+}
+
+/* Ensure prose overflow doesn't affect error overlay */
+.prose {
+  overflow-x: hidden;
+  /* But allow error overlay to break out */
+  contain: layout style;
+}
+
+/* Allow error overlay to break out of any overflow hidden containers */
+#__next-error-overlay,
+[data-nextjs-dialog-overlay] {
+  contain: none !important;
+  overflow: visible !important;
+}
+
+/* Ensure error overlay can break out of any overflow hidden containers */
+#__next-error-overlay,
+[data-nextjs-dialog-overlay],
+#__next-error-overlay *,
+[data-nextjs-dialog-overlay] * {
+  position: fixed !important;
+  z-index: 999999 !important;
+  overflow: visible !important;
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Override any overflow hidden that might clip the error overlay */
+.overflow-hidden #__next-error-overlay,
+.overflow-hidden [data-nextjs-dialog-overlay] {
+  position: fixed !important;
+  z-index: 999999 !important;
+  overflow: visible !important;
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Additional Next.js error overlay fixes */
+[data-nextjs-dialog-overlay] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 999999 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+[data-nextjs-dialog-overlay] > div {
+  position: relative !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  overflow: auto !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin: 20px !important;
+}
+
+/* Fix for Next.js error overlay in development */
+#__next-error-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 999999 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+#__next-error-overlay > div {
+  position: relative !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  overflow: auto !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin: 20px !important;
+}
+
 /* Performance optimizations */
 * {
   /* GPU acceleration for animations */
