@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -39,7 +39,9 @@ export default function NoteSidebar({
   onSetIsResizing,
   onSetIsMobileSidebarOpen,
   onToggleSidebar,
-  onForceSync
+  onForceSync,
+  onSignIn,
+  onSignOut
 }: NoteSidebarProps) {
 
   const getNotesInPath = (path: string) => {
@@ -282,25 +284,52 @@ export default function NoteSidebar({
                   </h2>
                 </div>
 
-                {isSignedIn && onForceSync && (
-                  <button
-                    onClick={onForceSync}
-                    disabled={isLoading}
-                    className={`
-                    flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
+                <div className="flex items-center gap-2 rounded-2xl">
+                  {/* Drive Button */}
+                  {isSignedIn ? (
+                    <button
+                      onClick={onSignOut}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-green-400 hover:text-green-300 hover:bg-gray-700/60 rounded-2xl"
+                      title="Signed in to Google Drive - Click to sign out"
+                    >
+                      <Cloud size={12} />
+                      <span>Drive</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={onSignIn}
+                      disabled={isLoading}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-gray-400 hover:text-gray-300 hover:bg-gray-700/60 disabled:opacity-50 rounded-2xl"
+                      title="Sign in to Google Drive"
+                    >
+                      <CloudOff size={12} />
+                      <span>
+                        {isLoading ? 'Connecting...' : 'Drive'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Sync Button */}
+                  {isSignedIn && onForceSync && (
+                    <button
+                      onClick={onForceSync}
+                      disabled={isLoading}
+                      className={`
+                    flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
                     ${isLoading
                         ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
                       }
                   `}
-                    title="Force sync with Google Drive - removes local files not found on Drive"
-                  >
-                    <RefreshCw
-                      size={12}
-                      className={`${isLoading ? 'animate-spin' : ''}`}
-                    />
-                  </button>
-                )}
+                      title="Sync with Google Drive"
+                    >
+                      <RefreshCw
+                        size={12}
+                        className={`${isLoading ? 'animate-spin' : ''}`}
+                      />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {!isSignedIn && (

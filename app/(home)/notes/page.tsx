@@ -78,7 +78,7 @@ export default function NotesPage() {
   }, [fontSize]);
   // Tab size state for editor
   const [tabSize, setTabSize] = useState(2);
-  const { isSignedIn, forceReAuthenticate } = useDrive();
+  const { isSignedIn, forceReAuthenticate, signIn, signOut } = useDrive();
 
   // Theme list
   const themeOptions = [
@@ -1589,6 +1589,8 @@ export default function NotesPage() {
             onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
             onToggleSidebar={toggleSidebar}
             onForceSync={forceSync}
+            onSignIn={signIn}
+            onSignOut={signOut}
           />
 
           {/* Main content area */}

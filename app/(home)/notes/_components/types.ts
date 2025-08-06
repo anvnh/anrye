@@ -52,4 +52,6 @@ export interface NoteSidebarProps {
   onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
   onToggleSidebar: () => void;
   onForceSync?: () => void;
+  onSignIn?: () => void;
+  onSignOut?: () => void;
 }
