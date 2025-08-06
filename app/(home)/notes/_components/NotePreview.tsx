@@ -16,6 +16,7 @@ interface NotePreviewProps {
   driveService: {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
+  previewFontSize?: string;
 }
 
 export const NotePreview: React.FC<NotePreviewProps> = ({
@@ -24,7 +25,8 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   setNotes,
   setSelectedNote,
   isSignedIn,
-  driveService
+  driveService,
+  previewFontSize = '16px'
 }) => {
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
   const outlineRef = useRef<HTMLDivElement>(null);
@@ -145,7 +147,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
         {/* Main Content */}
         <div className="flex-1 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-32 py-6 overflow-y-auto">
-          <div className="prose prose-invert max-w-none">
+          <div className="prose prose-invert max-w-none" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
           /* Mobile optimizations - respect font-size settings */
           @media (max-width: 640px) {

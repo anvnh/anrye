@@ -48,6 +48,12 @@ export default function NotesPage() {
     }
     return '16px';
   });
+  const [previewFontSize, setPreviewFontSize] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('note-preview-font-size') || '16px';
+    }
+    return '16px';
+  });
   // Save font settings to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -59,6 +65,11 @@ export default function NotesPage() {
       localStorage.setItem('note-font-size', fontSize);
     }
   }, [fontSize]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('note-preview-font-size', previewFontSize);
+    }
+  }, [previewFontSize]);
   // Tab size state for editor
   const [tabSize, setTabSize] = useState(2);
   const { isSignedIn, forceReAuthenticate, signIn, signOut } = useDrive();
@@ -1591,6 +1602,8 @@ export default function NotesPage() {
                   setFontFamily={setFontFamily}
                   fontSize={fontSize}
                   setFontSize={setFontSize}
+                  previewFontSize={previewFontSize}
+                  setPreviewFontSize={setPreviewFontSize}
                   saveNote={saveNote}
                   cancelEdit={cancelEdit}
                   startEdit={startEdit}
@@ -1629,6 +1642,8 @@ export default function NotesPage() {
                         scrollThrottleRef={scrollThrottleRef}
                         lastScrollSource={lastScrollSource}
                         tabSize={tabSize}
+                        fontSize={fontSize}
+                        previewFontSize={previewFontSize}
                       />
                     ) : (
                       /* Regular Edit Mode */
@@ -1636,6 +1651,7 @@ export default function NotesPage() {
                         editContent={editContent}
                         setEditContent={setEditContent}
                         tabSize={tabSize}
+                        fontSize={fontSize}
                       />
                     )
                   ) : (
@@ -1647,6 +1663,7 @@ export default function NotesPage() {
                       setSelectedNote={setSelectedNote}
                       isSignedIn={isSignedIn}
                       driveService={driveService}
+                      previewFontSize={previewFontSize}
                     />
                   )}
                 </div>

@@ -27,6 +27,8 @@ interface NoteSplitEditorProps {
   scrollThrottleRef: React.RefObject<number | null>;
   lastScrollSource: React.RefObject<'raw' | 'preview' | null>;
   tabSize?: number;
+  fontSize?: string;
+  previewFontSize?: string;
 }
 
 export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
@@ -43,7 +45,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   scrollTimeoutRef,
   scrollThrottleRef,
   lastScrollSource,
-  tabSize = 2
+  tabSize = 2,
+  fontSize = '16px',
+  previewFontSize = '16px'
 }) => {
 
   // Ref for textarea to enable context menu functionality
@@ -391,6 +395,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             style={{
               scrollBehavior: 'auto',
               backgroundColor: '#31363F',
+              fontSize: fontSize,
               // Performance optimizations
               willChange: 'scroll-position',
               containIntrinsicSize: '1px 1000px'
@@ -439,7 +444,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             backgroundColor: '#222831'
           }}
         >
-          <div className="prose prose-invert max-w-none w-full">
+          <div className="prose prose-invert max-w-none w-full" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
               /* Enhanced KaTeX mobile responsiveness */
               .katex { 

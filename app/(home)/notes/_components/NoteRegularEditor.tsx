@@ -8,12 +8,14 @@ interface NoteRegularEditorProps {
   editContent: string;
   setEditContent: (content: string) => void;
   tabSize?: number;
+  fontSize?: string;
 }
 
 export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   editContent,
   setEditContent,
-  tabSize = 2
+  tabSize = 2,
+  fontSize = '16px'
 }) => {
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -98,7 +100,10 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           onKeyDown={handleKeyDown}
           className="w-full h-full resize-none bg-secondary text-gray-300 focus:outline-none font-mono text-sm"
           placeholder="Write your note in Markdown..."
-          style={{ backgroundColor: '#111111' }}
+          style={{ 
+            backgroundColor: '#111111',
+            fontSize: fontSize
+          }}
         />
       </div>
     </div>

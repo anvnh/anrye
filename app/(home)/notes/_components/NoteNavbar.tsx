@@ -21,6 +21,8 @@ interface NoteNavbarProps {
   setFontFamily: (f: string) => void;
   fontSize: string;
   setFontSize: (s: string) => void;
+  previewFontSize: string;
+  setPreviewFontSize: (s: string) => void;
   saveNote: () => void;
   cancelEdit: () => void;
   startEdit: () => void;
@@ -47,6 +49,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   setFontFamily,
   fontSize,
   setFontSize,
+  previewFontSize,
+  setPreviewFontSize,
   saveNote,
   cancelEdit,
   startEdit,
@@ -57,6 +61,48 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   onToggleSidebar,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
+
+  // Helper function to format the last updated time
+  const formatLastUpdated = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    
+    // Format the time as HH:MM
+    const timeString = date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+    
+    // Format the date as dd/mm/yyyy
+    const dateStringFormatted = date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    // Create time ago string
+    let timeAgoString = '';
+    if (diffInHours > 0) {
+      timeAgoString = `${diffInHours} hours`;
+      if (diffInMinutes % 60 > 0) {
+        timeAgoString += ` ${diffInMinutes % 60} minutes`;
+      }
+    } else if (diffInMinutes > 0) {
+      timeAgoString = `${diffInMinutes} minutes`;
+      if (diffInSeconds % 60 > 0) {
+        timeAgoString += ` ${diffInSeconds % 60} seconds`;
+      }
+    } else {
+      timeAgoString = `${diffInSeconds} seconds`;
+    }
+    
+    return `${timeAgoString} ago at ${timeString} - ${dateStringFormatted}`;
+  };
 
   useEffect(() => {
     if (isEditing) {
@@ -167,6 +213,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           setFontFamily={setFontFamily}
           fontSize={fontSize}
           setFontSize={setFontSize}
+          previewFontSize={previewFontSize}
+          setPreviewFontSize={setPreviewFontSize}
         />
 
         {isEditing ? (
@@ -199,7 +247,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
     </div>
     <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
       <span className="hidden sm:inline">Last updated: </span>
-      {new Date(selectedNote.updatedAt).toLocaleString()}
+      {formatLastUpdated(selectedNote.updatedAt)}
     </p>
   </div>
   );

@@ -25,6 +25,8 @@ interface SettingsDropdownProps {
   setFontFamily: (font: string) => void;
   fontSize: string;
   setFontSize: (size: string) => void;
+  previewFontSize: string;
+  setPreviewFontSize: (size: string) => void;
 }
 
 const fontOptions = [
@@ -59,6 +61,8 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
   setFontFamily,
   fontSize,
   setFontSize,
+  previewFontSize,
+  setPreviewFontSize,
 }) => {
   return (
     <DropdownMenu>
@@ -96,10 +100,32 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
         </DropdownMenuLabel>
         <DropdownMenuLabel>
           <div className='flex flex-col'>
-            <span className="mr-2 mb-2">Font Size:</span>
+            <span className="mr-2 mb-2">Editor Font Size:</span>
             <Select
               value={fontSize}
               onValueChange={setFontSize}
+            >
+              <SelectTrigger className="w-auto border-gray-600">
+                <SelectValue placeholder="Select font size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {fontSizeOptions.map((size) => (
+                    <SelectItem key={size.value} value={size.value}>
+                      {size.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <div className='flex flex-col'>
+            <span className="mr-2 mb-2">Preview Font Size:</span>
+            <Select
+              value={previewFontSize}
+              onValueChange={setPreviewFontSize}
             >
               <SelectTrigger className="w-auto border-gray-600">
                 <SelectValue placeholder="Select font size" />
