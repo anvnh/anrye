@@ -65,6 +65,18 @@ const getTextContent = (node: unknown): string => {
   return '';
 };
 
+// Function to strip markdown formatting from text
+const stripMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*
+    .replace(/`(.*?)`/g, '$1') // Remove inline code `text`
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links [text](url) -> text
+    .replace(/~~(.*?)~~/g, '$1') // Remove strikethrough ~~text~~
+    .replace(/^#+\s+/, '') // Remove heading markers
+    .trim();
+};
+
 // Utility function to update checkbox content by line index (safe, preserves all lines)
 const updateCheckboxContent = (
   content: string,
@@ -298,8 +310,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     lines.forEach((line, index) => {
       const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
-        const title = match[2].trim();
-        const baseId = title.toLowerCase()
+        const rawTitle = match[2].trim();
+        const cleanTitle = stripMarkdown(rawTitle);
+        const baseId = cleanTitle.toLowerCase()
           .replace(/[^\w\s-]/g, '')
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')

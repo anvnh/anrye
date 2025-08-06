@@ -17,6 +17,18 @@ interface NoteOutlineProps {
 const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
   const [activeHeading, setActiveHeading] = useState<string>('');
 
+  // Function to strip markdown formatting from text
+  const stripMarkdown = (text: string): string => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*
+      .replace(/`(.*?)`/g, '$1') // Remove inline code `text`
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links [text](url) -> text
+      .replace(/~~(.*?)~~/g, '$1') // Remove strikethrough ~~text~~
+      .replace(/^#+\s+/, '') // Remove heading markers
+      .trim();
+  };
+
   // Extract headings from markdown content with same ID logic as renderer
   const outline = useMemo(() => {
     const lines = content.split('\n');
@@ -27,10 +39,11 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
       const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const level = match[1].length;
-        const title = match[2].trim();
+        const rawTitle = match[2].trim();
+        const cleanTitle = stripMarkdown(rawTitle);
         
         // Use same ID creation logic as markdown renderer
-        const baseId = title.toLowerCase()
+        const baseId = cleanTitle.toLowerCase()
           .replace(/[^\w\s-]/g, '')
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')
@@ -42,7 +55,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
         
         headings.push({
           id,
-          title,
+          title: cleanTitle,
           level,
           line: index + 1
         });
