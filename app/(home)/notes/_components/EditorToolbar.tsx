@@ -270,7 +270,66 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Quote size={16} />
         </button>
         <button
-          onClick={() => insertAtCursor('- ')}
+          onClick={() => {
+            if (!textareaRef?.current) return;
+            
+            const { start, end, selected } = updateSelection();
+            
+            // If no selection, just insert bullet at cursor
+            if (start === end) {
+              insertAtCursor('- ');
+              return;
+            }
+            
+            // Find the start and end of the lines that contain the selection
+            const before = editContent.substring(0, start);
+            const after = editContent.substring(end);
+            
+            // Find the start of the first line containing selection
+            const lineStart = before.lastIndexOf('\n') + 1;
+            
+            // Find the end of the last line containing selection
+            const lineEnd = after.indexOf('\n');
+            const actualLineEnd = lineEnd !== -1 ? end + lineEnd : editContent.length;
+            
+            // Get the complete lines that contain the selection
+            const completeLines = editContent.substring(lineStart, actualLineEnd);
+            const lines = completeLines.split('\n');
+            
+            // Check if all lines are already bullet points
+            const bulletPattern = /^(\s*)[-*+]\s/;
+            const allAreBullets = lines.every(line => bulletPattern.test(line));
+            
+            let newLines: string[];
+            if (allAreBullets) {
+              // Remove bullet points from all lines
+              newLines = lines.map(line => {
+                const match = line.match(bulletPattern);
+                if (match) {
+                  return line.substring(match[0].length);
+                }
+                return line;
+              });
+            } else {
+              // Add bullet points to all lines
+              newLines = lines.map(line => {
+                if (line.trim() === '') return line; // Skip empty lines
+                return '- ' + line;
+              });
+            }
+            
+            const newContent = editContent.substring(0, lineStart) + newLines.join('\n') + editContent.substring(actualLineEnd);
+            setEditContent(newContent);
+            
+            // Restore focus and selection
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.focus();
+                const newEnd = lineStart + newLines.join('\n').length;
+                textareaRef.current.setSelectionRange(lineStart, newEnd);
+              }
+            }, 0);
+          }}
           className="p-2 hover:bg-gray-700 rounded transition-colors"
           title="Bullet List (Ctrl+Shift+*)"
         >
