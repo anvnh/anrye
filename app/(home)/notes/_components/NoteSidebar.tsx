@@ -249,133 +249,133 @@ export default function NoteSidebar({
               lg:relative lg:translate-x-0
               ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
               ${isSidebarHidden ? 'lg:hidden' : ''}
-              shadow-xl rounded-r-2xl
-              transition-all duration-300 ease-in-out
+                             shadow-xl
+               transition-all duration-300 ease-in-out
             `}
             style={{
               width: `${sidebarWidth}px`,
               backgroundColor: dragOver === 'root' ? '#1e40af10' : '#31363F'
             }}
           >
-          <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0 rounded-t-2xl">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {/* Toggle Button for Desktop */}
-                <button
-                  onClick={onToggleSidebar}
-                  className={`
+            <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {/* Toggle Button for Desktop */}
+                  <button
+                    onClick={onToggleSidebar}
+                    className={`
                     hidden lg:flex items-center justify-center
                     w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
                     hover:bg-gray-600/60 hover:scale-105 active:scale-95
                     text-gray-400 hover:text-gray-300
                   `}
-                  title={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
-                >
-                  {isSidebarHidden ? (
-                    <PanelLeftOpen size={16} />
-                  ) : (
-                    <PanelLeftClose size={16} />
-                  )}
-                </button>
-                <h2 className="text-xl font-bold text-white">
-                  Notes
-                </h2>
-              </div>
-              
-              {isSignedIn && onForceSync && (
-                <button
-                  onClick={onForceSync}
-                  disabled={isLoading}
-                  className={`
+                    title={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
+                  >
+                    {isSidebarHidden ? (
+                      <PanelLeftOpen size={16} />
+                    ) : (
+                      <PanelLeftClose size={16} />
+                    )}
+                  </button>
+                  <h2 className="text-xl font-bold text-white">
+                    Notes
+                  </h2>
+                </div>
+
+                {isSignedIn && onForceSync && (
+                  <button
+                    onClick={onForceSync}
+                    disabled={isLoading}
+                    className={`
                     flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
-                    ${isLoading 
-                      ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95'
-                    }
+                    ${isLoading
+                        ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95'
+                      }
                   `}
-                  title="Force sync with Google Drive - removes local files not found on Drive"
-                >
-                  <RefreshCw 
-                    size={12} 
-                    className={`${isLoading ? 'animate-spin' : ''}`} 
-                  />
-                </button>
+                    title="Force sync with Google Drive - removes local files not found on Drive"
+                  >
+                    <RefreshCw
+                      size={12}
+                      className={`${isLoading ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {!isSignedIn && (
+                <div className="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/20">
+                  💡 Sign in to Google Drive to sync notes
+                </div>
+              )}
+
+              {isLoading && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-blue-400 font-medium">Syncing...</span>
+                    <span className="text-xs text-gray-400">{syncProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
+                      style={{
+                        width: `${syncProgress}%`,
+                        boxShadow: syncProgress > 0 ? '0 0 8px rgba(59, 130, 246, 0.6)' : 'none'
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
-            {!isSignedIn && (
-              <div className="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/20">
-                💡 Sign in to Google Drive to sync notes
-              </div>
-            )}
-
-            {isLoading && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-blue-400 font-medium">Syncing...</span>
-                  <span className="text-xs text-gray-400">{syncProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
-                    style={{
-                      width: `${syncProgress}%`,
-                      boxShadow: syncProgress > 0 ? '0 0 8px rgba(59, 130, 246, 0.6)' : 'none'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1"
+              onDragOver={(e) => {
+                e.preventDefault();
+                // Only set to root if we're not over a specific folder
+                if (e.target === e.currentTarget) {
+                  onSetDragOver('root');
+                }
+              }}
+              onDragLeave={(e) => {
+                // Only clear if we're leaving the container itself
+                if (e.target === e.currentTarget) {
+                  onSetDragOver(null);
+                }
+              }}
+              onDrop={(e) => {
+                // Only handle drop to root if we're dropping on empty space
+                if (e.target === e.currentTarget) {
+                  onDrop(e, 'root');
+                }
+              }}
+            >
+              {renderFileTree()}
+            </div>
           </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-1"
-            onDragOver={(e) => {
-              e.preventDefault();
-              // Only set to root if we're not over a specific folder
-              if (e.target === e.currentTarget) {
-                onSetDragOver('root');
-              }
-            }}
-            onDragLeave={(e) => {
-              // Only clear if we're leaving the container itself
-              if (e.target === e.currentTarget) {
-                onSetDragOver(null);
-              }
-            }}
-            onDrop={(e) => {
-              // Only handle drop to root if we're dropping on empty space
-              if (e.target === e.currentTarget) {
-                onDrop(e, 'root');
-              }
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+          <ContextMenuItem
+            className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+            onClick={() => {
+              onSetSelectedPath('');
+              onSetIsCreatingFolder(true);
             }}
           >
-            {renderFileTree()}
-          </div>
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
-        <ContextMenuItem
-          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
-          onClick={() => {
-            onSetSelectedPath('');
-            onSetIsCreatingFolder(true);
-          }}
-        >
-          <FolderPlus size={16} className="mr-2" />
-          New Folder
-        </ContextMenuItem>
-        <ContextMenuItem
-          className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
-          onClick={() => {
-            onSetSelectedPath('');
-            onSetIsCreatingNote(true);
-          }}
-        >
-          <FileText size={16} className="mr-2" />
-          New Note
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+            <FolderPlus size={16} className="mr-2" />
+            New Folder
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+            onClick={() => {
+              onSetSelectedPath('');
+              onSetIsCreatingNote(true);
+            }}
+          >
+            <FileText size={16} className="mr-2" />
+            New Note
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </>
   );
 }

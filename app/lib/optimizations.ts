@@ -329,7 +329,16 @@ export const createResizeObserver = (
 export const createWebWorker = (workerScript: string): Worker | null => {
   if (typeof window !== 'undefined' && 'Worker' in window) {
     try {
-      return new Worker(workerScript);
+      // Create a blob URL for the worker script to avoid static analysis issues
+      const blob = new Blob([workerScript], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
+      
+      // Clean up the blob URL after worker creation
+      worker.addEventListener('error', () => URL.revokeObjectURL(workerUrl));
+      worker.addEventListener('message', () => URL.revokeObjectURL(workerUrl));
+      
+      return worker;
     } catch (error) {
       console.warn('Web Worker not supported or failed to create:', error);
       return null;

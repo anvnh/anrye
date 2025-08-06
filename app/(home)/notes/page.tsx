@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import AuthenticatedLayout from '../../components/AuthenticatedLayout';
+
 import { FileText, Edit, Save, X, Split, Settings2Icon, Menu } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
@@ -1552,15 +1552,10 @@ export default function NotesPage() {
 
   // Show loading spinner while initializing
   if (!isInitialized) {
-    return (
-      <AuthenticatedLayout>
-        <LoadingSpinner />
-      </AuthenticatedLayout>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
-    <AuthenticatedLayout>
       <div className="h-full flex flex-col" style={{ backgroundColor: '#222831' }}>
         <div className="flex flex-1 overflow-hidden">
           {/* File Explorer Sidebar */}
@@ -1597,7 +1592,7 @@ export default function NotesPage() {
           />
 
           {/* Main content area */}
-          <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarHidden ? 'lg:rounded-2xl' : 'lg:rounded-l-2xl'}`}>
+          <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
             {selectedNote ? (
               <>
                 {/* Note Header */}
@@ -1928,6 +1923,5 @@ export default function NotesPage() {
           type={renameItem?.type || 'file'}
         />
       </div>
-    </AuthenticatedLayout>
-  );
+    );
 }
