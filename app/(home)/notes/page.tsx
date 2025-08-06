@@ -360,13 +360,7 @@ export default function NotesPage() {
         }
       }
 
-      // Ctrl/Cmd + B to toggle sidebar (desktop only)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-        e.preventDefault();
-        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-          toggleSidebar();
-        }
-      }
+
 
       // Ctrl/Cmd + Shift + S to toggle split mode (legacy, desktop only)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
@@ -398,7 +392,7 @@ export default function NotesPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isSplitMode, selectedNote, toggleSidebar]);
+  }, [isEditing, isSplitMode, selectedNote]);
 
   // Handle sidebar resize
   useEffect(() => {
@@ -1690,11 +1684,7 @@ export default function NotesPage() {
                     <FileText size={64} className="text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400 text-lg">Select a note to start reading</p>
                     <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
-                    {isSidebarHidden && (
-                      <p className="text-gray-600 text-md mt-3">
-                        💡 Press <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs text-white">Ctrl+B</kbd> to show sidebar
-                      </p>
-                    )}
+
                   </div>
                 </div>
               </>
