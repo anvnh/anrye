@@ -239,7 +239,27 @@ export default function NoteSidebar({
         />
       )}
 
-
+      {/* Floating Sync Progress Indicator for Mobile */}
+      {isLoading && !isMobileSidebarOpen && (
+        <div className="fixed top-16 right-4 z-50 lg:hidden">
+          <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-600/50 rounded-lg p-3 shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <RefreshCw size={14} className="text-blue-400 animate-spin" />
+              <span className="text-xs text-blue-400 font-medium">Syncing...</span>
+              <span className="text-xs text-gray-400">{syncProgress}%</span>
+            </div>
+            <div className="w-32 bg-gray-700/50 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
+                style={{
+                  width: `${syncProgress}%`,
+                  boxShadow: syncProgress > 0 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <ContextMenu>
         <ContextMenuTrigger asChild>
