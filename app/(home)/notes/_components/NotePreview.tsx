@@ -155,28 +155,69 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             .prose p { margin-bottom: 0.75rem !important; }
             .prose li { margin-bottom: 0.25rem !important; }
           }
+          
+          /* Enhanced KaTeX mobile responsiveness */
           .katex { 
             color: #e5e7eb !important;
             font-size: 1.1em !important;
+            max-width: 100% !important;
+            word-wrap: break-word !important;
           }
+          
           .katex-display {
             margin: 1.5em 0 !important;
             text-align: center !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
+            max-width: 100% !important;
+            padding: 0.5rem 0 !important;
+            -webkit-overflow-scrolling: touch !important;
           }
+          
           .katex-display > .katex {
             display: inline-block !important;
             white-space: nowrap !important;
+            min-width: max-content !important;
+            max-width: none !important;
           }
+          
+          /* Mobile-specific KaTeX adjustments */
+          @media (max-width: 480px) {
+            .katex {
+              font-size: 0.9em !important;
+            }
+            .katex-display {
+              margin: 1em 0 !important;
+              padding: 0.25rem 0 !important;
+            }
+            .katex-display > .katex {
+              font-size: 0.85em !important;
+            }
+          }
+          
+          @media (max-width: 360px) {
+            .katex {
+              font-size: 0.8em !important;
+            }
+            .katex-display > .katex {
+              font-size: 0.75em !important;
+            }
+          }
+          
           .math-display {
             overflow-x: auto;
             padding: 0.5rem 0;
             text-align: center;
+            max-width: 100%;
+            -webkit-overflow-scrolling: touch;
           }
+          
           .math-inline {
             display: inline;
+            word-wrap: break-word;
+            max-width: 100%;
           }
+          
           /* Dark theme adjustments for KaTeX */
           .katex .accent {
             color: #e5e7eb !important;
@@ -195,6 +236,16 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
           }
           .katex .sqrt > .sqrt-line {
             border-top-color: #6b7280 !important;
+          }
+          
+          /* Ensure proper scrolling on mobile */
+          .prose {
+            overflow-x: hidden !important;
+          }
+          
+          .prose * {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
           }
         `}</style>
             {memoizedMarkdown}
