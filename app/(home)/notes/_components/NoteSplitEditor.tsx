@@ -54,7 +54,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Split pane resize state
-  const [leftPaneWidth, setLeftPaneWidth] = useState(40); // Percentage
+  const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
 
@@ -112,7 +112,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   // Handle double-click to reset to 50-50 split
   const handleDoubleClick = useCallback(() => {
-    setLeftPaneWidth(40);
+    setLeftPaneWidth(50);
   }, []);
 
   useEffect(() => {

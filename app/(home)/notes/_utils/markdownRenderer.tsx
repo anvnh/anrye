@@ -23,6 +23,7 @@ import {
   MessageSquare,
   ClipboardList
 } from 'lucide-react';
+import FoldableHeading from '../_components/FoldableHeading';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -350,9 +351,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h1 id={id} className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2" {...props}>
+            <FoldableHeading
+              level={1}
+              id={id}
+              className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2"
+            >
               {children}
-            </h1>
+            </FoldableHeading>
           );
         },
         h2: ({ children, ...props }) => {
@@ -360,9 +365,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h2 id={id} className="text-2xl font-semibold text-white mb-4 mt-6" {...props}>
+            <FoldableHeading
+              level={2}
+              id={id}
+              className="text-2xl font-semibold text-white mb-4 mt-6"
+            >
               {children}
-            </h2>
+            </FoldableHeading>
           );
         },
         h3: ({ children, ...props }) => {
@@ -370,9 +379,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h3 id={id} className="text-xl font-semibold text-white mb-3 mt-5" {...props}>
+            <FoldableHeading
+              level={3}
+              id={id}
+              className="text-xl font-semibold text-white mb-3 mt-5"
+            >
               {children}
-            </h3>
+            </FoldableHeading>
           );
         },
         h4: ({ children, ...props }) => {
@@ -380,9 +393,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h4 id={id} className="text-lg font-medium text-white mb-2 mt-4" {...props}>
+            <FoldableHeading
+              level={4}
+              id={id}
+              className="text-lg font-medium text-white mb-2 mt-4"
+            >
               {children}
-            </h4>
+            </FoldableHeading>
           );
         },
         h5: ({ children, ...props }) => {
@@ -390,9 +407,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h5 id={id} className="text-base font-medium text-white mb-2 mt-3" {...props}>
+            <FoldableHeading
+              level={5}
+              id={id}
+              className="text-base font-medium text-white mb-2 mt-3"
+            >
               {children}
-            </h5>
+            </FoldableHeading>
           );
         },
         h6: ({ children, ...props }) => {
@@ -400,9 +421,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const id = getHeadingId(text);
 
           return (
-            <h6 id={id} className="text-sm font-medium text-gray-300 mb-2 mt-3" {...props}>
+            <FoldableHeading
+              level={6}
+              id={id}
+              className="text-sm font-medium text-gray-300 mb-2 mt-3"
+            >
               {children}
-            </h6>
+            </FoldableHeading>
           );
         },
         p: ({ children, ...props }) => (
