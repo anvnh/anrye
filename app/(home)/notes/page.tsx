@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 
-import { FileText, Edit, Save, X, Split, Settings2Icon, Menu } from 'lucide-react';
+import { FileText, Edit, Save, X, Split, Settings2Icon, Menu, PanelLeftOpen } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
@@ -1789,11 +1789,28 @@ export default function NotesPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
+                <div className="flex-1 flex items-center justify-center relative" style={{ backgroundColor: '#222831' }}>
+                  {/* Floating sidebar toggle button */}
+                  {isSidebarHidden && (
+                    <button
+                      onClick={toggleSidebar}
+                      className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 shadow-lg backdrop-blur-sm"
+                      title="Show sidebar"
+                    >
+                      <PanelLeftOpen size={16} />
+                      <span className="text-sm">Sidebar</span>
+                    </button>
+                  )}
+                  
                   <div className="text-center">
                     <FileText size={64} className="text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400 text-lg">Select a note to start reading</p>
                     <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
+                    {isSidebarHidden && (
+                      <p className="text-gray-600 text-md mt-3">
+                        💡 Press <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs text-white">Ctrl+B</kbd> to show sidebar
+                      </p>
+                    )}
                   </div>
                 </div>
               </>

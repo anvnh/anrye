@@ -337,7 +337,7 @@ export default function NoteSidebar({
                       className={`
                     flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
                     ${isLoading
-                        ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
+                        ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
                         : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
                       }
                   `}
