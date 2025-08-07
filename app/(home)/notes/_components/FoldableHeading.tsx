@@ -102,13 +102,12 @@ const FoldableHeading: React.FC<FoldableHeadingProps> = ({
   };
 
   const iconSize = level <= 2 ? 16 : 14;
-  const iconMargin = level <= 2 ? 'mr-2' : 'mr-1.5';
 
   const renderHeading = () => {
     const props = {
       ref: headingRef,
       id,
-      className: `flex items-center group cursor-pointer hover:bg-gray-800 hover:bg-opacity-20 rounded px-1 -mx-1 transition-all duration-200 ${className}`,
+      className: `relative group cursor-pointer hover:bg-gray-800 hover:bg-opacity-20 rounded px-1 -mx-1 transition-all duration-200 ${className}`,
       onClick: handleToggle
     };
 
@@ -132,16 +131,18 @@ const FoldableHeading: React.FC<FoldableHeadingProps> = ({
 
   const renderContent = () => (
     <>
-      {hasContent && (
-        <span className={`flex-shrink-0 ${iconMargin} opacity-60 group-hover:opacity-100 transition-all duration-200 ease-in-out`}>
+      {/* {hasContent && (
+        <span className="absolute left-1 top-1/2 -translate-y-1/2 opacity-60 group-hover:opacity-100 transition-all duration-200 ease-in-out">
           {isFolded ? (
             <ChevronRight size={iconSize} className="text-gray-400 transform transition-transform duration-200" />
           ) : (
             <ChevronDown size={iconSize} className="text-gray-400 transform transition-transform duration-200" />
           )}
         </span>
-      )}
-      <span className="flex-1">{children}</span>
+      )} */}
+      <span className="block">
+        {children}
+      </span>
     </>
   );
 
