@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { gsap } from 'gsap';
 import { MemoizedMarkdown } from '@/app/(home)/notes/_utils';
@@ -9,6 +9,13 @@ import { Note } from '@/app/(home)/notes/_components/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon, Settings2Icon } from 'lucide-react';
 import { List, X } from 'lucide-react';
+
+// Utility function to check if content has headings
+const hasHeadings = (content: string): boolean => {
+  const lines = content.split('\n');
+  return lines.some(line => /^(#{1,6})\s+(.+)$/.test(line));
+};
+
 import {
   Popover,
   PopoverContent,
@@ -68,6 +75,9 @@ export default function SharedNotePage() {
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // Check if the note has headings
+  const hasOutline = useMemo(() => note ? hasHeadings(note.content) : false, [note]);
 
   // Theme options
   const themeOptions = [
@@ -448,19 +458,21 @@ export default function SharedNotePage() {
         <div className="flex-1">
           <div className="h-full flex relative">
             {/* Mobile Outline Toggle Button */}
-            <div className="lg:hidden fixed top-20 right-4 z-50">
-              <button
-                ref={buttonRef}
-                onClick={() => setIsOutlineOpen(!isOutlineOpen)}
-                className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
-                title="Toggle outline"
-              >
-                {isOutlineOpen ? <X size={20} /> : <List size={20} />}
-              </button>
-            </div>
+            {hasOutline && (
+              <div className="lg:hidden fixed top-20 right-4 z-50">
+                <button
+                  ref={buttonRef}
+                  onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+                  className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+                  title="Toggle outline"
+                >
+                  {isOutlineOpen ? <X size={20} /> : <List size={20} />}
+                </button>
+              </div>
+            )}
 
             {/* Mobile Outline Overlay */}
-            {isOutlineOpen && (
+            {hasOutline && isOutlineOpen && (
               <div className="lg:hidden fixed inset-0 z-40">
                 {/* Backdrop */}
                 <div
@@ -482,13 +494,15 @@ export default function SharedNotePage() {
             )}
 
             {/* Desktop Outline Sidebar */}
-            <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
-              <NoteOutlineSidebar content={note.content} />
-            </div>
+            {hasOutline && (
+              <div className="w-60 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
+                <NoteOutlineSidebar content={note.content} />
+              </div>
+            )}
 
             {/* Main Content */}
             <div 
-              className="flex-1 px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main"
+              className={`${hasOutline ? 'flex-1' : 'w-full'} px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main`}
               style={{
                 fontSize: displaySettings.fontSize,
                 fontFamily: displaySettings.fontFamily !== 'inherit' ? displaySettings.fontFamily : undefined

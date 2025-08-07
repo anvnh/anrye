@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
+import { List, X } from 'lucide-react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
-import { List, X } from 'lucide-react';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -18,6 +18,12 @@ interface NotePreviewProps {
   };
   previewFontSize?: string;
 }
+
+// Utility function to check if content has headings
+const hasHeadings = (content: string): boolean => {
+  const lines = content.split('\n');
+  return lines.some(line => /^(#{1,6})\s+(.+)$/.test(line));
+};
 
 export const NotePreview: React.FC<NotePreviewProps> = ({
   selectedNote,
@@ -32,6 +38,9 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const outlineRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Check if the note has headings
+  const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
 
   // GSAP animations for outline
   useEffect(() => {
@@ -105,19 +114,21 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   return (
     <div className="relative h-full">
       {/* Mobile Outline Toggle Button */}
-      <div className="lg:hidden absolute top-4 right-4 z-50">
-        <button
-          ref={buttonRef}
-          onClick={() => setIsOutlineOpen(!isOutlineOpen)}
-          className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
-          title="Toggle outline"
-        >
-          {isOutlineOpen ? <X size={20} /> : <List size={20} />}
-        </button>
-      </div>
+      {hasOutline && (
+        <div className="lg:hidden absolute top-4 right-4 z-50">
+          <button
+            ref={buttonRef}
+            onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+            className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+            title="Toggle outline"
+          >
+            {isOutlineOpen ? <X size={20} /> : <List size={20} />}
+          </button>
+        </div>
+      )}
 
       {/* Mobile Outline Overlay */}
-      {isOutlineOpen && (
+      {hasOutline && isOutlineOpen && (
         <div className="lg:hidden fixed inset-0 z-40">
           {/* Backdrop */}
           <div 
@@ -141,12 +152,14 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
       {/* Note Content */}
       <div className="flex h-full">
         {/* Desktop Outline Sidebar */}
-        <div className="w-60 flex-shrink-0 hidden lg:block">
-          <NoteOutlineSidebar content={selectedNote.content} />
-        </div>
+        {hasOutline && (
+          <div className="w-60 flex-shrink-0 hidden lg:block">
+            <NoteOutlineSidebar content={selectedNote.content} />
+          </div>
+        )}
 
         {/* Main Content */}
-        <div className="flex-1 px-4 sm:px-8 md:px-16 lg:px-32 xl:px-32 py-6 overflow-y-auto">
+        <div className={`${hasOutline ? 'flex-1' : 'w-full'} px-4 sm:px-8 md:px-16 lg:px-32 xl:px-32 py-6 overflow-y-auto`}>
           <div className="prose prose-invert max-w-none" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
           /* Mobile optimizations - respect font-size settings */
