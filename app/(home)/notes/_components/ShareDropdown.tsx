@@ -107,23 +107,23 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         }
       }
 
-      // Use existing shortId or create new one
-      const finalShortId = existingShortId || generateShortId();
-      setShortId(finalShortId);
-
-      // Load existing settings or use defaults
-      if (existingSettings) {
+      // Only use existing shortId, don't create new one automatically
+      if (existingShortId) {
+        setShortId(existingShortId);
         setShareSettings(prev => ({
           ...prev,
-          sharingUrl: `${window.location.origin}/shared/${finalShortId}`,
-          readPermission: existingSettings.readPermission || 'public',
-          readPassword: existingSettings.readPassword || '',
-          expireAt: existingSettings.expireAt || null
+          sharingUrl: `${window.location.origin}/shared/${existingShortId}`,
+          readPermission: existingSettings?.readPermission || 'public',
+          readPassword: existingSettings?.readPassword || '',
+          expireAt: existingSettings?.expireAt || null
         }));
       } else {
+        // If no existing shared link, create a placeholder shortId but don't set the URL yet
+        const placeholderShortId = generateShortId();
+        setShortId(placeholderShortId);
         setShareSettings(prev => ({
           ...prev,
-          sharingUrl: `${window.location.origin}/shared/${finalShortId}`,
+          sharingUrl: `${window.location.origin}/shared/${placeholderShortId}`,
           expireAt: null
         }));
       }
@@ -410,7 +410,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
     return shortId;
   };
 
-  const handleOpenMenu = () => {
+  const handleChangeLink = () => {
     const newShortId = generateShortId();
     setShortId(newShortId);
     setShareSettings(prev => {
@@ -418,13 +418,17 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         ...prev,
         sharingUrl: `${window.location.origin}/shared/${newShortId}`
       };
-      let changed = false;
       if (prev.readPermission === 'password-required') {
         newSettings.readPassword = generatePassword();
-        changed = true;
       }
       return newSettings;
     });
+  };
+
+  const handleOpenMenu = () => {
+    // Don't change the URL automatically when opening the dropdown
+    // Only refresh the shared notes list
+    fetchSharedNotes();
   };
 
   const [open, setOpen] = useState(false);
@@ -770,6 +774,15 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                   }`}
               >
                 {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={handleChangeLink}
+                className="px-3 py-1 text-xs rounded transition-colors bg-gray-800 hover:bg-gray-800/30 text-white"
+                title="Generate new sharing link"
+              >
+                Change Link
               </button>
             </div>
           </div>
