@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Share, Copy, Eye, Lock, Globe, User, CheckCircle2Icon, ChevronDownIcon, Trash2, Edit3, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -1003,17 +1004,18 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         </DialogContent>
       </Dialog>
 
-      {/* Link Copy Notification */}
-      {showAlert && (
-        <div className="fixed bottom-4 right-4 z-[9999]">
-          <Alert variant="default" className="alert-custom w-80">
+      {/* Link Copy Notification (render in portal to avoid transform/overflow issues) */}
+      {showAlert && typeof window !== 'undefined' && createPortal(
+        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+          <Alert variant="default" className="alert-custom w-80 pointer-events-auto">
             <CheckCircle2Icon className="h-5 w-5" />
             <AlertTitle>Link copied!</AlertTitle>
             <AlertDescription>
               The sharing link has been copied to your clipboard.
             </AlertDescription>
           </Alert>
-        </div>
+        </div>,
+        document.body
       )}
       
 
