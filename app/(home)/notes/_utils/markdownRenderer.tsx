@@ -703,6 +703,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             setImageUrl(null);
           }, [src]);
 
+          // Lightbox + inline edit
+          const [isLightboxOpen, setIsLightboxOpen] = React.useState(false);
+          const [isEditorOpen, setIsEditorOpen] = React.useState(false);
+
           // Handle Google Drive URLs with direct API access
           if (src && typeof src === 'string' && src.includes('drive.google.com')) {
             // Extract file ID from Google Drive URL
@@ -767,12 +771,31 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     </div>
                   )}
                   {imageUrl && !isLoading && (
-                    <img
-                      src={imageUrl}
-                      alt={alt || 'Image'}
-                      className="max-w-full h-auto rounded-lg shadow-lg"
-                      {...props}
-                    />
+                    <>
+                      <div className="group relative">
+                        <img
+                          src={imageUrl}
+                          alt={alt || 'Image'}
+                          className="max-w-full h-auto rounded-lg shadow-lg cursor-zoom-in"
+                          onClick={() => setIsLightboxOpen(true)}
+                          {...props}
+                        />
+                         {/* Action overlay removed per request */}
+                      </div>
+                      {isEditorOpen && (
+                        // @ts-ignore dynamic import path
+                        React.createElement(require('../_components/ImageEditor').default, { src: imageUrl, driveFileId: (src as string).match(/id=([^&]+)/)?.[1], onClose: () => setIsEditorOpen(false) })
+                      )}
+                      {isLightboxOpen && (
+                        // @ts-ignore dynamic import path
+                        React.createElement(require('../_components/ImageLightbox').default, { 
+                          src: imageUrl, 
+                          alt, 
+                          onClose: () => setIsLightboxOpen(false),
+                          onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
+                        })
+                      )}
+                    </>
                   )}
                   {hasError && (
                     <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
@@ -809,14 +832,33 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   </div>
                 </div>
               )}
-              <img
-                src={src}
-                alt={alt || 'Image'}
-                className={`max-w-full h-auto rounded-lg shadow-lg ${isLoading ? 'hidden' : ''}`}
-                onLoad={handleLoad}
-                onError={handleError}
-                {...props}
-              />
+              <>
+                <div className="group relative">
+                  <img
+                    src={src}
+                    alt={alt || 'Image'}
+                    className={`max-w-full h-auto rounded-lg shadow-lg ${isLoading ? 'hidden' : ''} cursor-zoom-in`}
+                    onLoad={handleLoad}
+                    onError={handleError}
+                    onClick={() => setIsLightboxOpen(true)}
+                    {...props}
+                  />
+                 {/* Action overlay removed per request */}
+                </div>
+                {isEditorOpen && src && (
+                  // @ts-ignore dynamic import path
+                  React.createElement(require('../_components/ImageEditor').default, { src: src as string, onClose: () => setIsEditorOpen(false) })
+                )}
+                {isLightboxOpen && src && (
+                  // @ts-ignore dynamic import path
+                  React.createElement(require('../_components/ImageLightbox').default, { 
+                    src: src as string, 
+                    alt, 
+                    onClose: () => setIsLightboxOpen(false),
+                    onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
+                  })
+                )}
+              </>
               {hasError && (
                 <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
                   <div className="text-sm mb-2">📷</div>

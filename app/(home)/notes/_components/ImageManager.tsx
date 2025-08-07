@@ -8,7 +8,8 @@ import {
   AlertTriangle, 
   CheckCircle,
   X,
-  RefreshCw
+  RefreshCw,
+  Edit3
 } from 'lucide-react';
 import { 
   extractImagesFromMarkdown, 
@@ -22,6 +23,9 @@ import {
 import { Note } from './types';
 import { driveService } from '@/app/lib/googleDrive';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import dynamic from 'next/dynamic';
+
+const ImageEditor = dynamic(() => import('./ImageEditor'), { ssr: false });
 
 interface ImageManagerProps {
   notes: Note[];
@@ -44,6 +48,8 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
     deleted: string[];
     failed: string[];
   }>({ isRunning: false, deleted: [], failed: [] });
+
+  const [editorState, setEditorState] = useState<{ open: boolean; src: string; driveFileId?: string } | null>(null);
 
   // Local preview URL cache and fallback tracking
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
@@ -240,7 +246,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="flex items-center gap-3 min-w-0 cursor-help">
-                              <div className="w-12 h-12 rounded bg-gray-700 flex-shrink-0 overflow-hidden grid place-items-center">
+                              <div className="w-12 h-12 rounded bg-gray-700 flex-shrink-0 overflow-hidden grid place-items-center cursor-pointer" onClick={() => setEditorState({ open: true, src: previewUrls[(image.driveFileId || image.url)] || getPreviewUrl(image), driveFileId: image.driveFileId })}>
                                 {/* Thumbnail preview */}
                                 <img
                                   src={previewUrls[(image.driveFileId || image.url)] || getPreviewUrl(image)}
@@ -268,13 +274,23 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                             {image.filename || 'image'}
                           </TooltipContent>
                         </Tooltip>
-                        <button
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={() => setEditorState({ open: true, src: previewUrls[(image.driveFileId || image.url)] || getPreviewUrl(image), driveFileId: image.driveFileId })}
+                            disabled={isLoading}
+                            className="p-1 text-blue-500 hover:text-white rounded transition-colors"
+                            title="Edit image"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
                           onClick={() => handleRemoveImage(image)}
                           disabled={isLoading}
                           className="p-1 hover:bg-red-600 text-red-400 hover:text-white rounded transition-colors ml-2"
                         >
                           <Trash2 size={16} />
-                        </button>
+                          </button>
+                        </div>
                       </div>
                       {image.driveFileId && (
                         <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -348,6 +364,20 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
             </div>
           )}
         </div>
+        {editorState?.open && (
+          <ImageEditor
+            src={editorState.src}
+            driveFileId={editorState.driveFileId}
+            onClose={() => setEditorState(null)}
+            onSaved={(newUrl) => {
+              if (editorState?.driveFileId) {
+                // Replace preview cache so the updated image is shown without reload
+                setPreviewUrls(prev => ({ ...prev, [editorState.driveFileId as string]: newUrl }));
+              }
+              setEditorState(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

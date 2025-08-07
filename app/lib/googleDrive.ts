@@ -884,6 +884,47 @@ class GoogleDriveService {
     });
   }
 
+  async updateImageFile(fileId: string, imageBlob: Blob, mimeType: string): Promise<void> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+
+    // Convert Blob to base64
+    const reader = new FileReader();
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => {
+        const result = reader.result as string;
+        // result like data:image/png;base64,xxxx
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageBlob);
+    });
+
+    const boundary = '-------314159265358979323846';
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    const metadata = { }; // keep existing name/mimeType
+
+    const multipartRequestBody =
+      delimiter +
+      'Content-Type: application/json\r\n\r\n' +
+      JSON.stringify(metadata) +
+      delimiter +
+      `Content-Type: ${mimeType}\r\n` +
+      'Content-Transfer-Encoding: base64\r\n\r\n' +
+      base64Data +
+      close_delim;
+
+    await window.gapi.client.request({
+      path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
+      method: 'PATCH',
+      params: { uploadType: 'multipart' },
+      headers: { 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
+      body: multipartRequestBody
+    });
+  }
+
   async listFiles(parentId?: string): Promise<DriveFile[]> {
     await this.ensureApiLoaded();
     await this.setAccessToken();
