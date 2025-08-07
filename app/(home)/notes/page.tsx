@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-
+import { useState, useEffect, useRef } from 'react';
 import { FileText, Menu, PanelLeftOpen } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
@@ -10,232 +9,126 @@ import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
 import RenameDialog from './_components/RenameDialog';
 import NoteNavbar from './_components/NoteNavbar';
-import { Note, Folder } from './_components/types';
-import { createNoteTemplate } from './_utils/noteTemplate';
+import { LoadingSpinner } from './_components/LoadingSpinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
+// Import custom hooks
+import {
+  useNotesState,
+  useFontSettings,
+  useThemeSettings,
+  useDriveSync,
+  useNoteOperations,
+  useFolderOperations,
+  useDragAndDrop,
+  useKeyboardShortcuts,
+  useSidebarResize,
+  useResponsiveLayout,
+} from './_hooks';
 
-
-// Lazy load the drive service
-const loadDriveService = async () => {
-  if (typeof window !== 'undefined') {
-    return await import('../../lib/googleDrive');
-  }
-  return null;
-};
-
-// Loading component
-const LoadingSpinner = () => (
-  <div className="h-full flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
-    <div className="text-center">
-      <FileText className="text-primary animate-pulse mx-auto mb-4" size={48} />
-      <p className="text-white">Loading notes...</p>
-    </div>
-  </div>
-);
+// Import utilities
+import { startEdit, cancelEdit, closeNote } from './_utils/noteActions';
+import { clearAllData, setupDebugUtils } from './_utils/debugUtils';
+import { useScrollSync } from './_utils/scrollSync';
 
 export default function NotesPage() {
-  // Font settings
-  const [fontFamily, setFontFamily] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('note-font-family') || 'inherit';
-    }
-    return 'inherit';
-  });
-  const [fontSize, setFontSize] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('note-font-size') || '16px';
-    }
-    return '16px';
-  });
-  const [previewFontSize, setPreviewFontSize] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('note-preview-font-size') || '16px';
-    }
-    return '16px';
-  });
-  // Save font settings to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('note-font-family', fontFamily);
-    }
-  }, [fontFamily]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('note-font-size', fontSize);
-    }
-  }, [fontSize]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('note-preview-font-size', previewFontSize);
-    }
-  }, [previewFontSize]);
-  // Tab size state for editor
-  const [tabSize, setTabSize] = useState(2);
-  const { isSignedIn, forceReAuthenticate, signIn, signOut } = useDrive();
+  // Use custom hooks for state management
+  const {
+    notes, setNotes,
+    folders, setFolders,
+    selectedNote, setSelectedNote,
+    selectedPath, setSelectedPath,
+    isEditing, setIsEditing,
+    editContent, setEditContent,
+    editTitle, setEditTitle,
+    newFolderName, setNewFolderName,
+    newNoteName, setNewNoteName,
+    isCreatingFolder, setIsCreatingFolder,
+    isCreatingNote, setIsCreatingNote,
+    isLoading, setIsLoading,
+    syncProgress, setSyncProgress,
+    isSplitMode, setIsSplitMode,
+    isMobileSidebarOpen, setIsMobileSidebarOpen,
+    isSidebarHidden, setIsSidebarHidden,
+    draggedItem, setDraggedItem,
+    dragOver, setDragOver,
+    sidebarWidth, setSidebarWidth,
+    isResizing, setIsResizing,
+    isRenameDialogOpen, setIsRenameDialogOpen,
+    renameItem, setRenameItem,
+  } = useNotesState();
 
-  // Theme list
-  const themeOptions = [
-    { value: 'latte', label: 'Catppuccin Latte' },
-    { value: 'macchiato', label: 'Catppuccin Macchiato' },
-    { value: 'frappe', label: 'Catppuccin Frappe' },
-    { value: 'mocha', label: 'Catppuccin Mocha' },
-  ];
+  const {
+    fontFamily, setFontFamily,
+    fontSize, setFontSize,
+    previewFontSize, setPreviewFontSize,
+  } = useFontSettings();
 
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [folders, setFolders] = useState<Folder[]>([
-    { id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }
-  ]);
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [editTitle, setEditTitle] = useState('');
-  const [newFolderName, setNewFolderName] = useState('');
-  const [newNoteName, setNewNoteName] = useState('');
-  const [selectedPath, setSelectedPath] = useState('');
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [isCreatingNote, setIsCreatingNote] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const {
+    currentTheme, setCurrentTheme,
+    tabSize, setTabSize,
+    themeOptions,
+  } = useThemeSettings();
 
-  // Theme state
-  const [currentTheme, setCurrentTheme] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'latte';
-    }
-    return 'latte';
-  });
+  const {
+    hasSyncedWithDrive,
+    setHasSyncedWithDrive,
+    isInitialized,
+    setIsInitialized,
+    syncWithDrive,
+    forceSync,
+  } = useDriveSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
 
-  // Drag & Drop and Context Menu states
-  const [draggedItem, setDraggedItem] = useState<{ type: 'note' | 'folder', id: string } | null>(null);
-  const [dragOver, setDragOver] = useState<string | null>(null);
+  const {
+    createNote,
+    createNoteFromCurrentContent,
+    saveNote,
+    deleteNote,
+    renameNote,
+  } = useNoteOperations(
+    notes, setNotes, folders, selectedNote, setSelectedNote, selectedPath,
+    editContent, editTitle, setIsLoading, setSyncProgress, setIsEditing,
+    setIsSplitMode, setEditContent, setEditTitle
+  );
 
-  // Sidebar resize state
-  const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
-  const [isResizing, setIsResizing] = useState(false);
+  const {
+    createFolder,
+    deleteFolder,
+    renameFolder,
+    toggleFolder,
+  } = useFolderOperations(
+    notes, setNotes, folders, setFolders, selectedPath,
+    setIsLoading, setSyncProgress
+  );
 
-  // Track if we've already synced with Drive
-  const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+  } = useDragAndDrop(
+    notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress
+  );
 
-  // Split-screen mode state
-  const [isSplitMode, setIsSplitMode] = useState(false);
+  const { isSignedIn, signIn, signOut } = useDrive();
 
-  // Mobile sidebar state
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  
-  // Desktop sidebar visibility state
-  const [isSidebarHidden, setIsSidebarHidden] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar-hidden') === 'true';
-    }
-    return false;
-  });
-  
-  // Rename dialog state
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-  const [renameItem, setRenameItem] = useState<{
-    id: string;
-    currentName: string;
-    type: 'file' | 'folder';
-  } | null>(null);
+  // Scroll synchronization state for split mode
+  const [isScrollingSynced, setIsScrollingSynced] = useState(false);
+  const { scrollTimeoutRef, lastScrollSource, scrollThrottleRef, cleanupTimeouts } = useScrollSync();
 
-  // Utility function to clear all localStorage data (for debugging)
-  const clearAllData = () => {
-    localStorage.removeItem('notes-new');
-    localStorage.removeItem('folders-new');
-    localStorage.removeItem('has-synced-drive');
-    localStorage.removeItem('sidebar-width');
-    localStorage.removeItem('sidebar-hidden');
-    localStorage.removeItem('selected-note-id');
-    setNotes([]);
-    setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
-    setSelectedNote(null);
-    setHasSyncedWithDrive(false);
-    setIsSidebarHidden(false);
+  // Use custom hooks for side effects
+  useKeyboardShortcuts(
+    isEditing, isSplitMode, selectedNote, setIsEditing, setIsSplitMode,
+    setIsCreatingNote, deleteNote, createNoteFromCurrentContent
+  );
 
-  };
+  useSidebarResize(isResizing, setIsResizing, setSidebarWidth);
+  useResponsiveLayout(isSplitMode, setIsSplitMode);
 
-  // Add to window for debugging (remove in production)
-  if (typeof window !== 'undefined') {
-    (window as unknown as { clearAllData: () => void }).clearAllData = clearAllData;
-  }
-
-  // Load and save theme to localStorage and update syntax highlighter only on client
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('theme', currentTheme);
-      // Remove old syntax highlighter link if exists
-      const oldLink = document.querySelector('link[href*="/syntax-highlighter/"]');
-      if (oldLink) {
-        oldLink.parentNode?.removeChild(oldLink);
-      }
-      // Add new syntax highlighter link
-      const newLink = document.createElement('link');
-      newLink.rel = 'stylesheet';
-      newLink.href = `/syntax-highlighter/${currentTheme}.css`;
-      document.head.appendChild(newLink);
-    }
-  }, [currentTheme]);
-
-  // Load data from localStorage on mount
+  // Initialize data and sync with Drive
   useEffect(() => {
     const initializeData = async () => {
       try {
-        const savedNotes = localStorage.getItem('notes-new'); // Đổi từ 'notes-drive' thành 'notes-new' để thống nhất
-        const savedFolders = localStorage.getItem('folders-new');
-        const savedSidebarWidth = localStorage.getItem('sidebar-width');
         const savedHasSynced = localStorage.getItem('has-synced-drive');
-        const savedSelectedNoteId = localStorage.getItem('selected-note-id');
-
-        if (savedNotes) {
-          const parsedNotes = JSON.parse(savedNotes);
-          // Remove duplicate notes based on driveFileId or id
-          const uniqueNotes = parsedNotes.filter((note: Note, index: number, array: Note[]) => {
-            if (note.driveFileId) {
-              // If note has driveFileId, use that for uniqueness
-              return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
-            } else {
-              // If no driveFileId, use regular id
-              return array.findIndex(n => n.id === note.id) === index;
-            }
-          });
-          setNotes(uniqueNotes);
-        }
-
-        if (savedFolders) {
-          const parsedFolders = JSON.parse(savedFolders);
-          // Remove duplicate folders based on driveFolderId or id
-          const uniqueFolders = parsedFolders.filter((folder: Folder, index: number, array: Folder[]) => {
-            if (folder.driveFolderId) {
-              // If folder has driveFolderId, use that for uniqueness
-              return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
-            } else {
-              // If no driveFolderId, use regular id
-              return array.findIndex(f => f.id === folder.id) === index;
-            }
-          });
-          setFolders(uniqueFolders);
-        }
-
-        if (savedSidebarWidth) {
-          setSidebarWidth(parseInt(savedSidebarWidth));
-        }
-
-        if (savedHasSynced) {
-          setHasSyncedWithDrive(JSON.parse(savedHasSynced));
-        }
-
-        // Restore selected note if exists
-        if (savedSelectedNoteId) {
-          const parsedNotes = savedNotes ? JSON.parse(savedNotes) : [];
-          const noteToRestore = parsedNotes.find((note: Note) => note.id === savedSelectedNoteId);
-          if (noteToRestore) {
-            setSelectedNote(noteToRestore);
-            setEditContent(noteToRestore.content || '');
-            setEditTitle(noteToRestore.title || '');
-          }
-        }
 
         // Then check Google Drive status (slower, but non-blocking)
         setTimeout(async () => {
@@ -256,1154 +149,46 @@ export default function NotesPage() {
     };
 
     initializeData();
-  }, [isSignedIn]); // syncWithDrive is defined below, dependency not needed here
+  }, [isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized]);
 
-  // Save data to localStorage
+  // Cleanup timeouts on unmount
   useEffect(() => {
-    // Remove duplicates before saving
-    const uniqueNotes = notes.filter((note, index, array) => {
-      if (note.driveFileId) {
-        return array.findIndex(n => n.driveFileId === note.driveFileId) === index;
-      } else {
-        return array.findIndex(n => n.id === note.id) === index;
-      }
-    });
+    return cleanupTimeouts;
+  }, [cleanupTimeouts]);
 
-    // Only save if there are changes to avoid infinite loops
-    if (uniqueNotes.length !== notes.length) {
-      setNotes(uniqueNotes);
-    } else {
-      localStorage.setItem('notes-new', JSON.stringify(uniqueNotes));
-    }
-  }, [notes]);
-
+  // Setup debug utilities
   useEffect(() => {
-    // Remove duplicates before saving
-    const uniqueFolders = folders.filter((folder, index, array) => {
-      if (folder.driveFolderId) {
-        return array.findIndex(f => f.driveFolderId === folder.driveFolderId) === index;
-      } else {
-        return array.findIndex(f => f.id === folder.id) === index;
-      }
-    });
-
-    // Only save if there are changes to avoid infinite loops
-    if (uniqueFolders.length !== folders.length) {
-      setFolders(uniqueFolders);
-    } else {
-      localStorage.setItem('folders-new', JSON.stringify(uniqueFolders));
-    }
-  }, [folders]);
-
-  // Save sidebar width to localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar-width', sidebarWidth.toString());
-  }, [sidebarWidth]);
-
-  // Save sidebar visibility to localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar-hidden', isSidebarHidden.toString());
-  }, [isSidebarHidden]);
+    const clearAllDataFn = () => clearAllData(
+      setNotes, setFolders, setSelectedNote, setHasSyncedWithDrive, setIsSidebarHidden
+    );
+    setupDebugUtils(clearAllDataFn);
+  }, [setNotes, setFolders, setSelectedNote, setHasSyncedWithDrive, setIsSidebarHidden]);
 
   // Toggle sidebar visibility
   const toggleSidebar = () => {
     setIsSidebarHidden(!isSidebarHidden);
   };
 
-  // Save sync status to localStorage
-  useEffect(() => {
-    localStorage.setItem('has-synced-drive', JSON.stringify(hasSyncedWithDrive));
-  }, [hasSyncedWithDrive]);
-
-  // Save selected note to localStorage
-  useEffect(() => {
-    if (selectedNote) {
-      localStorage.setItem('selected-note-id', selectedNote.id);
-    } else {
-      localStorage.removeItem('selected-note-id');
-    }
-  }, [selectedNote]);
-  // Handle screen resize - disable split mode on mobile
-  useEffect(() => {
-    const handleResize = () => {
-      if (typeof window !== 'undefined' && window.innerWidth < 1024 && isSplitMode) {
-        setIsSplitMode(false);
-      }
-    };
-
-    // Check on mount
-    handleResize();
-
-    // Add event listener
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isSplitMode]);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      if (scrollThrottleRef.current) {
-        clearTimeout(scrollThrottleRef.current);
-      }
-    };
-  }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + E to toggle edit mode
-      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-        e.preventDefault();
-        setIsEditing(!isEditing);
-      }
-
-      // Ctrl/Cmd + \ to toggle split mode (only in edit mode and on desktop)
-      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
-        e.preventDefault();
-        if (isEditing && typeof window !== 'undefined' && window.innerWidth >= 1024) {
-          setIsSplitMode(!isSplitMode);
-        }
-      }
-
-
-
-      // Ctrl/Cmd + Shift + S to toggle split mode (legacy, desktop only)
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        if (isEditing && typeof window !== 'undefined' && window.innerWidth >= 1024) {
-          setIsSplitMode(!isSplitMode);
-        }
-      }
-
-      // Ctrl/Cmd + N to create new note
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          // Ctrl/Cmd + Shift + N to create note from current content
-          createNoteFromCurrentContent();
-        } else {
-          setIsCreatingNote(true);
-        }
-      }
-
-      // Delete key to delete selected note
-      if (e.key === 'Delete' && selectedNote && !isEditing) {
-        e.preventDefault();
-        if (confirm('Are you sure you want to delete this note?')) {
-          deleteNote(selectedNote.id);
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isSplitMode, selectedNote]);
-
-  // Handle sidebar resize
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const newWidth = e.clientX;
-      if (newWidth >= 200 && newWidth <= 600) { // Min 200px, Max 600px
-        setSidebarWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing]);
-
-  // Drag & Drop handlers
-  const handleDragStart = (e: React.DragEvent, type: 'note' | 'folder', id: string) => {
-    setDraggedItem({ type, id });
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    e.stopPropagation(); // Prevent bubbling to parent
-    e.dataTransfer.dropEffect = 'move';
-    setDragOver(targetId);
-  };
-
-  const handleDragLeave = () => {
-    setDragOver(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetFolderId: string) => {
-    e.preventDefault();
-    e.stopPropagation(); // Prevent bubbling to parent
-    setDragOver(null);
-
-    if (!draggedItem) return;
-
-    // Handle drop to root
-    if (targetFolderId === 'root') {
-      const targetFolder = folders.find(f => f.id === 'root');
-      if (!targetFolder) return;
-
-      try {
-        setIsLoading(true);
-
-        if (draggedItem.type === 'note') {
-          // Move note to root
-          const note = notes.find(n => n.id === draggedItem.id);
-          if (note && note.path !== '') {
-            // Move on Google Drive if signed in and both have Drive IDs
-            if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
-              try {
-                // Create new file in root folder
-                const newDriveFileId = await driveService.uploadFile(`${note.title}.md`, note.content, targetFolder.driveFolderId);
-                // Delete old file
-                await driveService.deleteFile(note.driveFileId);
-
-                // Update local note with new Drive ID and root path
-                setNotes(prev => prev.map(n =>
-                  n.id === draggedItem.id
-                    ? { ...n, path: '', driveFileId: newDriveFileId }
-                    : n
-                ));
-              } catch (error) {
-                console.error('Failed to move note to root on Drive:', error);
-                // Still update locally even if Drive operation fails
-                setNotes(prev => prev.map(n =>
-                  n.id === draggedItem.id
-                    ? { ...n, path: '' }
-                    : n
-                ));
-              }
-            } else {
-              // Update locally only
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-                  ? { ...n, path: '' }
-                  : n
-              ));
-            }
-          }
-        } else if (draggedItem.type === 'folder') {
-          // Move folder to root
-          const folder = folders.find(f => f.id === draggedItem.id);
-          if (folder && folder.parentId !== 'root') {
-            const newPath = folder.name; // Root level path is just the folder name
-
-            // Move on Google Drive if signed in and both have Drive IDs
-            if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
-              try {
-                // Create new folder in root
-                const newDriveFolderId = await driveService.createFolder(folder.name, targetFolder.driveFolderId);
-
-                // Move all files in the folder
-                const notesToMove = notes.filter(n => n.path === folder.path);
-                for (const note of notesToMove) {
-                  if (note.driveFileId) {
-                    const newNoteFileId = await driveService.uploadFile(`${note.title}.md`, note.content, newDriveFolderId);
-                    await driveService.deleteFile(note.driveFileId);
-
-                    // Update note with new Drive ID and path
-                    setNotes(prev => prev.map(n =>
-                      n.id === note.id
-                        ? { ...n, path: newPath, driveFileId: newNoteFileId }
-                        : n
-                    ));
-                  }
-                }
-
-                // Delete old folder on Drive
-                await driveService.deleteFile(folder.driveFolderId);
-
-                // Update folder with new Drive ID and path
-                setFolders(prev => prev.map(f => {
-                  if (f.id === draggedItem.id) {
-                    return { ...f, parentId: 'root', path: newPath, driveFolderId: newDriveFolderId };
-                  }
-                  if (f.path.startsWith(folder.path + '/')) {
-                    const relativePath = f.path.substring(folder.path.length + 1);
-                    return { ...f, path: `${newPath}/${relativePath}` };
-                  }
-                  return f;
-                }));
-
-                // Update remaining notes in moved subfolders
-                setNotes(prev => prev.map(n => {
-                  if (n.path.startsWith(folder.path + '/')) {
-                    const relativePath = n.path.substring(folder.path.length + 1);
-                    return { ...n, path: `${newPath}/${relativePath}` };
-                  }
-                  return n;
-                }));
-
-              } catch (error) {
-                console.error('Failed to move folder to root on Drive:', error);
-                // Still update locally even if Drive operation fails
-                updateFolderLocallyToRoot();
-              }
-            } else {
-              // Update locally only
-              updateFolderLocallyToRoot();
-            }
-
-            function updateFolderLocallyToRoot() {
-              if (!folder || !draggedItem) return;
-
-              // Update folder and its children
-              setFolders(prev => prev.map(f => {
-                if (f.id === draggedItem.id) {
-                  return { ...f, parentId: 'root', path: newPath };
-                }
-                if (f.path.startsWith(folder.path + '/')) {
-                  const relativePath = f.path.substring(folder.path.length + 1);
-                  return { ...f, path: `${newPath}/${relativePath}` };
-                }
-                return f;
-              }));
-
-              // Update notes in moved folders
-              setNotes(prev => prev.map(n => {
-                if (n.path === folder.path) {
-                  return { ...n, path: newPath };
-                }
-                if (n.path.startsWith(folder.path + '/')) {
-                  const relativePath = n.path.substring(folder.path.length + 1);
-                  return { ...n, path: `${newPath}/${relativePath}` };
-                }
-                return n;
-              }));
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Failed to move item to root:', error);
-      } finally {
-        setDraggedItem(null);
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // Handle drop to specific folder (existing logic)
-    const targetFolder = folders.find(f => f.id === targetFolderId);
-    if (!targetFolder) return;
+  // Handle rename confirm
+  const handleRenameConfirm = async (newName: string) => {
+    if (!renameItem) return;
 
     try {
-      setIsLoading(true);
-
-      if (draggedItem.type === 'note') {
-        // Move note to new folder
-        const note = notes.find(n => n.id === draggedItem.id);
-        if (note && note.path !== targetFolder.path) {
-          // Move on Google Drive if signed in and both have Drive IDs
-          if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
-            try {
-              // Create new file in target folder
-              const newDriveFileId = await driveService.uploadFile(`${note.title}.md`, note.content, targetFolder.driveFolderId);
-              // Delete old file
-              await driveService.deleteFile(note.driveFileId);
-
-              // Update local note with new Drive ID
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-                  ? { ...n, path: targetFolder.path, driveFileId: newDriveFileId }
-                  : n
-              ));
-            } catch (error) {
-              console.error('Failed to move note on Drive:', error);
-              // Still update locally even if Drive operation fails
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-                  ? { ...n, path: targetFolder.path }
-                  : n
-              ));
-            }
-          } else {
-            // Update locally only
-            setNotes(prev => prev.map(n =>
-              n.id === draggedItem.id
-                ? { ...n, path: targetFolder.path }
-                : n
-            ));
-          }
-        }
-      } else if (draggedItem.type === 'folder') {
-        // Move folder to new parent
-        const folder = folders.find(f => f.id === draggedItem.id);
-        if (folder && folder.parentId !== targetFolderId && targetFolderId !== draggedItem.id) {
-          const newPath = targetFolder.path ? `${targetFolder.path}/${folder.name}` : folder.name;
-
-          // Move on Google Drive if signed in and both have Drive IDs
-          if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
-            try {
-              // Create new folder in target location
-              const newDriveFolderId = await driveService.createFolder(folder.name, targetFolder.driveFolderId);
-
-              // Move all files in the folder
-              const notesToMove = notes.filter(n => n.path === folder.path);
-              for (const note of notesToMove) {
-                if (note.driveFileId) {
-                  const newNoteFileId = await driveService.uploadFile(`${note.title}.md`, note.content, newDriveFolderId);
-                  await driveService.deleteFile(note.driveFileId);
-
-                  // Update note with new Drive ID and path
-                  setNotes(prev => prev.map(n =>
-                    n.id === note.id
-                      ? { ...n, path: newPath, driveFileId: newNoteFileId }
-                      : n
-                  ));
-                }
-              }
-
-              // Delete old folder on Drive
-              await driveService.deleteFile(folder.driveFolderId);
-
-              // Update folder with new Drive ID and path
-              setFolders(prev => prev.map(f => {
-                if (f.id === draggedItem.id) {
-                  return { ...f, parentId: targetFolderId, path: newPath, driveFolderId: newDriveFolderId };
-                }
-                if (f.path.startsWith(folder.path + '/')) {
-                  const relativePath = f.path.substring(folder.path.length + 1);
-                  return { ...f, path: `${newPath}/${relativePath}` };
-                }
-                return f;
-              }));
-
-              // Update remaining notes in moved subfolders
-              setNotes(prev => prev.map(n => {
-                if (n.path.startsWith(folder.path + '/')) {
-                  const relativePath = n.path.substring(folder.path.length + 1);
-                  return { ...n, path: `${newPath}/${relativePath}` };
-                }
-                return n;
-              }));
-
-            } catch (error) {
-              console.error('Failed to move folder on Drive:', error);
-              // Still update locally even if Drive operation fails
-              updateFolderLocally();
-            }
-          } else {
-            // Update locally only
-            updateFolderLocally();
-          }
-
-          function updateFolderLocally() {
-            if (!folder || !draggedItem) return;
-
-            // Update folder and its children
-            setFolders(prev => prev.map(f => {
-              if (f.id === draggedItem.id) {
-                return { ...f, parentId: targetFolderId, path: newPath };
-              }
-              if (f.path.startsWith(folder.path + '/')) {
-                const relativePath = f.path.substring(folder.path.length + 1);
-                return { ...f, path: `${newPath}/${relativePath}` };
-              }
-              return f;
-            }));
-
-            // Update notes in moved folders
-            setNotes(prev => prev.map(n => {
-              if (n.path === folder.path) {
-                return { ...n, path: newPath };
-              }
-              if (n.path.startsWith(folder.path + '/')) {
-                const relativePath = n.path.substring(folder.path.length + 1);
-                return { ...n, path: `${newPath}/${relativePath}` };
-              }
-              return n;
-            }));
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to move item:', error);
-    } finally {
-      setDraggedItem(null);
-      setIsLoading(false);
-    }
-  };
-
-  const syncWithDrive = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-      
-      const driveModule = await loadDriveService();
-      if (!driveModule) return;
-      
-      const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
-
-      setSyncProgress(30);
-      // Update root folder with Drive ID if not already set
-      setFolders(prev => {
-        const rootFolder = prev.find(f => f.id === 'root');
-        if (rootFolder && !rootFolder.driveFolderId) {
-  
-          return prev.map(folder =>
-            folder.id === 'root'
-              ? { ...folder, driveFolderId: notesFolderId }
-              : folder
-          );
-        }
-        return prev;
-      });
-
-      setSyncProgress(50);
-      // Only load from Drive if we haven't synced yet
-      if (!hasSyncedWithDrive) {
-        await loadFromDrive(notesFolderId, '', driveModule.driveService);
-        setSyncProgress(90);
-        setHasSyncedWithDrive(true);
+      if (renameItem.type === 'folder') {
+        await renameFolder(renameItem.id, renameItem.currentName, newName);
       } else {
+        await renameNote(renameItem.id, renameItem.currentName, newName);
       }
-      setSyncProgress(100);
     } catch (error) {
-      console.error('Failed to sync with Drive:', error);
-      
-      // Check if it's a GAPI error that needs reset
-      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
-        console.log('Attempting to reset Google API and re-authenticate...');
-        try {
-          await forceReAuthenticate();
-          // Retry sync once after re-authentication
-          setTimeout(() => {
-            syncWithDrive();
-          }, 1000);
-          return;
-        } catch (retryError) {
-          console.error('Failed to re-authenticate:', retryError);
-        }
-      }
-      
-      // Show error to user
-      alert(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try signing in again.`);
+      console.error('Failed to rename item:', error);
     } finally {
-      setIsLoading(false);
-      setTimeout(() => setSyncProgress(0), 500); // Keep progress visible briefly
-    }
-  }, [hasSyncedWithDrive]); // loadFromDrive is defined below, using internal function
-
-  const forceSync = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-      
-      const driveModule = await loadDriveService();
-      if (!driveModule) return;
-      
-      const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
-      setSyncProgress(20);
-
-      // Get all files and folders from Drive
-      const getAllDriveFiles = async (parentId: string, currentPath: string = ''): Promise<{files: any[], folders: any[]}> => {
-        const files = await driveModule.driveService.listFiles(parentId);
-        const driveFiles: any[] = [];
-        const driveFolders: any[] = [];
-
-        for (const file of files) {
-          if (file.mimeType === 'application/vnd.google-apps.folder') {
-            driveFolders.push({
-              ...file,
-              path: currentPath ? `${currentPath}/${file.name}` : file.name
-            });
-            // Recursively get subfolders and files
-            const subResults = await getAllDriveFiles(file.id, currentPath ? `${currentPath}/${file.name}` : file.name);
-            driveFiles.push(...subResults.files);
-            driveFolders.push(...subResults.folders);
-          } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
-            driveFiles.push({
-              ...file,
-              path: currentPath,
-              title: file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name
-            });
-          }
-        }
-
-        return { files: driveFiles, folders: driveFolders };
-      };
-
-      setSyncProgress(30);
-      const { files: driveFiles, folders: driveFolders } = await getAllDriveFiles(notesFolderId);
-      
-      // Create sets of Drive file and folder IDs for quick lookup
-      const driveFileIds = new Set(driveFiles.map(f => f.id));
-      const driveFolderIds = new Set([notesFolderId, ...driveFolders.map(f => f.id)]);
-
-      setSyncProgress(50);
-
-      // Remove local notes that don't exist on Drive
-      setNotes(prevNotes => {
-        const notesToKeep = prevNotes.filter(note => {
-          if (!note.driveFileId) return true; // Keep local-only notes
-          const exists = driveFileIds.has(note.driveFileId);
-          return exists;
-        });
-        return notesToKeep;
-      });
-
-      setSyncProgress(60);
-
-      // Remove local folders that don't exist on Drive
-      setFolders(prevFolders => {
-        const foldersToKeep = prevFolders.filter(folder => {
-          if (folder.id === 'root') return true; // Always keep root
-          if (!folder.driveFolderId) return true; // Keep local-only folders
-          const exists = driveFolderIds.has(folder.driveFolderId);
-          return exists;
-        });
-        return foldersToKeep;
-      });
-
-      setSyncProgress(70);
-
-      // Load/update from Drive (this will add new files and update existing ones)
-      await loadFromDrive(notesFolderId, '', driveModule.driveService);
-      
-      setSyncProgress(90);
-      
-      // Mark as synced
-      setHasSyncedWithDrive(true);
-      setSyncProgress(100);
-      
-    } catch (error) {
-      console.error('Force sync failed:', error);
-      
-      // Check if it's a GAPI error that needs reset
-      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
-        console.log('Attempting to reset Google API and re-authenticate...');
-        try {
-          await forceReAuthenticate();
-          // Retry sync once after re-authentication
-          setTimeout(() => {
-            forceSync();
-          }, 1000);
-          return;
-        } catch (retryError) {
-          console.error('Failed to re-authenticate:', retryError);
-        }
-      }
-      
-      alert(`Force sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => setSyncProgress(0), 500);
-    }
-  }, []);
-
-  const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any) => {
-    try {
-      const files = await driveService.listFiles(parentDriveId);
-
-      for (const file of files) {
-        if (file.mimeType === 'application/vnd.google-apps.folder') {
-          // It's a folder
-          const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
-
-          // Check if folder already exists using callback to get latest state
-          setFolders(prevFolders => {
-            const existingFolder = prevFolders.find(f => f.driveFolderId === file.id);
-            // Also check by name and path to prevent duplicates with different IDs
-            const existingByPath = prevFolders.find(f => f.name === file.name && f.path === folderPath);
-
-            if (!existingFolder && !existingByPath) {
-      
-              const newFolder: Folder = {
-                id: Date.now().toString() + Math.random(),
-                name: file.name,
-                path: folderPath,
-                parentId: prevFolders.find(f => f.driveFolderId === parentDriveId)?.id || 'root',
-                driveFolderId: file.id,
-                expanded: false
-              };
-
-              return [...prevFolders, newFolder];
-            } else if (existingByPath && !existingByPath.driveFolderId) {
-              // Update existing folder with Drive ID if missing
-      
-              return prevFolders.map(f => 
-                f === existingByPath ? { ...f, driveFolderId: file.id } : f
-              );
-            }
-            return prevFolders; // No change if folder already exists
-          });
-
-          // Recursively load subfolders
-          await loadFromDrive(file.id, folderPath, driveService);
-        } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
-          // It's a markdown file (either has .md extension, text/markdown, or text/plain mime type)
-          const notePath = parentPath;
-          const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
-
-          // Check if note already exists using callback to get latest state
-          setNotes(prevNotes => {
-            const existingNote = prevNotes.find(n => n.driveFileId === file.id);
-            // Also check by title and path to prevent duplicates with different IDs
-            const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
-
-            if (!existingNote && !existingByTitlePath) {
-      
-              // Load content and create new note
-              driveService.getFile(file.id).then((content: string) => {
-                const newNote: Note = {
-                  id: Date.now().toString() + Math.random(),
-                  title: noteTitle,
-                  content: content,
-                  path: notePath,
-                  driveFileId: file.id,
-                  createdAt: file.createdTime,
-                  updatedAt: file.modifiedTime
-                };
-
-                setNotes(currentNotes => {
-                  // Double check to avoid race condition
-                  const stillNotExists = !currentNotes.find(n => n.driveFileId === file.id);
-                  if (stillNotExists) {
-                    return [...currentNotes, newNote];
-                  }
-                  return currentNotes;
-                });
-              }).catch((error: any) => {
-                console.error('Failed to load note content for', noteTitle, ':', error);
-              });
-
-              return prevNotes; // Return unchanged as we're loading content async
-            } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
-              // Update existing note with Drive ID if missing
-      
-              return prevNotes.map(n => 
-                n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
-              );
-            } else if (existingNote) {
-              // Note exists, update content from Drive
-              driveService.getFile(file.id).then((content: string) => {
-                setNotes(currentNotes => {
-                  return currentNotes.map(n => 
-                    n.driveFileId === file.id 
-                      ? { 
-                          ...n, 
-                          content: content,
-                          updatedAt: file.modifiedTime 
-                        } 
-                      : n
-                  );
-                });
-              }).catch((error: any) => {
-                console.error('Failed to update note content for', noteTitle, ':', error);
-              });
-            }
-            return prevNotes; // No change if note already exists
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load from Drive:', error);
+      setIsRenameDialogOpen(false);
+      setRenameItem(null);
     }
   };
 
-  const toggleFolder = (folderId: string) => {
-    setFolders(folders.map(folder =>
-      folder.id === folderId
-        ? { ...folder, expanded: !folder.expanded }
-        : folder
-    ));
-  };
-
-  const createFolder = async () => {
-    if (!newFolderName.trim()) return;
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      const parentFolder = folders.find(f => f.path === selectedPath);
-      const parentDriveId = parentFolder?.driveFolderId;
-
-      setSyncProgress(30);
-
-      let driveFolderId;
-      if (isSignedIn && parentDriveId) {
-        setSyncProgress(50);
-        driveFolderId = await driveService.createFolder(newFolderName, parentDriveId);
-        setSyncProgress(80);
-      }
-
-      const newFolder: Folder = {
-        id: Date.now().toString(),
-        name: newFolderName,
-        path: selectedPath ? `${selectedPath}/${newFolderName}` : newFolderName,
-        parentId: parentFolder?.id || 'root',
-        driveFolderId: driveFolderId,
-        expanded: false
-      };
-
-      setFolders([...folders, newFolder]);
-      setNewFolderName('');
-      setIsCreatingFolder(false);
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to create folder:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const createNote = async () => {
-    if (!newNoteName.trim()) return;
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      const parentFolder = folders.find(f => f.path === selectedPath);
-      const parentDriveId = parentFolder?.driveFolderId;
-
-      setSyncProgress(30);
-
-      const initialContent = createNoteTemplate(newNoteName);
-
-      setSyncProgress(50);
-
-      let driveFileId;
-      if (isSignedIn && parentDriveId) {
-        setSyncProgress(60);
-        // Ensure the filename has .md extension
-        const fileName = newNoteName.endsWith('.md') ? newNoteName : `${newNoteName}.md`;
-        driveFileId = await driveService.uploadFile(fileName, initialContent, parentDriveId);
-        setSyncProgress(80);
-      }
-
-      const newNote: Note = {
-        id: Date.now().toString(),
-        title: newNoteName,
-        content: initialContent,
-        path: selectedPath,
-        driveFileId: driveFileId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      setNotes([...notes, newNote]);
-      setSelectedNote(newNote);
-      setNewNoteName('');
-      setIsCreatingNote(false);
-      setIsEditing(true);
-      setEditTitle(newNote.title);
-      setEditContent(newNote.content);
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to create note:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  // Create note from current content
-  const createNoteFromCurrentContent = async () => {
-    const title = selectedNote ? `${selectedNote.title} - Copy` : 'New Note';
-    const content = isEditing ? editContent : (selectedNote?.content || '');
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      const parentFolder = folders.find(f => f.path === selectedPath);
-      const parentDriveId = parentFolder?.driveFolderId;
-
-      setSyncProgress(30);
-
-      let driveFileId: string | undefined;
-
-      if (isSignedIn && parentDriveId) {
-        setSyncProgress(50);
-        // Ensure the filename has .md extension
-        const fileName = title.endsWith('.md') ? title : `${title}.md`;
-        driveFileId = await driveService.uploadFile(
-          fileName,
-          content,
-          parentDriveId
-        );
-        setSyncProgress(80);
-      }
-
-      const newNote: Note = {
-        id: Date.now().toString(),
-        title,
-        content,
-        path: selectedPath,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        driveFileId
-      };
-
-      setNotes([...notes, newNote]);
-      setSelectedNote(newNote);
-      setIsEditing(true);
-      setEditTitle(newNote.title);
-      setEditContent(newNote.content);
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to create note from current content:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const saveNote = async () => {
-    if (!selectedNote) return;
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      // Ensure the new title has .md extension if the original file had .md
-      const originalTitle = selectedNote.title;
-      const hasOriginalExtension = originalTitle.endsWith('.md');
-      const newTitle = hasOriginalExtension && !editTitle.endsWith('.md') 
-        ? `${editTitle}.md` 
-        : editTitle;
-
-      let updatedNote = {
-        ...selectedNote,
-        title: newTitle,
-        content: editContent,
-        updatedAt: new Date().toISOString()
-      };
-
-      setSyncProgress(30);
-
-      // Update in Drive if signed in
-      if (isSignedIn) {
-        try {
-          if (selectedNote.driveFileId) {
-            setSyncProgress(50);
-            // Try to update existing file
-            await driveService.updateFile(selectedNote.driveFileId, editContent);
-            
-            // If title changed, also rename the file
-            if (selectedNote.title !== newTitle) {
-              await driveService.renameFile(selectedNote.driveFileId, newTitle);
-            }
-            setSyncProgress(80);
-          } else {
-            setSyncProgress(40);
-            // No Drive file ID, create new file
-            const parentFolder = folders.find(f => f.path === selectedNote.path);
-            const parentDriveId = parentFolder?.driveFolderId;
-
-            if (parentDriveId) {
-              setSyncProgress(60);
-              const newDriveFileId = await driveService.uploadFile(newTitle, editContent, parentDriveId);
-              updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
-              setSyncProgress(80);
-            }
-          }
-        } catch (driveError: unknown) {
-          console.error('Drive error:', driveError);
-
-          // If file not found (404), create new file
-          const error = driveError as { status?: number; result?: { error?: { code?: number } } };
-          if (error.status === 404 || (error.result?.error?.code === 404)) {
-
-            const parentFolder = folders.find(f => f.path === selectedNote.path);
-            const parentDriveId = parentFolder?.driveFolderId;
-
-            if (parentDriveId) {
-              try {
-                setSyncProgress(60);
-                const newDriveFileId = await driveService.uploadFile(newTitle, editContent, parentDriveId);
-                updatedNote = { ...updatedNote, driveFileId: newDriveFileId };
-                setSyncProgress(80);
-
-              } catch (createError) {
-                console.error('Failed to create new file:', createError);
-                // Remove the invalid driveFileId
-                updatedNote = { ...updatedNote, driveFileId: undefined };
-              }
-            } else {
-              // Remove the invalid driveFileId
-              updatedNote = { ...updatedNote, driveFileId: undefined };
-            }
-          } else {
-            // Other Drive errors, remove the invalid driveFileId
-            updatedNote = { ...updatedNote, driveFileId: undefined };
-          }
-        }
-      }
-
-      setSyncProgress(90);
-
-      setNotes(notes.map(note =>
-        note.id === selectedNote.id ? updatedNote : note
-      ));
-      setSelectedNote(updatedNote);
-      setIsEditing(false);
-      // Disable split mode when saving
-      setIsSplitMode(false);
-
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to save note:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const deleteNote = async (noteId: string) => {
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-      
-      const note = notes.find(n => n.id === noteId);
-
-      setSyncProgress(30);
-
-      // Delete from Drive if signed in and has Drive file ID
-      if (isSignedIn && note?.driveFileId) {
-        setSyncProgress(50);
-        await driveService.deleteFile(note.driveFileId);
-        setSyncProgress(80);
-      }
-
-      setNotes(notes.filter(note => note.id !== noteId));
-      if (selectedNote?.id === noteId) {
-        setSelectedNote(null);
-      }
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const deleteFolder = async (folderId: string) => {
-    const folderToDelete = folders.find(f => f.id === folderId);
-    if (!folderToDelete || folderId === 'root') return;
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      setSyncProgress(20);
-
-      // Delete all notes in this folder (and from Drive)
-      const notesToDelete = notes.filter(note => note.path.startsWith(folderToDelete.path));
-      const totalItems = notesToDelete.length + 1; // +1 for the folder itself
-      let processedItems = 0;
-
-      setSyncProgress(30);
-
-      for (const note of notesToDelete) {
-        if (isSignedIn && note.driveFileId) {
-          await driveService.deleteFile(note.driveFileId);
-        }
-        processedItems++;
-        // Update progress based on how many items we've processed
-        const progressIncrement = 40 / totalItems; // 40% range for deleting notes
-        setSyncProgress(30 + (progressIncrement * processedItems));
-      }
-
-      setSyncProgress(70);
-
-      // Delete from Drive if signed in and has Drive folder ID
-      if (isSignedIn && folderToDelete.driveFolderId) {
-        setSyncProgress(75);
-        await driveService.deleteFile(folderToDelete.driveFolderId);
-        setSyncProgress(85);
-      }
-
-      setNotes(notes.filter(note => !note.path.startsWith(folderToDelete.path)));
-
-      // Delete the folder and its subfolders
-      setFolders(folders.filter(folder =>
-        folder.id !== folderId && !folder.path.startsWith(folderToDelete.path + '/')
-      ));
-
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to delete folder:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const renameFolder = async (folderId: string, currentName: string) => {
-    const folderToRename = folders.find(f => f.id === folderId);
-    if (!folderToRename || folderId === 'root') return;
-
+  // Handle rename actions
+  const handleRenameFolder = (folderId: string, currentName: string) => {
     setRenameItem({
       id: folderId,
       currentName,
@@ -1412,89 +197,7 @@ export default function NotesPage() {
     setIsRenameDialogOpen(true);
   };
 
-  const handleRenameConfirm = async (newName: string) => {
-    if (!renameItem) return;
-
-    try {
-      setIsLoading(true);
-      setSyncProgress(10);
-
-      if (renameItem.type === 'folder') {
-        const folderToRename = folders.find(f => f.id === renameItem.id);
-        if (!folderToRename) return;
-
-        // Update folder name in Drive if signed in and has Drive folder ID
-        if (isSignedIn && folderToRename.driveFolderId) {
-          setSyncProgress(30);
-          await driveService.renameFolder(folderToRename.driveFolderId, newName);
-          setSyncProgress(60);
-        }
-
-        // Update folder locally
-        setFolders(folders.map(folder => {
-          if (folder.id === renameItem.id) {
-            return { ...folder, name: newName };
-          }
-          return folder;
-        }));
-      } else {
-        const noteToRename = notes.find(n => n.id === renameItem.id);
-        if (!noteToRename) return;
-
-        // Update note title in Drive if signed in and has Drive file ID
-        if (isSignedIn && noteToRename.driveFileId) {
-          setSyncProgress(30);
-          // Ensure the new name has .md extension if the original file had .md
-          const originalName = renameItem.currentName;
-          const hasOriginalExtension = originalName.endsWith('.md');
-          const newFileName = hasOriginalExtension && !newName.endsWith('.md') 
-            ? `${newName}.md` 
-            : newName;
-          await driveService.renameFile(noteToRename.driveFileId, newFileName);
-          setSyncProgress(60);
-        }
-
-        // Ensure the new name has .md extension if the original file had .md
-        const originalName = renameItem.currentName;
-        const hasOriginalExtension = originalName.endsWith('.md');
-        const newFileName = hasOriginalExtension && !newName.endsWith('.md') 
-          ? `${newName}.md` 
-          : newName;
-
-        // Update note locally
-        setNotes(notes.map(note => {
-          if (note.id === renameItem.id) {
-            return { ...note, title: newFileName };
-          }
-          return note;
-        }));
-
-        // Update selected note if it's the one being renamed
-        if (selectedNote && selectedNote.id === renameItem.id) {
-          setSelectedNote({ ...selectedNote, title: newFileName });
-        }
-      }
-
-      setSyncProgress(100);
-
-      // Keep progress at 100% for a moment before hiding
-      setTimeout(() => {
-        setSyncProgress(0);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to rename item:', error);
-    } finally {
-      // Delay hiding loading state to show completion
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 700);
-    }
-  };
-
-  const renameNote = async (noteId: string, currentTitle: string) => {
-    const noteToRename = notes.find(n => n.id === noteId);
-    if (!noteToRename) return;
-
+  const handleRenameNote = (noteId: string, currentTitle: string) => {
     setRenameItem({
       id: noteId,
       currentName: currentTitle,
@@ -1503,335 +206,299 @@ export default function NotesPage() {
     setIsRenameDialogOpen(true);
   };
 
-  const startEdit = () => {
-    if (!selectedNote) return;
-    setIsEditing(true);
-    setEditTitle(selectedNote.title);
-    setEditContent(selectedNote.content);
-    // Auto-enable split mode only on desktop (large screens)
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      setIsSplitMode(true);
-    }
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditTitle('');
-    setEditContent('');
-    // Disable split mode when canceling
-    setIsSplitMode(false);
-  };
-
-  const closeNote = () => {
-    setSelectedNote(null);
-    setEditTitle('');
-    setEditContent('');
-    setIsEditing(false);
-    setIsSplitMode(false);
-    // Remove from localStorage
-    localStorage.removeItem('selected-note-id');
-  };
-
-  // Scroll synchronization state for split mode (passed to components)
-  const [isScrollingSynced, setIsScrollingSynced] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastScrollSource = useRef<'raw' | 'preview' | null>(null);
-  const scrollThrottleRef = useRef<number | null>(null);
-
   // Show loading spinner while initializing
   if (!isInitialized) {
     return <LoadingSpinner />;
   }
 
   return (
-      <div className="h-full flex flex-col" style={{ backgroundColor: '#222831' }}>
-        <div className="flex flex-1 overflow-hidden">
-          {/* File Explorer Sidebar */}
-          <NoteSidebar
-            notes={notes}
-            folders={folders}
-            selectedNote={selectedNote}
-            isSignedIn={isSignedIn}
-            isLoading={isLoading}
-            syncProgress={syncProgress}
-            sidebarWidth={sidebarWidth}
-            dragOver={dragOver}
-            isResizing={isResizing}
-            isMobileSidebarOpen={isMobileSidebarOpen}
-            isSidebarHidden={isSidebarHidden}
-            onToggleFolder={toggleFolder}
-            onSelectNote={setSelectedNote}
-            onSetSelectedPath={setSelectedPath}
-            onSetIsCreatingFolder={setIsCreatingFolder}
-            onSetIsCreatingNote={setIsCreatingNote}
-            onDeleteFolder={deleteFolder}
-            onDeleteNote={deleteNote}
-            onRenameFolder={renameFolder}
-            onRenameNote={renameNote}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onSetDragOver={setDragOver}
-            onSetIsResizing={setIsResizing}
-            onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
-            onToggleSidebar={toggleSidebar}
-            onForceSync={forceSync}
-            onSignIn={signIn}
-            onSignOut={signOut}
-          />
+    <div className="h-full flex flex-col" style={{ backgroundColor: '#222831' }}>
+      <div className="flex flex-1 overflow-hidden">
+        {/* File Explorer Sidebar */}
+        <NoteSidebar
+          notes={notes}
+          folders={folders}
+          selectedNote={selectedNote}
+          isSignedIn={isSignedIn}
+          isLoading={isLoading}
+          syncProgress={syncProgress}
+          sidebarWidth={sidebarWidth}
+          dragOver={dragOver}
+          isResizing={isResizing}
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          isSidebarHidden={isSidebarHidden}
+          onToggleFolder={toggleFolder}
+          onSelectNote={setSelectedNote}
+          onSetSelectedPath={setSelectedPath}
+          onSetIsCreatingFolder={setIsCreatingFolder}
+          onSetIsCreatingNote={setIsCreatingNote}
+          onDeleteFolder={deleteFolder}
+          onDeleteNote={deleteNote}
+          onRenameFolder={handleRenameFolder}
+          onRenameNote={handleRenameNote}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setDragOver(null)}
+          onDrop={(e, targetId) => handleDrop(e, targetId, draggedItem, setDraggedItem, setDragOver)}
+          onSetDragOver={setDragOver}
+          onSetIsResizing={setIsResizing}
+          onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
+          onToggleSidebar={toggleSidebar}
+          onForceSync={forceSync}
+          onSignIn={signIn}
+          onSignOut={signOut}
+        />
 
-          {/* Main content area */}
-          <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
-            {selectedNote ? (
-              <>
-                {/* Note Header */}
-                <NoteNavbar
-                  selectedNote={selectedNote}
-                  isEditing={isEditing}
-                  editTitle={editTitle}
-                  setEditTitle={setEditTitle}
-                  setIsSplitMode={setIsSplitMode}
-                  isSplitMode={isSplitMode}
-                  tabSize={tabSize}
-                  setTabSize={setTabSize}
-                  currentTheme={currentTheme}
-                  setCurrentTheme={setCurrentTheme}
-                  themeOptions={themeOptions}
-                  fontFamily={fontFamily}
-                  setFontFamily={setFontFamily}
-                  fontSize={fontSize}
-                  setFontSize={setFontSize}
-                  previewFontSize={previewFontSize}
-                  setPreviewFontSize={setPreviewFontSize}
-                  saveNote={saveNote}
-                  cancelEdit={cancelEdit}
-                  startEdit={startEdit}
-                  isMobileSidebarOpen={isMobileSidebarOpen}
-                  onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                  onCloseNote={closeNote}
-                  isSidebarHidden={isSidebarHidden}
-                  onToggleSidebar={toggleSidebar}
-                />
+        {/* Main content area */}
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
+          {selectedNote ? (
+            <>
+              {/* Note Header */}
+              <NoteNavbar
+                selectedNote={selectedNote}
+                isEditing={isEditing}
+                editTitle={editTitle}
+                setEditTitle={setEditTitle}
+                setIsSplitMode={setIsSplitMode}
+                isSplitMode={isSplitMode}
+                tabSize={tabSize}
+                setTabSize={setTabSize}
+                currentTheme={currentTheme}
+                setCurrentTheme={setCurrentTheme}
+                themeOptions={themeOptions}
+                fontFamily={fontFamily}
+                setFontFamily={setFontFamily}
+                fontSize={fontSize}
+                setFontSize={setFontSize}
+                previewFontSize={previewFontSize}
+                setPreviewFontSize={setPreviewFontSize}
+                saveNote={saveNote}
+                cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
+                startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
+                isMobileSidebarOpen={isMobileSidebarOpen}
+                onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}
+                isSidebarHidden={isSidebarHidden}
+                onToggleSidebar={toggleSidebar}
+              />
 
-                {/* Note Content */}
-                <div
-                  className="flex-1 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
-                  style={{
-                    backgroundColor: '#222831',
-                    fontFamily: fontFamily,
-                    fontSize: fontSize,
-                    transition: 'font-family 0.2s, font-size 0.2s',
-                  }}
-                >
-                  {isEditing ? (
-                    isSplitMode ? (
-                      /* Split Mode: Raw + Preview */
-                      <NoteSplitEditor
-                        editContent={editContent}
-                        setEditContent={setEditContent}
-                        notes={notes}
-                        selectedNote={selectedNote}
-                        setNotes={setNotes}
-                        setSelectedNote={setSelectedNote}
-                        isSignedIn={isSignedIn}
-                        driveService={driveService}
-                        isScrollingSynced={isScrollingSynced}
-                        setIsScrollingSynced={setIsScrollingSynced}
-                        scrollTimeoutRef={scrollTimeoutRef}
-                        scrollThrottleRef={scrollThrottleRef}
-                        lastScrollSource={lastScrollSource}
-                        tabSize={tabSize}
-                        fontSize={fontSize}
-                        previewFontSize={previewFontSize}
-                      />
-                    ) : (
-                      /* Regular Edit Mode */
-                      <NoteRegularEditor
-                        editContent={editContent}
-                        setEditContent={setEditContent}
-                        tabSize={tabSize}
-                        fontSize={fontSize}
-                      />
-                    )
-                  ) : (
-                    /* Preview Only Mode */
-                    <NotePreview
-                      selectedNote={selectedNote}
+              {/* Note Content */}
+              <div
+                className="flex-1 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
+                style={{
+                  backgroundColor: '#222831',
+                  fontFamily: fontFamily,
+                  fontSize: fontSize,
+                  transition: 'font-family 0.2s, font-size 0.2s',
+                }}
+              >
+                {isEditing ? (
+                  isSplitMode ? (
+                    /* Split Mode: Raw + Preview */
+                    <NoteSplitEditor
+                      editContent={editContent}
+                      setEditContent={setEditContent}
                       notes={notes}
+                      selectedNote={selectedNote}
                       setNotes={setNotes}
                       setSelectedNote={setSelectedNote}
                       isSignedIn={isSignedIn}
                       driveService={driveService}
+                      isScrollingSynced={isScrollingSynced}
+                      setIsScrollingSynced={setIsScrollingSynced}
+                      scrollTimeoutRef={scrollTimeoutRef}
+                      scrollThrottleRef={scrollThrottleRef}
+                      lastScrollSource={lastScrollSource}
+                      tabSize={tabSize}
+                      fontSize={fontSize}
                       previewFontSize={previewFontSize}
                     />
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Mobile Header for No Note Selected */}
-                <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                      className="p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-                      title="Toggle sidebar"
-                    >
-                      <Menu size={20} />
-                    </button>
-                    <h1 className="text-xl font-semibold text-white">Notes</h1>
-                  </div>
-                </div>
-
-                <div className="flex-1 flex items-center justify-center relative" style={{ backgroundColor: '#222831' }}>
-                  {/* Floating sidebar toggle button */}
-                  {isSidebarHidden && (
-                    <button
-                      onClick={toggleSidebar}
-                      className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 shadow-lg backdrop-blur-sm"
-                      title="Show sidebar"
-                    >
-                      <PanelLeftOpen size={16} />
-                      <span className="text-sm">Sidebar</span>
-                    </button>
-                  )}
-                  
-                  <div className="text-center">
-                    <FileText size={64} className="text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg">Select a note to start reading</p>
-                    <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
-
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Create Folder Dialog */}
-        <Dialog open={isCreatingFolder} onOpenChange={(open) => {
-          setIsCreatingFolder(open);
-          if (!open) setNewFolderName('');
-        }}>
-          <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
-            <DialogHeader>
-              <DialogTitle className="text-white">Create New Folder</DialogTitle>
-              <DialogDescription className="text-gray-400">
-                {selectedPath ? (
-                  <>📁 Creating in: /{selectedPath}</>
+                  ) : (
+                    /* Regular Edit Mode */
+                    <NoteRegularEditor
+                      editContent={editContent}
+                      setEditContent={setEditContent}
+                      tabSize={tabSize}
+                      fontSize={fontSize}
+                    />
+                  )
                 ) : (
-                  <>📁 Creating in: Root</>
+                  /* Preview Only Mode */
+                  <NotePreview
+                    selectedNote={selectedNote}
+                    notes={notes}
+                    setNotes={setNotes}
+                    setSelectedNote={setSelectedNote}
+                    isSignedIn={isSignedIn}
+                    driveService={driveService}
+                    previewFontSize={previewFontSize}
+                  />
                 )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Folder name"
-                className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ backgroundColor: '#222831' }}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    createFolder();
-                  } else if (e.key === 'Escape') {
-                    setIsCreatingFolder(false);
-                    setNewFolderName('');
-                  }
-                }}
-              />
-            </div>
-            <DialogFooter>
-              <button
-                onClick={() => {
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Mobile Header for No Note Selected */}
+              <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+                <div className="flex items-center">
+                  <button
+                    onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                    className="p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                    title="Toggle sidebar"
+                  >
+                    <Menu size={20} />
+                  </button>
+                  <h1 className="text-xl font-semibold text-white">Notes</h1>
+                </div>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center relative" style={{ backgroundColor: '#222831' }}>
+                {/* Floating sidebar toggle button */}
+                {isSidebarHidden && (
+                  <button
+                    onClick={toggleSidebar}
+                    className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 shadow-lg backdrop-blur-sm"
+                    title="Show sidebar"
+                  >
+                    <PanelLeftOpen size={16} />
+                    <span className="text-sm">Sidebar</span>
+                  </button>
+                )}
+                
+                <div className="text-center">
+                  <FileText size={64} className="text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 text-lg">Select a note to start reading</p>
+                  <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={isCreatingFolder} onOpenChange={(open) => {
+        setIsCreatingFolder(open);
+        if (!open) setNewFolderName('');
+      }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">Create New Folder</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedPath ? (
+                <>📁 Creating in: /{selectedPath}</>
+              ) : (
+                <>📁 Creating in: Root</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Folder name"
+              className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#222831' }}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createFolder(newFolderName);
+                } else if (e.key === 'Escape') {
                   setIsCreatingFolder(false);
                   setNewFolderName('');
-                }}
-                className="px-4 py-2 text-gray-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createFolder}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => {
+                setIsCreatingFolder(false);
+                setNewFolderName('');
+              }}
+              className="px-4 py-2 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => createFolder(newFolderName)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Create Note Dialog */}
-        <Dialog open={isCreatingNote} onOpenChange={(open) => {
-          setIsCreatingNote(open);
-          if (!open) setNewNoteName('');
-        }}>
-          <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                Create New Note
-              </DialogTitle>
-              <DialogDescription className="text-gray-400">
-                {selectedPath ? (
-                  <>Creating in: /{selectedPath}</>
-                ) : (
-                  <>Creating in: Root</>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={newNoteName}
-                onChange={(e) => setNewNoteName(e.target.value)}
-                placeholder="Note title"
-                className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ backgroundColor: '#222831' }}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    createNote();
-                  } else if (e.key === 'Escape') {
-                    setIsCreatingNote(false);
-                    setNewNoteName('');
-                  }
-                }}
-              />
-            </div>
-            <DialogFooter>
-              <button
-                onClick={() => {
+      {/* Create Note Dialog */}
+      <Dialog open={isCreatingNote} onOpenChange={(open) => {
+        setIsCreatingNote(open);
+        if (!open) setNewNoteName('');
+      }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Create New Note
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedPath ? (
+                <>Creating in: /{selectedPath}</>
+              ) : (
+                <>Creating in: Root</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={newNoteName}
+              onChange={(e) => setNewNoteName(e.target.value)}
+              placeholder="Note title"
+              className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#222831' }}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  createNote(newNoteName);
+                } else if (e.key === 'Escape') {
                   setIsCreatingNote(false);
                   setNewNoteName('');
-                }}
-                className="px-4 py-2 text-gray-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createNote}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => {
+                setIsCreatingNote(false);
+                setNewNoteName('');
+              }}
+              className="px-4 py-2 text-gray-300 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => createNote(newNoteName)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Rename Dialog */}
-        <RenameDialog
-          isOpen={isRenameDialogOpen}
-          onClose={() => {
-            setIsRenameDialogOpen(false);
-            setRenameItem(null);
-          }}
-          onConfirm={handleRenameConfirm}
-          currentName={renameItem?.currentName || ''}
-          type={renameItem?.type || 'file'}
-        />
-      </div>
-    );
+      {/* Rename Dialog */}
+      <RenameDialog
+        isOpen={isRenameDialogOpen}
+        onClose={() => {
+          setIsRenameDialogOpen(false);
+          setRenameItem(null);
+        }}
+        onConfirm={handleRenameConfirm}
+        currentName={renameItem?.currentName || ''}
+        type={renameItem?.type || 'file'}
+      />
+    </div>
+  );
 }
