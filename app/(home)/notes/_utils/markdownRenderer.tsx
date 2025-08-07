@@ -356,12 +356,12 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
   };
 
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
-      rehypePlugins={[rehypeKatex]}
-      skipHtml={true}
-      components={{
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
+        rehypePlugins={[rehypeKatex]}
+        skipHtml={true}
+        components={{
         h1: ({ children, ...props }) => {
           const text = getTextContent(children);
           const id = getHeadingId(text);
@@ -446,11 +446,21 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             </FoldableHeading>
           );
         },
-        p: ({ children, ...props }) => (
-          <p className="mb-4 text-gray-300 leading-relaxed" {...props}>
-            {children}
-          </p>
-        ),
+        p: ({ children, ...props }) => {
+          const hasBlockChild = React.Children.toArray(children).some((child: any) => {
+            // Detect known block wrappers we render (divs for images, skeletons, etc.)
+            if (!child || typeof child !== 'object') return false;
+            const type = (child as any).type;
+            // If this renders to a 'div' or known block-like component, treat as block
+            return type === 'div' || type === 'pre' || type === 'table';
+          });
+          const Wrapper: any = hasBlockChild ? 'div' : 'p';
+          return (
+            <Wrapper className="mb-4 text-gray-300 leading-relaxed" {...props}>
+              {children}
+            </Wrapper>
+          );
+        },
         code: ({ children, className, ...props }) => {
           const match = /language-(\w+)/.exec(className || '');
           const isInline = !match;

@@ -7,9 +7,9 @@ import { MemoizedMarkdown } from '../_utils';
 import { Note } from '../_components/types';
 
 // Parse markdown to AST and split into top-level blocks
-function splitMarkdownBlocksAST(content: string): { type: string; value: string; startLine: number }[] {
+export function splitMarkdownBlocksAST(content: string): { type: string; value: string; startLine: number; endLine: number }[] {
   const tree = unified().use(remarkParse).parse(content);
-  const blocks: { type: string; value: string; startLine: number }[] = [];
+  const blocks: { type: string; value: string; startLine: number; endLine: number }[] = [];
   let lastPos = 0;
   // Each top-level node in AST is a block
   tree.children.forEach((node: any) => {
@@ -20,15 +20,17 @@ function splitMarkdownBlocksAST(content: string): { type: string; value: string;
       typeof node.position.start.line === 'number'
     ) {
       const value = content.slice(node.position.start.offset, node.position.end.offset);
-      blocks.push({ type: node.type, value, startLine: node.position.start.line - 1 });
+      blocks.push({ type: node.type, value, startLine: node.position.start.line - 1, endLine: node.position.end.line - 1 });
       lastPos = node.position.end.offset;
     }
   });
   if (lastPos < content.length) {
     // Estimate line number for trailing content
     const prevBlock = blocks[blocks.length - 1];
-    const prevEnd = prevBlock ? prevBlock.startLine + prevBlock.value.split('\n').length : 0;
-    blocks.push({ type: 'text', value: content.slice(lastPos), startLine: prevEnd });
+    const prevEnd = prevBlock ? prevBlock.endLine + 1 : 0;
+    const trailing = content.slice(lastPos);
+    const trailingLen = trailing.split('\n').length - 1;
+    blocks.push({ type: 'text', value: trailing, startLine: prevEnd, endLine: prevEnd + Math.max(0, trailingLen) });
   }
   return blocks;
 }
@@ -95,17 +97,18 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   return (
     <div>
       {blocks.map((block, i) => (
-        <MemoizedMarkdownBlock
-          key={i}
-          content={block.value}
-          notes={notes}
-          selectedNote={selectedNote}
-          setEditContent={setEditContent}
-          setNotes={setNotes}
-          setSelectedNote={setSelectedNote}
-          isSignedIn={isSignedIn}
-          driveService={driveService}
-        />
+        <div key={i} data-block-index={i} data-start-line={block.startLine} data-end-line={block.endLine} style={{ contain: 'layout paint style' }}>
+          <MemoizedMarkdownBlock
+            content={block.value}
+            notes={notes}
+            selectedNote={selectedNote}
+            setEditContent={setEditContent}
+            setNotes={setNotes}
+            setSelectedNote={setSelectedNote}
+            isSignedIn={isSignedIn}
+            driveService={driveService}
+          />
+        </div>
       ))}
     </div>
   );

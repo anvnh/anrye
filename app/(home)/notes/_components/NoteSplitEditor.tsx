@@ -116,6 +116,23 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const rafRef = useRef<number | null>(null);
   const SCROLL_THRESHOLD = 3; // pixels
   const THROTTLE_DELAY = 8; // ~120fps
+  const HYSTERESIS_PX = 6;
+  const SNAP_PX = 12;
+  const CARET_PRIORITY_WINDOW_MS = 400;
+
+  // Caret tracking
+  const caretLineRef = useRef<number>(0);
+  const lastCaretChangeRef = useRef<number>(0);
+
+  const updateCaretInfo = useCallback((textarea: HTMLTextAreaElement) => {
+    try {
+      const pos = textarea.selectionStart ?? 0;
+      const before = textarea.value.slice(0, pos);
+      const line = before.split('\n').length - 1;
+      caretLineRef.current = line;
+      lastCaretChangeRef.current = Date.now();
+    } catch {}
+  }, []);
 
   // Remove the old debounce effect since we're using the advanced hook
   // useEffect(() => {
@@ -235,6 +252,66 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     return { heading: headingList[chosenIndex], index: chosenIndex };
   }, [headingList]);
 
+  // ---------- Precise heading-based alignment (anchor interpolation) ----------
+  function getOffsetTopWithinContainer(el: HTMLElement, container: HTMLElement): number {
+    let offset = 0;
+    let current: HTMLElement | null = el;
+    while (current && current !== container) {
+      offset += current.offsetTop;
+      current = current.offsetParent as HTMLElement | null;
+    }
+    return offset;
+  }
+
+  function computeAnchors(rawElement: HTMLTextAreaElement) {
+    const container = previewRef.current;
+    if (!container) return null;
+
+    // Prefer block-level anchors for precision
+    const blockNodes = Array.from(container.querySelectorAll('[data-block-index]')) as HTMLElement[];
+    const totalLines = Math.max(1, editContent.split('\n').length);
+    const pixelsPerLine = (rawElement.scrollHeight - rawElement.clientTop) / totalLines;
+
+    let rawAnchorsCore: number[] = [];
+    let previewAnchorsCore: number[] = [];
+
+    if (blockNodes.length > 0) {
+      rawAnchorsCore = blockNodes.map(node => {
+        const startLineAttr = node.getAttribute('data-start-line');
+        const startLine = startLineAttr ? parseInt(startLineAttr, 10) : 0;
+        return startLine * pixelsPerLine;
+      });
+      previewAnchorsCore = blockNodes.map(node => getOffsetTopWithinContainer(node, container));
+    } else {
+      // Fallback to heading-based anchors
+      rawAnchorsCore = headingList.map(h => h.line * pixelsPerLine);
+      const domHeadings = domHeadingElsRef.current;
+      previewAnchorsCore = domHeadings.map(h => getOffsetTopWithinContainer(h, container));
+    }
+
+    // Align lengths
+    const minLen = Math.min(rawAnchorsCore.length, previewAnchorsCore.length);
+    const rawAnchors: number[] = [];
+    const previewAnchors: number[] = [];
+
+    // Add top anchor
+    rawAnchors.push(0);
+    previewAnchors.push(0);
+
+    for (let i = 0; i < minLen; i++) {
+      rawAnchors.push(rawAnchorsCore[i]);
+      previewAnchors.push(previewAnchorsCore[i]);
+    }
+
+    // Add bottom anchor
+    const rawEnd = (totalLines - 1) * pixelsPerLine;
+    const previewEnd = Math.max(0, container.scrollHeight - container.clientHeight);
+    rawAnchors.push(rawEnd);
+    previewAnchors.push(previewEnd);
+
+    return { rawAnchors, previewAnchors };
+  }
+
   const scrollPreviewToElement = useCallback((el: HTMLElement) => {
     const container = previewRef.current;
     if (!container || !el) return;
@@ -272,7 +349,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
     lastScrollPositions.current.raw = currentScrollTop;
 
-    const totalLines = editContent.split('\n').length;
+    const totalLines = Math.max(1, editContent.split('\n').length);
     const ratio = Math.max(0, Math.min(1, currentScrollTop / maxScroll));
     const approxLine = Math.max(0, Math.min(totalLines - 1, Math.round(ratio * (totalLines - 1))));
     const found = findHeadingForApproxLine(approxLine);
@@ -281,18 +358,39 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     lastSourceRef.current = 'raw';
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      // Primary: robust ratio-based scroll mapping for reliability
       const container = previewRef.current;
-      if (container) {
-        const maxTarget = container.scrollHeight - container.clientHeight;
-        if (maxTarget > 0) {
-          container.scrollTo({ top: Math.round(ratio * maxTarget), behavior: 'auto' });
-          setTimeout(() => {
-            isSyncingRef.current = false;
-            lastSourceRef.current = null;
-          }, 16);
-          return;
+      // Primary: precise heading-based interpolation (HackMD-like)
+      const anchors = computeAnchors(rawElement);
+      if (container && anchors && anchors.rawAnchors.length >= 2) {
+        const { rawAnchors, previewAnchors } = anchors;
+        // Caret-priority: if caret moved recently, align to caret line position
+        const useCaret = Date.now() - lastCaretChangeRef.current < CARET_PRIORITY_WINDOW_MS;
+        const pixelsPerLine = (rawElement.scrollHeight - rawElement.clientTop) / totalLines;
+        const x = useCaret ? caretLineRef.current * pixelsPerLine : currentScrollTop;
+        // Find segment
+        let i = 0;
+        for (let j = 1; j < rawAnchors.length; j++) {
+          if (x < rawAnchors[j]) { i = j - 1; break; }
+          i = j - 1;
         }
+        const x0 = rawAnchors[i];
+        const x1 = rawAnchors[i + 1] ?? x0 + 1;
+        const y0 = previewAnchors[i];
+        const y1 = previewAnchors[i + 1] ?? y0;
+        const t = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+        let target = Math.max(0, Math.min(Math.round(y0 + t * (y1 - y0)), container.scrollHeight - container.clientHeight));
+        // Snap to nearest anchor to reduce jitter
+        if (Math.abs(target - y0) < SNAP_PX) target = y0;
+        else if (Math.abs(target - y1) < SNAP_PX) target = y1;
+        // Hysteresis: skip tiny movements
+        if (Math.abs(container.scrollTop - target) > HYSTERESIS_PX) {
+          container.scrollTo({ top: target, behavior: 'auto' });
+        }
+        setTimeout(() => {
+          isSyncingRef.current = false;
+          lastSourceRef.current = null;
+        }, 16);
+        return;
       }
 
       const domHeadings = domHeadingElsRef.current;
@@ -313,7 +411,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         const container2 = previewRef.current;
         if (container2) {
           const maxTarget2 = container2.scrollHeight - container2.clientHeight;
-          if (maxTarget2 > 0) container2.scrollTo({ top: Math.round(ratio * maxTarget2), behavior: 'auto' });
+          const t2 = Math.round(ratio * maxTarget2);
+          if (maxTarget2 > 0 && Math.abs(container2.scrollTop - t2) > HYSTERESIS_PX) container2.scrollTo({ top: t2, behavior: 'auto' });
         }
       }
       // Release soon to allow opposite side after the scroll settles
@@ -322,7 +421,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         lastSourceRef.current = null;
       }, 16);
     });
-  }, [editContent, findHeadingForApproxLine, scrollPreviewToElement, scrollPreviewToHeadingId]);
+  }, [editContent, findHeadingForApproxLine, scrollPreviewToElement, scrollPreviewToHeadingId, computeAnchors]);
 
   const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
     const now = Date.now();
@@ -332,13 +431,51 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    // Optional: reverse sync could be added by detecting current visible heading
-    // For now, we prioritize raw -> preview syncing as primary use-case during editing
+    // Reverse sync: map preview scroll to raw textarea using same anchors
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastPreviewScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastPreviewScrollTime = now;
-    // No-op for reverse for stability
-  }, []);
+
+    const container = previewRef.current;
+    const textarea = textareaRef.current;
+    if (!container || !textarea) return;
+    if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
+
+    const anchors = computeAnchors(textarea);
+    if (!anchors || anchors.rawAnchors.length < 2) return;
+
+    const { rawAnchors, previewAnchors } = anchors;
+    const y = container.scrollTop;
+    let i = 0;
+    for (let j = 1; j < previewAnchors.length; j++) {
+      if (y < previewAnchors[j]) { i = j - 1; break; }
+      i = j - 1;
+    }
+    const y0 = previewAnchors[i];
+    const y1 = previewAnchors[i + 1] ?? y0 + 1;
+    const x0 = rawAnchors[i];
+    const x1 = rawAnchors[i + 1] ?? x0;
+    const t = y1 === y0 ? 0 : (y - y0) / (y1 - y0);
+    let target = Math.max(0, Math.min(Math.round(x0 + t * (x1 - x0)), textarea.scrollHeight - textarea.clientHeight));
+    // Snap to nearest raw anchor
+    if (Math.abs(target - x0) < SNAP_PX) target = x0;
+    else if (Math.abs(target - x1) < SNAP_PX) target = x1;
+
+    isSyncingRef.current = true;
+    lastSourceRef.current = 'preview';
+    if (Math.abs(textarea.scrollTop - target) > HYSTERESIS_PX) {
+      textarea.scrollTo({ top: target, behavior: 'auto' });
+    }
+    setTimeout(() => {
+      isSyncingRef.current = false;
+      lastSourceRef.current = null;
+    }, 16);
+  }, [computeAnchors]);
+
+  // Track caret changes from user interactions
+  const handleRawSelect = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    updateCaretInfo(e.currentTarget);
+  }, [updateCaretInfo]);
 
 
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
@@ -518,6 +655,23 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     };
   }, [rebuildDomHeadingList, debouncedContent]);
 
+  // Resize-aware anchor maintenance for preview container
+  useEffect(() => {
+    const container = previewRef.current;
+    if (!container) return;
+    // @ts-ignore ResizeObserver may not be globally typed
+    const RO = (window as any).ResizeObserver || ResizeObserver;
+    if (!RO) return;
+    const ro = new RO(() => {
+      // Rebuild headings and allow anchors to update
+      rebuildDomHeadingList();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [rebuildDomHeadingList]);
+
+  // (moved helpers above to avoid TDZ)
+
   return (
     <div className="flex h-full w-full relative">
       {renameModal?.open && (
@@ -562,6 +716,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             value={editContent}
             onChange={handleContentChange}
             onScroll={handleRawScroll}
+            onSelect={handleRawSelect}
             onKeyDown={handleKeyDown}
             className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
             placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
