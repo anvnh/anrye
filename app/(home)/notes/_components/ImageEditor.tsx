@@ -31,14 +31,57 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const panOriginRef = useRef<{ x: number; y: number } | null>(null);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastMidRef = useRef<{ x: number; y: number } | null>(null);
+  const prevToolRef = useRef<typeof tool | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    const isTypingTarget = (el: EventTarget | null) => {
+      return (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement ||
+        (el as HTMLElement)?.isContentEditable === true
+      );
     };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'escape') { onClose(); return; }
+      if (k === 'm') { setTool('move'); }
+      if (k === 'b') { setTool('draw'); }
+      if (k === 'e') { setTool('eraser'); }
+      if (k === 'c') { setTool('crop'); }
+      if (k === '[') { setRotation(r => (r - 90 + 360) % 360); }
+      if (k === ']') { setRotation(r => (r + 90) % 360); }
+      if (k === '+' || k === '=') { setScale(s => Math.min(16, Number((s + 0.1).toFixed(2)))); }
+      if (k === '-') { setScale(s => Math.max(0.1, Number((s - 0.1).toFixed(2)))); }
+      if (k === '0') { setScale(1); setPanOffset({ x: 0, y: 0 }); }
+      if (k === ' ') {
+        // Space: temporary move while held
+        if (prevToolRef.current === null) {
+          prevToolRef.current = tool;
+          setTool('move');
+        }
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && prevToolRef.current !== null) {
+        // restore
+        setTool(prevToolRef.current);
+        prevToolRef.current = null;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [onClose, tool]);
 
   // Initialize default crop once image loads
   const onImageLoad = () => {
@@ -111,10 +154,32 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   };
 
   const toNatural = (clientX: number, clientY: number, container: HTMLDivElement) => {
+    if (!imgRef.current) return { x: 0, y: 0 };
     const rect = container.getBoundingClientRect();
-    const nx = ((clientX - rect.left) / rect.width) * (imgRef.current?.naturalWidth || 1);
-    const ny = ((clientY - rect.top) / rect.height) * (imgRef.current?.naturalHeight || 1);
-    return { x: Math.max(0, Math.min(nx, imgRef.current!.naturalWidth)), y: Math.max(0, Math.min(ny, imgRef.current!.naturalHeight)) };
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    // screen delta from center
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    // undo pan (applied before scale)
+    dx -= panOffset.x;
+    dy -= panOffset.y;
+    // undo scale
+    dx /= scale;
+    dy /= scale;
+    // undo rotation
+    const th = (rotation * Math.PI) / 180;
+    const cos = Math.cos(-th);
+    const sin = Math.sin(-th);
+    const rx = dx * cos - dy * sin;
+    const ry = dx * sin + dy * cos;
+    // map to natural coordinates (center-based)
+    const nx = rx + imgRef.current.naturalWidth / 2;
+    const ny = ry + imgRef.current.naturalHeight / 2;
+    return {
+      x: Math.max(0, Math.min(nx, imgRef.current.naturalWidth)),
+      y: Math.max(0, Math.min(ny, imgRef.current.naturalHeight))
+    };
   };
 
   const startCrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -199,12 +264,34 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
     <div className="fixed inset-0 z-[9998]">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-        <div className="relative w-[92vw] h-[78vh] overflow-hidden" onWheel={(e) => { e.preventDefault(); const d = e.deltaY > 0 ? -0.1 : 0.1; setScale(s => Math.max(0.1, Math.min(16, Number((s + d).toFixed(2))))); }}>
-          <div style={{ transform: `translate(calc(-50% + ${panOffset.x}px), calc(-50% + ${panOffset.y}px)) scale(${scale})`, top: '50%', left: '50%', position: 'absolute' }}>
+        <div
+          className="relative w-[92vw] h-[78vh] overflow-hidden"
+          style={{ cursor: tool === 'eraser' ? 'none' : 'default' }}
+          onWheel={(e) => { e.preventDefault(); const d = e.deltaY > 0 ? -0.1 : 0.1; setScale(s => Math.max(0.1, Math.min(16, Number((s + d).toFixed(2))))); }}
+          onMouseMove={(e) => {
+            if (tool !== 'eraser') { if (cursor.visible) setCursor(c => ({ ...c, visible: false })); return; }
+            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+            setCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top, visible: true });
+          }}
+          onMouseLeave={() => setCursor(c => ({ ...c, visible: false }))}
+        >
+          <div style={{ transform: `translate(calc(-50% + ${panOffset.x}px), calc(-50% + ${panOffset.y}px)) scale(${scale}) rotate(${rotation}deg)`, top: '50%', left: '50%', position: 'absolute' }}>
             <img ref={imgRef} src={src} onLoad={onImageLoad} alt="edit" className="max-w-none rounded block" />
             <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" />
             <div className="absolute inset-0" onMouseDown={startCrop} onMouseMove={moveCrop} onMouseUp={() => setIsDragging(false)} />
           </div>
+          {/* Eraser cursor overlay (scaled with zoom) */}
+          {tool === 'eraser' && cursor.visible && (
+            <div
+              className="absolute rounded-full border border-white/80 shadow pointer-events-none"
+              style={{
+                left: cursor.x - (brushSize * scale) / 2,
+                top: cursor.y - (brushSize * scale) / 2,
+                width: brushSize * scale,
+                height: brushSize * scale,
+              }}
+            />
+          )}
         </div>
 
         {/* Bottom toolbar overlay */}
