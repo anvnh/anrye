@@ -70,6 +70,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
   });
 
   const [copied, setCopied] = useState(false);
+  const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
   const [shortId, setShortId] = useState<string>('');
   const [showAlert, setShowAlert] = useState(false);
 
@@ -234,6 +235,16 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       setTimeout(() => setCopiedLink(null), 2000);
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
+  const handleCopyPassword = async (password: string, noteId: string) => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopiedPasswordId(noteId);
+      setTimeout(() => setCopiedPasswordId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy password to clipboard:', err);
     }
   };
 
@@ -436,15 +447,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
   return (
     <>
-      {showAlert && (
-        <Alert variant="default" className="alert-custom fixed bottom-4 right-4 z-50 w-80">
-          <CheckCircle2Icon className="h-5 w-5" />
-          <AlertTitle>Link copied!</AlertTitle>
-          <AlertDescription>
-            The sharing link has been copied to your clipboard.
-          </AlertDescription>
-        </Alert>
-      )}
       <DropdownMenu
         onOpenChange={handleOpenMenu}
       >
@@ -571,11 +573,14 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                             <div className="flex items-center gap-2">
                               <code className="text-white font-mono text-xs bg-gray-800 px-2 py-1 rounded">{note.settings.readPassword}</code>
                               <button
-                                onClick={() => navigator.clipboard.writeText(note.settings.readPassword || '')}
+                                onClick={() => handleCopyPassword(note.settings.readPassword || '', note.shortId)}
                                 className="text-blue-400 hover:text-blue-300 transition-colors"
                                 title="Copy password"
                               >
                                 <Copy className="h-3 w-3" />
+                                {copiedPasswordId === note.shortId && (
+                                  <span className="ml-1 text-xs text-green-400">Copied</span>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -737,11 +742,14 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                     <div className="flex items-center gap-2">
                       <code className="text-white font-mono">{shareSettings.readPassword}</code>
                       <button
-                        onClick={() => navigator.clipboard.writeText(shareSettings.readPassword || '')}
+                        onClick={() => handleCopyPassword(shareSettings.readPassword || '', 'new-share')}
                         className="text-blue-400 hover:text-blue-300"
                         title="Copy password"
                       >
                         <Copy size={12} />
+                        {copiedPasswordId === 'new-share' && (
+                          <span className="ml-1 text-xs text-green-400">Copied</span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -994,6 +1002,21 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Link Copy Notification */}
+      {showAlert && (
+        <div className="fixed bottom-4 right-4 z-[9999]">
+          <Alert variant="default" className="alert-custom w-80">
+            <CheckCircle2Icon className="h-5 w-5" />
+            <AlertTitle>Link copied!</AlertTitle>
+            <AlertDescription>
+              The sharing link has been copied to your clipboard.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
+
     </>
   );
 }
