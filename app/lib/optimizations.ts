@@ -329,14 +329,9 @@ export const createResizeObserver = (
 export const createWebWorker = (workerScript: string): Worker | null => {
   if (typeof window !== 'undefined' && 'Worker' in window) {
     try {
-      // Create a blob URL for the worker script to avoid static analysis issues
-      const blob = new Blob([workerScript], { type: 'application/javascript' });
-      const workerUrl = URL.createObjectURL(blob);
-      const worker = new Worker(workerUrl);
-      
-      // Clean up the blob URL after worker creation
-      worker.addEventListener('error', () => URL.revokeObjectURL(workerUrl));
-      worker.addEventListener('message', () => URL.revokeObjectURL(workerUrl));
+      // Use a data URL instead of blob URL to avoid static analysis issues
+      const dataUrl = `data:application/javascript;base64,${btoa(workerScript)}`;
+      const worker = new Worker(dataUrl);
       
       return worker;
     } catch (error) {
