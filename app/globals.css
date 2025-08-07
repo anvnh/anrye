@@ -78,6 +78,35 @@ body {
   opacity: 0.7;
 }
 
+/* Theme classes for shared notes */
+.theme-latte {
+  --theme-bg: #eff1f5;
+  --theme-fg: #4c4f69;
+  --theme-code-bg: #e6e9ef;
+  --theme-code-fg: #4c4f69;
+}
+
+.theme-macchiato {
+  --theme-bg: #24273a;
+  --theme-fg: #cad3f5;
+  --theme-code-bg: #1e2030;
+  --theme-code-fg: #cad3f5;
+}
+
+.theme-frappe {
+  --theme-bg: #303446;
+  --theme-fg: #c6d0f5;
+  --theme-code-bg: #292c3c;
+  --theme-code-fg: #c6d0f5;
+}
+
+.theme-mocha {
+  --theme-bg: #1e1e2e;
+  --theme-fg: #cdd6f4;
+  --theme-code-bg: #181825;
+  --theme-code-fg: #cdd6f4;
+}
+
 /* Custom KaTeX styles for dark theme */
 .katex {
   color: #e5e7eb;
