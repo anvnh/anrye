@@ -44,23 +44,103 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const shortId = searchParams.get('id');
+    const noteId = searchParams.get('noteId');
+
+    const { db } = await connectToDatabase();
+
+    // If noteId is provided, get all shared notes for that note
+    if (noteId) {
+      const sharedNotes = await db.collection('sharedNotes')
+        .find({ 'note.id': noteId })
+        .project({ 
+          shortId: 1, 
+          settings: 1, 
+          createdAt: 1, 
+          expireAt: 1,
+          _id: 0 
+        })
+        .toArray();
+
+      return NextResponse.json({ sharedNotes });
+    }
+
+    // If shortId is provided, get specific shared note
+    if (shortId) {
+      const sharedNote = await db.collection('sharedNotes').findOne({ shortId });
+
+      if (!sharedNote) {
+        return NextResponse.json({ error: 'Shared note not found' }, { status: 404 });
+      }
+
+      // Trả về đúng định dạng cũ (không trả về _id)
+      const { note, settings, createdAt } = sharedNote;
+      return NextResponse.json({ note, settings, createdAt });
+    }
+
+    return NextResponse.json({ error: 'Missing shortId or noteId' }, { status: 400 });
+  } catch (error) {
+    // ...existing code...
+    return NextResponse.json({ error: 'Failed to fetch shared note' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const shortId = searchParams.get('id');
 
     if (!shortId) {
       return NextResponse.json({ error: 'Missing shortId' }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
-    const sharedNote = await db.collection('sharedNotes').findOne({ shortId });
+    const result = await db.collection('sharedNotes').deleteOne({ shortId });
 
-    if (!sharedNote) {
+    if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Shared note not found' }, { status: 404 });
     }
 
-    // Trả về đúng định dạng cũ (không trả về _id)
-    const { note, settings, createdAt } = sharedNote;
-    return NextResponse.json({ note, settings, createdAt });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    // ...existing code...
-    return NextResponse.json({ error: 'Failed to fetch shared note' }, { status: 500 });
+    console.error('Error deleting shared note:', error);
+    return NextResponse.json({ error: 'Failed to delete shared note' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { shortId, settings } = await request.json();
+    
+    if (!shortId) {
+      return NextResponse.json({ error: 'Missing shortId' }, { status: 400 });
+    }
+
+    const { db } = await connectToDatabase();
+
+    // Handle Expires At
+    let expireDate = null;
+    if (settings.expireAt) {
+      expireDate = new Date(settings.expireAt);
+      if (isNaN(expireDate.getTime())) expireDate = null;
+    }
+
+    const updateData: any = {
+      settings,
+      expireAt: expireDate || null
+    };
+
+    const result = await db.collection('sharedNotes').updateOne(
+      { shortId },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Shared note not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating shared note:', error);
+    return NextResponse.json({ error: 'Failed to update shared note' }, { status: 500 });
   }
 }
