@@ -248,7 +248,7 @@ export const useDriveSync = (
 
       setSyncProgress(60);
 
-      // Remove local folders that don't exist on Drive
+      // Remove local folders that don't exist on Drive and update root folder
       setFolders(prevFolders => {
         const foldersToKeep = prevFolders.filter(folder => {
           if (folder.id === 'root') return true; // Always keep root
@@ -256,7 +256,14 @@ export const useDriveSync = (
           const exists = driveFolderIds.has(folder.driveFolderId);
           return exists;
         });
-        return foldersToKeep;
+        
+        // Update root folder with drive folder ID
+        return foldersToKeep.map(folder => {
+          if (folder.id === 'root') {
+            return { ...folder, driveFolderId: notesFolderId };
+          }
+          return folder;
+        });
       });
 
       setSyncProgress(70);

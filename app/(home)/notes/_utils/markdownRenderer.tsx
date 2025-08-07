@@ -38,6 +38,7 @@ import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface MarkdownRendererProps {
   content: string;
@@ -84,19 +85,34 @@ const updateCheckboxContent = (
   lineIndex: number,
   newChecked: boolean
 ): string => {
+  // console.log('updateCheckboxContent called:', { lineIndex, newChecked, contentLength: content.length });
+  
   // Split preserving all lines, including trailing empty lines
   const matchLines = content.match(/[^\n]*\n?|$/g);
   const lines = matchLines ? matchLines.slice(0, -1) : [];
-  if (lineIndex < 0 || lineIndex >= lines.length) return content;
+  
+  // console.log('Lines found:', lines.length, 'Line index:', lineIndex);
+  
+  if (lineIndex < 0 || lineIndex >= lines.length) {
+    console.warn('Invalid lineIndex:', lineIndex, 'Total lines:', lines.length);
+    return content;
+  }
+  
   const line = lines[lineIndex].replace(/\r?\n$/, '');
+  // console.log('Processing line:', line);
+  
   const checkboxMatch = line.match(/^(\s*)-\s*\[[ xX]?\]\s*(.*)$/);
   if (checkboxMatch) {
     const [, indent, lineText] = checkboxMatch;
-    lines[lineIndex] = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
+    const newLine = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
+    lines[lineIndex] = newLine;
+    // console.log('Updated line:', newLine);
     // Preserve all lines and trailing newlines
     return lines.join('');
+  } else {
+    // console.warn('No checkbox pattern found in line:', line);
+    return content;
   }
-  return content;
 };
 
 // Remark plugin to transform callouts
@@ -528,32 +544,58 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 lineIndex = node.position.start.line - 1;
               }
 
+              // console.log('Rendering checkbox:', { isChecked, lineIndex, isEditing });
+
               return (
                 <li className="text-gray-300 flex items-baseline gap-2 list-none" {...props}>
                   <Checkbox
                     checked={isChecked}
                     onCheckedChange={(newChecked: boolean) => {
-                      if (isEditing && setEditContent && lineIndex !== -1) {
-                        const updatedContent = updateCheckboxContent(editContent, lineIndex, newChecked);
-                        setEditContent(updatedContent);
-                      } else if (selectedNote && setNotes && setSelectedNote && lineIndex !== -1) {
-                        const updatedContent = updateCheckboxContent(selectedNote.content, lineIndex, newChecked);
-                        const updatedNote = {
-                          ...selectedNote,
-                          content: updatedContent,
-                          updatedAt: new Date().toISOString()
-                        };
-                        setNotes(prev => prev.map(note =>
-                          note.id === selectedNote.id ? updatedNote : note
-                        ));
-                        setSelectedNote(updatedNote);
-                        if (isSignedIn && selectedNote.driveFileId && driveService) {
-                          driveService.updateFile(selectedNote.driveFileId, updatedContent)
-                            .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
+                      // console.log('Checkbox clicked:', { newChecked, lineIndex, isEditing });
+                      
+                      // Ensure we have valid lineIndex
+                      if (lineIndex === -1) {
+                        console.warn('Invalid lineIndex for checkbox:', lineIndex);
+                        return;
+                      }
+                      
+                      try {
+                        if (isEditing && setEditContent) {
+                          const updatedContent = updateCheckboxContent(editContent, lineIndex, newChecked);
+                          setEditContent(updatedContent);
+                          console.log('Updated edit content for checkbox');
+                        } else if (selectedNote && setNotes && setSelectedNote) {
+                          const updatedContent = updateCheckboxContent(selectedNote.content, lineIndex, newChecked);
+                          const updatedNote = {
+                            ...selectedNote,
+                            content: updatedContent,
+                            updatedAt: new Date().toISOString()
+                          };
+                          setNotes(prev => prev.map(note =>
+                            note.id === selectedNote.id ? updatedNote : note
+                          ));
+                          setSelectedNote(updatedNote);
+                          
+                          // Sync with Drive if signed in
+                          if (isSignedIn && selectedNote.driveFileId && driveService) {
+                            driveService.updateFile(selectedNote.driveFileId, updatedContent)
+                              .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
+                          }
+                          // console.log('Updated note content for checkbox');
+                        } else {
+                          // console.warn('Missing required props for checkbox update:', { 
+                          //   isEditing, 
+                          //   hasSetEditContent: !!setEditContent, 
+                          //   hasSelectedNote: !!selectedNote,
+                          //   hasSetNotes: !!setNotes,
+                          //   hasSetSelectedNote: !!setSelectedNote
+                          // });
                         }
+                      } catch (error) {
+                        // console.error('Error updating checkbox:', error);
                       }
                     }}
-                    className="align-middle flex-shrink-0 -mt-1 w-5 h-5 min-w-[1.25rem] min-h-[1.25rem]"
+                    className="align-middle flex-shrink-0 -mt-1 w-5 h-5 min-w-[1.25rem] min-h-[1.25rem] cursor-pointer"
                   />
                   <span className={`flex-1 ${isChecked ? 'line-through text-gray-500/70' : 'text-gray-300'}`}>
                     {restOfContent}
@@ -649,6 +691,141 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           <del className="line-through text-gray-400" {...props}>{children}</del>
         ),
 
+        img: ({ src, alt, ...props }) => {
+          const [isLoading, setIsLoading] = React.useState(true);
+          const [hasError, setHasError] = React.useState(false);
+          const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+
+          // Reset states when src changes
+          React.useEffect(() => {
+            setIsLoading(true);
+            setHasError(false);
+            setImageUrl(null);
+          }, [src]);
+
+          // Handle Google Drive URLs with direct API access
+          if (src && typeof src === 'string' && src.includes('drive.google.com')) {
+            // Extract file ID from Google Drive URL
+            const fileId = src.match(/id=([^&]+)/)?.[1];
+            if (fileId) {
+              // Load image directly from Google Drive API
+              React.useEffect(() => {
+                const loadImageFromDrive = async () => {
+                  try {
+                    // Import drive service dynamically
+                    const { driveService } = await import('../../../lib/googleDrive');
+                    
+                    // Get access token
+                    const accessToken = await driveService.getAccessToken();
+                    if (!accessToken) {
+                      console.error('No access token available for image');
+                      setHasError(true);
+                      setIsLoading(false);
+                      return;
+                    }
+
+                    // Get the file content as blob from Google Drive API
+                    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                      headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                      }
+                    });
+                    
+                    if (response.ok) {
+                      const blob = await response.blob();
+                      const url = URL.createObjectURL(blob);
+                      setImageUrl(url);
+                      setIsLoading(false);
+                      setHasError(false);
+                    } else {
+                      console.error(`Failed to load image: ${response.status}`);
+                      setHasError(true);
+                      setIsLoading(false);
+                    }
+                  } catch (error) {
+                    console.error('Failed to load image from Drive:', error);
+                    setHasError(true);
+                    setIsLoading(false);
+                  }
+                };
+
+                loadImageFromDrive();
+
+                // Cleanup function to revoke object URL
+                return () => {
+                  if (imageUrl && imageUrl.startsWith('blob:')) {
+                    URL.revokeObjectURL(imageUrl);
+                  }
+                };
+              }, [fileId]);
+
+              return (
+                <div className="relative my-4">
+                  {isLoading && (
+                    <div className="flex flex-col space-y-3">
+                      <Skeleton className="h-[200px] w-full rounded-xl" />
+                    </div>
+                  )}
+                  {imageUrl && !isLoading && (
+                    <img
+                      src={imageUrl}
+                      alt={alt || 'Image'}
+                      className="max-w-full h-auto rounded-lg shadow-lg"
+                      {...props}
+                    />
+                  )}
+                  {hasError && (
+                    <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
+                      <div className="text-sm mb-2">📷</div>
+                      <div className="text-xs">[Image: {alt || 'Uploaded image'}]</div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+          }
+          
+          // Default image handling
+          const handleLoad = () => {
+            console.log('Regular image loaded successfully');
+            setIsLoading(false);
+            setHasError(false);
+          };
+
+          const handleError = () => {
+            console.log('Regular image failed to load');
+            setIsLoading(false);
+            setHasError(true);
+          };
+
+          return (
+            <div className="relative my-4">
+              {isLoading && (
+                <div className="flex flex-col space-y-3">
+                  <Skeleton className="h-[200px] w-full rounded-xl" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[200px]" />
+                    <Skeleton className="h-4 w-[150px]" />
+                  </div>
+                </div>
+              )}
+              <img
+                src={src}
+                alt={alt || 'Image'}
+                className={`max-w-full h-auto rounded-lg shadow-lg ${isLoading ? 'hidden' : ''}`}
+                onLoad={handleLoad}
+                onError={handleError}
+                {...props}
+              />
+              {hasError && (
+                <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
+                  <div className="text-sm mb-2">📷</div>
+                  <div className="text-xs">[Image: {alt || 'Image'}]</div>
+                </div>
+              )}
+            </div>
+          );
+        },
         span: ({ children, className, ...props }) => {
           if (className === 'math math-inline') {
             return <span className="math-inline" {...props}>{children}</span>;

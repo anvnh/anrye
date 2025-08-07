@@ -299,6 +299,7 @@ export default function NotesPage() {
                       editContent={editContent}
                       setEditContent={setEditContent}
                       notes={notes}
+                      folders={folders}
                       selectedNote={selectedNote}
                       setNotes={setNotes}
                       setSelectedNote={setSelectedNote}
@@ -312,6 +313,8 @@ export default function NotesPage() {
                       tabSize={tabSize}
                       fontSize={fontSize}
                       previewFontSize={previewFontSize}
+                      setIsLoading={setIsLoading}
+                      setSyncProgress={setSyncProgress}
                     />
                   ) : (
                     /* Regular Edit Mode */
@@ -320,6 +323,11 @@ export default function NotesPage() {
                       setEditContent={setEditContent}
                       tabSize={tabSize}
                       fontSize={fontSize}
+                      notes={notes}
+                      folders={folders}
+                      selectedNote={selectedNote}
+                      setIsLoading={setIsLoading}
+                      setSyncProgress={setSyncProgress}
                     />
                   )
                 ) : (

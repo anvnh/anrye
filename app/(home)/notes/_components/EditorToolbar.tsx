@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { 
   Bold, 
   Italic, 
@@ -17,19 +17,22 @@ import {
   Minus, 
   MessageCircle,
   Undo,
-  Redo
+  Redo,
+  Clipboard
 } from 'lucide-react';
 
 interface EditorToolbarProps {
   editContent: string;
   setEditContent: (content: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  onPasteImage?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editContent,
   setEditContent,
-  textareaRef
+  textareaRef,
+  onPasteImage
 }) => {
   const updateSelection = useCallback(() => {
     if (textareaRef?.current) {
@@ -368,6 +371,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           title="Insert Image"
         >
           <Image size={16} />
+        </button>
+        <button
+          onClick={onPasteImage}
+          className="p-2 hover:bg-gray-700 rounded transition-colors"
+          title="Paste Image (Ctrl+V)"
+        >
+          <Clipboard size={16} />
         </button>
         <button
           onClick={() => insertAtCursor('\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n')}

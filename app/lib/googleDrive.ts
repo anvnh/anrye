@@ -1044,7 +1044,22 @@ class GoogleDriveService {
     });
 
     const response = await request;
-    return response.result.id;
+    const fileId = response.result.id;
+    
+    // Make the image publicly accessible for direct viewing
+    try {
+      await window.gapi.client.drive.permissions.create({
+        'fileId': fileId,
+        'resource': {
+          'type': 'anyone',
+          'role': 'reader'
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to make image public, but upload succeeded:', error);
+    }
+    
+    return fileId;
   }
 
   async getAccessToken(): Promise<string | null> {

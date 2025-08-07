@@ -1,17 +1,19 @@
 'use client';
 
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
-import { Note } from './types';
+import { Note, Folder } from './types';
 import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
 import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
+import { usePasteImage } from '../_hooks/usePasteImage';
 
 
 interface NoteSplitEditorProps {
   editContent: string;
   setEditContent: (content: string) => void;
   notes: Note[];
+  folders: Folder[];
   selectedNote: Note | null;
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
   setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
@@ -29,12 +31,15 @@ interface NoteSplitEditorProps {
   tabSize?: number;
   fontSize?: string;
   previewFontSize?: string;
+  setIsLoading: (loading: boolean) => void;
+  setSyncProgress: (progress: number) => void;
 }
 
 export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   editContent,
   setEditContent,
   notes,
+  folders,
   selectedNote,
   setNotes,
   setSelectedNote,
@@ -47,11 +52,43 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   lastScrollSource,
   tabSize = 2,
   fontSize = '16px',
-  previewFontSize = '16px'
+  previewFontSize = '16px',
+  setIsLoading,
+  setSyncProgress
 }) => {
 
   // Ref for textarea to enable context menu functionality
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Initialize paste image functionality
+  const { handlePasteImage } = usePasteImage({
+    notes,
+    folders,
+    selectedNote,
+    setEditContent,
+    setIsLoading,
+    setSyncProgress
+  });
+
+  // Add paste event listener to textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handlePaste = async (event: ClipboardEvent) => {
+      const handled = await handlePasteImage(event);
+      if (handled) {
+        // Image was pasted and handled, don't do default paste
+        return;
+      }
+      // If no image was found, let the default paste behavior continue
+    };
+
+    textarea.addEventListener('paste', handlePaste);
+    return () => {
+      textarea.removeEventListener('paste', handlePaste);
+    };
+  }, [handlePasteImage]);
 
   // Split pane resize state
   const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
@@ -382,6 +419,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           editContent={editContent}
           setEditContent={setEditContent}
           textareaRef={textareaRef}
+          onPasteImage={() => {
+            // Trigger paste event on textarea
+            if (textareaRef.current) {
+              textareaRef.current.focus();
+              document.execCommand('paste');
+            }
+          }}
         />
         <div className="flex-1 px-4 py-4 overflow-hidden">
           <textarea
@@ -391,7 +435,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             onScroll={handleRawScroll}
             onKeyDown={handleKeyDown}
             className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
-            placeholder="Write your note in Markdown..."
+            placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
             style={{
               scrollBehavior: 'auto',
               backgroundColor: '#31363F',

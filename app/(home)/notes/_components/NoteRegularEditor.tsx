@@ -1,22 +1,65 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { EditorToolbar } from './EditorToolbar';
-
+import { usePasteImage } from '../_hooks/usePasteImage';
+import { Note, Folder } from './types';
 
 interface NoteRegularEditorProps {
   editContent: string;
   setEditContent: (content: string) => void;
   tabSize?: number;
   fontSize?: string;
+  notes: Note[];
+  folders: Folder[];
+  selectedNote: Note | null;
+  setIsLoading: (loading: boolean) => void;
+  setSyncProgress: (progress: number) => void;
 }
 
 export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   editContent,
   setEditContent,
   tabSize = 2,
-  fontSize = '16px'
+  fontSize = '16px',
+  notes,
+  folders,
+  selectedNote,
+  setIsLoading,
+  setSyncProgress
 }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Initialize paste image functionality
+  const { handlePasteImage } = usePasteImage({
+    notes,
+    folders,
+    selectedNote,
+    setEditContent,
+    setIsLoading,
+    setSyncProgress
+  });
+
+  // Add paste event listener to textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handlePaste = async (event: ClipboardEvent) => {
+      const handled = await handlePasteImage(event);
+      if (handled) {
+        // Image was pasted and handled, don't do default paste
+        return;
+      }
+      // If no image was found, let the default paste behavior continue
+    };
+
+    textarea.addEventListener('paste', handlePaste);
+    return () => {
+      textarea.removeEventListener('paste', handlePaste);
+    };
+  }, [handlePasteImage]);
+
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
@@ -83,7 +126,6 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
       }
     }
   };
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   return (
     <div className="flex flex-col h-full bg-secondary">
@@ -91,6 +133,13 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
         editContent={editContent} 
         setEditContent={setEditContent}
         textareaRef={textareaRef}
+        onPasteImage={() => {
+          // Trigger paste event on textarea
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            document.execCommand('paste');
+          }
+        }}
       />
       <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-6">
         <textarea
@@ -99,7 +148,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           onChange={(e) => setEditContent(e.target.value)}
           onKeyDown={handleKeyDown}
           className="w-full h-full resize-none bg-secondary text-gray-300 focus:outline-none font-mono text-sm"
-          placeholder="Write your note in Markdown..."
+          placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
           style={{ 
             backgroundColor: '#111111',
             fontSize: fontSize
