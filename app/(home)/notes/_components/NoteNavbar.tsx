@@ -70,6 +70,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
     const diffInSeconds = Math.floor(diffInMs / 1000);
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    const diffInMonths = Math.floor(diffInDays / 30);
+    const diffInYears = Math.floor(diffInDays / 365);
     
     // Format the time as HH:MM
     const timeString = date.toLocaleTimeString('en-US', { 
@@ -85,20 +88,36 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       year: 'numeric'
     });
     
-    // Create time ago string
+    // Create time ago string with proper conversions
     let timeAgoString = '';
-    if (diffInHours > 0) {
-      timeAgoString = `${diffInHours} hours`;
+    
+    if (diffInYears > 0) {
+      timeAgoString = `${diffInYears} year${diffInYears > 1 ? 's' : ''}`;
+      if (diffInMonths % 12 > 0) {
+        timeAgoString += ` ${diffInMonths % 12} month${(diffInMonths % 12) > 1 ? 's' : ''}`;
+      }
+    } else if (diffInMonths > 0) {
+      timeAgoString = `${diffInMonths} month${diffInMonths > 1 ? 's' : ''}`;
+      if (diffInDays % 30 > 0) {
+        timeAgoString += ` ${diffInDays % 30} day${(diffInDays % 30) > 1 ? 's' : ''}`;
+      }
+    } else if (diffInDays > 0) {
+      timeAgoString = `${diffInDays} day${diffInDays > 1 ? 's' : ''}`;
+      if (diffInHours % 24 > 0) {
+        timeAgoString += ` ${diffInHours % 24} hour${(diffInHours % 24) > 1 ? 's' : ''}`;
+      }
+    } else if (diffInHours > 0) {
+      timeAgoString = `${diffInHours} hour${diffInHours > 1 ? 's' : ''}`;
       if (diffInMinutes % 60 > 0) {
-        timeAgoString += ` ${diffInMinutes % 60} minutes`;
+        timeAgoString += ` ${diffInMinutes % 60} minute${(diffInMinutes % 60) > 1 ? 's' : ''}`;
       }
     } else if (diffInMinutes > 0) {
-      timeAgoString = `${diffInMinutes} minutes`;
+      timeAgoString = `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
       if (diffInSeconds % 60 > 0) {
-        timeAgoString += ` ${diffInSeconds % 60} seconds`;
+        timeAgoString += ` ${diffInSeconds % 60} second${(diffInSeconds % 60) > 1 ? 's' : ''}`;
       }
     } else {
-      timeAgoString = `${diffInSeconds} seconds`;
+      timeAgoString = `${diffInSeconds} second${diffInSeconds > 1 ? 's' : ''}`;
     }
     
     return `${timeAgoString} ago at ${timeString} - ${dateStringFormatted}`;
