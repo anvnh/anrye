@@ -22,13 +22,6 @@ interface NoteSplitEditorProps {
   driveService: {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
-  // Split mode sync props
-  isScrollingSynced: boolean;
-  setIsScrollingSynced: (synced: boolean) => void;
-  scrollTimeoutRef: React.RefObject<NodeJS.Timeout | null>;
-  // scrollThrottleRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  scrollThrottleRef: React.RefObject<number | null>;
-  lastScrollSource: React.RefObject<'raw' | 'preview' | null>;
   tabSize?: number;
   fontSize?: string;
   previewFontSize?: string;
@@ -46,11 +39,6 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   setSelectedNote,
   isSignedIn,
   driveService,
-  isScrollingSynced,
-  setIsScrollingSynced,
-  scrollTimeoutRef,
-  scrollThrottleRef,
-  lastScrollSource,
   tabSize = 2,
   fontSize = '16px',
   previewFontSize = '16px',
@@ -58,9 +46,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   setSyncProgress
 }) => {
 
-  // Ref for textarea to enable context menu functionality
+  // Refs for scroll sync targets
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const domHeadingElsRef = useRef<HTMLElement[]>([]);
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   // Initialize paste image functionality
   const { handlePasteImage } = usePasteImage({
@@ -119,13 +110,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   const pendingUpdateRef = useRef<string | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const scrollHeightCache = useRef<{
-    raw?: { scrollHeight: number; clientHeight: number; timestamp: number };
-    preview?: { scrollHeight: number; clientHeight: number; timestamp: number };
-  }>({});
-
-  const SCROLL_THRESHOLD = 5; // pixels
-  const CACHE_DURATION = 150; // ms
+  // Internal sync flags
+  const isSyncingRef = useRef<boolean>(false);
+  const lastSourceRef = useRef<'raw' | 'preview' | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const SCROLL_THRESHOLD = 3; // pixels
   const THROTTLE_DELAY = 8; // ~120fps
 
   // Remove the old debounce effect since we're using the advanced hook
@@ -186,110 +175,170 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  const lastScrollPositions = useRef<{
-    raw: number;
-    preview: number;
-  }>({ raw: 0, preview: 0 });
+  const lastScrollPositions = useRef<{ raw: number; preview: number }>({ raw: 0, preview: 0 });
 
-  // Optimized getScrollMetrics function
-  const getScrollMetrics = useCallback((element: HTMLElement, type: 'raw' | 'preview') => {
-    const now = Date.now();
-    const cached = scrollHeightCache.current[type];
-
-    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      return {
-        maxScroll: cached.scrollHeight - cached.clientHeight
-      };
-    }
-
-    const scrollHeight = element.scrollHeight;
-    const clientHeight = element.clientHeight;
-    const maxScroll = scrollHeight - clientHeight;
-
-    scrollHeightCache.current[type] = {
-      scrollHeight,
-      clientHeight,
-      timestamp: now
-    };
-
-    return { maxScroll };
+  // ---------- Heading-based mapping helpers ----------
+  const preprocessContent = useCallback((content: string) => {
+    let processed = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => `\n$$${p1}$$\n`);
+    processed = processed.replace(/\n{3,}/g, '\n\n');
+    return processed;
   }, []);
 
-  const syncScroll = useCallback(
-    (sourceElement: HTMLElement, targetElement: HTMLElement, source: 'raw' | 'preview') => {
-      if (!sourceElement || !targetElement || isScrollingSynced) return;
-      if (lastScrollSource.current === source) return;
+  const stripMarkdown = useCallback((text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/`(.*?)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/~~(.*?)~~/g, '$1')
+      .replace(/^#+\s+/, '')
+      .trim();
+  }, []);
 
-      const currentScrollTop = sourceElement.scrollTop;
-      const lastScrollTop = lastScrollPositions.current[source];
+  type HeadingInfo = { line: number; level: number; id: string };
 
-      // Skip if scroll position hasn't changed significantly
-      if (Math.abs(currentScrollTop - lastScrollTop) < SCROLL_THRESHOLD) return;
+  const headingList = useMemo<HeadingInfo[]>(() => {
+    const processed = preprocessContent(editContent);
+    const lines = processed.split('\n');
+    const titleCounts: Record<string, number> = {};
+    const result: HeadingInfo[] = [];
+    lines.forEach((line, index) => {
+      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const rawTitle = match[2].trim();
+        const cleanTitle = stripMarkdown(rawTitle);
+        const baseId = cleanTitle
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .trim();
+        titleCounts[baseId] = (titleCounts[baseId] || 0) + 1;
+        const id = titleCounts[baseId] === 1 ? baseId : `${baseId}-${titleCounts[baseId]}`;
+        result.push({ line: index, level, id });
+      }
+    });
+    return result;
+  }, [editContent, preprocessContent, stripMarkdown]);
 
-      if (scrollThrottleRef.current) {
-        cancelAnimationFrame(scrollThrottleRef.current);
+  const findHeadingForApproxLine = useCallback((approxLine: number): { heading: HeadingInfo; index: number } | null => {
+    if (headingList.length === 0) return null;
+    let chosenIndex = 0;
+    for (let i = 0; i < headingList.length; i++) {
+      if (headingList[i].line <= approxLine) {
+        chosenIndex = i;
+      } else {
+        break;
+      }
+    }
+    return { heading: headingList[chosenIndex], index: chosenIndex };
+  }, [headingList]);
+
+  const scrollPreviewToElement = useCallback((el: HTMLElement) => {
+    const container = previewRef.current;
+    if (!container || !el) return;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const targetTop = container.scrollTop + (elRect.top - containerRect.top);
+    container.scrollTo({ top: targetTop, behavior: 'auto' });
+  }, []);
+
+  const scrollPreviewToHeadingId = useCallback((headingId: string) => {
+    const container = previewRef.current;
+    if (!container) return;
+    const safeEscape = (value: string) => {
+      try {
+        // @ts-ignore - CSS may not be typed in some environments
+        return (CSS && typeof CSS.escape === 'function') ? CSS.escape(value) : value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+      } catch {
+        return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+      }
+    };
+    const el = container.querySelector(`#${safeEscape(headingId)}`) as HTMLElement | null;
+    if (!el) return;
+    scrollPreviewToElement(el);
+  }, [scrollPreviewToElement]);
+
+  // ---------- Scroll handlers using heading alignment ----------
+  const syncPreviewFromRaw = useCallback((rawElement: HTMLTextAreaElement) => {
+    if (!rawElement) return;
+    if (isSyncingRef.current && lastSourceRef.current !== 'raw') return;
+
+    const maxScroll = rawElement.scrollHeight - rawElement.clientHeight;
+    if (maxScroll <= 0) return;
+    const currentScrollTop = rawElement.scrollTop;
+    if (Math.abs(currentScrollTop - lastScrollPositions.current.raw) < SCROLL_THRESHOLD) return;
+
+    lastScrollPositions.current.raw = currentScrollTop;
+
+    const totalLines = editContent.split('\n').length;
+    const ratio = Math.max(0, Math.min(1, currentScrollTop / maxScroll));
+    const approxLine = Math.max(0, Math.min(totalLines - 1, Math.round(ratio * (totalLines - 1))));
+    const found = findHeadingForApproxLine(approxLine);
+
+    isSyncingRef.current = true;
+    lastSourceRef.current = 'raw';
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      // Primary: robust ratio-based scroll mapping for reliability
+      const container = previewRef.current;
+      if (container) {
+        const maxTarget = container.scrollHeight - container.clientHeight;
+        if (maxTarget > 0) {
+          container.scrollTo({ top: Math.round(ratio * maxTarget), behavior: 'auto' });
+          setTimeout(() => {
+            isSyncingRef.current = false;
+            lastSourceRef.current = null;
+          }, 16);
+          return;
+        }
       }
 
-      scrollThrottleRef.current = requestAnimationFrame(() => {
-        const sourceMetrics = getScrollMetrics(sourceElement, source);
-        const targetType = source === 'raw' ? 'preview' : 'raw';
-        const targetMetrics = getScrollMetrics(targetElement, targetType);
-
-        if (sourceMetrics.maxScroll <= 0 || targetMetrics.maxScroll <= 0) return;
-
-        setIsScrollingSynced(true);
-        lastScrollSource.current = source;
-
-        const scrollPercentage = Math.max(0, Math.min(1,
-          currentScrollTop / sourceMetrics.maxScroll
-        ));
-        const targetScrollTop = Math.round(scrollPercentage * targetMetrics.maxScroll);
-
-        lastScrollPositions.current[source] = currentScrollTop;
-
-        targetElement.style.scrollBehavior = 'auto';
-        targetElement.scrollTop = targetScrollTop;
-
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
+      const domHeadings = domHeadingElsRef.current;
+      if (domHeadings && domHeadings.length > 0) {
+        if (found) {
+          const idx = Math.max(0, Math.min(domHeadings.length - 1, found.index));
+          scrollPreviewToElement(domHeadings[idx]);
+        } else {
+          // No headings parsed from source; map by ratio to DOM headings
+          const idx = Math.max(0, Math.min(domHeadings.length - 1, Math.round(ratio * (domHeadings.length - 1))));
+          scrollPreviewToElement(domHeadings[idx]);
         }
-        scrollTimeoutRef.current = setTimeout(() => {
-          setIsScrollingSynced(false);
-          lastScrollSource.current = null;
-        }, 32);
-      }) as any;
-    },
-    [isScrollingSynced, setIsScrollingSynced, scrollTimeoutRef, scrollThrottleRef, lastScrollSource, getScrollMetrics]
-  );
+      } else if (found) {
+        // Fallback to ID-based if DOM heading list is empty
+        scrollPreviewToHeadingId(found.heading.id);
+      } else {
+        // Final fallback: ratio-based scroll
+        const container2 = previewRef.current;
+        if (container2) {
+          const maxTarget2 = container2.scrollHeight - container2.clientHeight;
+          if (maxTarget2 > 0) container2.scrollTo({ top: Math.round(ratio * maxTarget2), behavior: 'auto' });
+        }
+      }
+      // Release soon to allow opposite side after the scroll settles
+      setTimeout(() => {
+        isSyncingRef.current = false;
+        lastSourceRef.current = null;
+      }, 16);
+    });
+  }, [editContent, findHeadingForApproxLine, scrollPreviewToElement, scrollPreviewToHeadingId]);
 
   const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (isScrollingSynced) return;
-
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastRawScrollTime = now;
-
-    const rawElement = e.currentTarget;
-    const previewElement = document.querySelector('.preview-content') as HTMLElement;
-
-    if (previewElement) {
-      syncScroll(rawElement, previewElement, 'raw');
-    }
-  }, [syncScroll, isScrollingSynced]);
+    syncPreviewFromRaw(e.currentTarget);
+  }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (isScrollingSynced) return;
-
+    // Optional: reverse sync could be added by detecting current visible heading
+    // For now, we prioritize raw -> preview syncing as primary use-case during editing
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastPreviewScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastPreviewScrollTime = now;
-
-    const previewElement = e.currentTarget;
-    const rawElement = document.querySelector('.raw-content') as HTMLTextAreaElement;
-    if (rawElement) {
-      syncScroll(previewElement, rawElement, 'preview');
-    }
-  }, [syncScroll, isScrollingSynced]);
+    // No-op for reverse for stability
+  }, []);
 
 
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
@@ -414,9 +463,60 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     return preview;
   }, [debouncedContent, isPending, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
+  // Cleanup animation frame
   useEffect(() => {
-    scrollHeightCache.current = {};
-  }, [editContent]);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  // Rebuild DOM heading list whenever preview content updates
+  useEffect(() => {
+    const container = previewRef.current;
+    if (!container) return;
+    const nodeList = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    domHeadingElsRef.current = Array.from(nodeList) as HTMLElement[];
+  }, [debouncedContent]);
+
+  // Helper to rebuild DOM heading list (and keep it fresh while preview updates)
+  const rebuildDomHeadingList = useCallback(() => {
+    const container = previewRef.current;
+    if (!container) return;
+    const nodeList = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    domHeadingElsRef.current = Array.from(nodeList) as HTMLElement[];
+  }, []);
+
+  // Keep heading list updated reactively using a MutationObserver
+  useEffect(() => {
+    // Initial build shortly after mount/content change
+    const rafId = requestAnimationFrame(() => {
+      rebuildDomHeadingList();
+    });
+
+    const container = previewRef.current;
+    if (!container) return () => cancelAnimationFrame(rafId);
+
+    // Disconnect any previous observer
+    if (mutationObserverRef.current) {
+      mutationObserverRef.current.disconnect();
+      mutationObserverRef.current = null;
+    }
+
+    const observer = new MutationObserver(() => {
+      // Rebuild when children or attributes change (e.g., fold state, lazy content)
+      rebuildDomHeadingList();
+    });
+    observer.observe(container, { childList: true, subtree: true, attributes: true });
+    mutationObserverRef.current = observer;
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+      if (mutationObserverRef.current === observer) {
+        mutationObserverRef.current = null;
+      }
+    };
+  }, [rebuildDomHeadingList, debouncedContent]);
 
   return (
     <div className="flex h-full w-full relative">
@@ -507,6 +607,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         }}
       >
         <div
+          ref={previewRef}
           className="preview-content flex-1 px-4 py-4 overflow-y-auto"
           onScroll={handlePreviewScroll}
           style={{

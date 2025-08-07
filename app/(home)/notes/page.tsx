@@ -30,7 +30,7 @@ import {
 // Import utilities
 import { startEdit, cancelEdit, closeNote } from './_utils/noteActions';
 import { clearAllData, setupDebugUtils } from './_utils/debugUtils';
-import { useScrollSync } from './_utils/scrollSync';
+// Removed: heading-based sync is now self-contained in NoteSplitEditor
 
 export default function NotesPage() {
   // Use custom hooks for state management
@@ -113,9 +113,7 @@ export default function NotesPage() {
 
   const { isSignedIn, signIn, signOut } = useDrive();
 
-  // Scroll synchronization state for split mode
-  const [isScrollingSynced, setIsScrollingSynced] = useState(false);
-  const { scrollTimeoutRef, lastScrollSource, scrollThrottleRef, cleanupTimeouts } = useScrollSync();
+  // Scroll synchronization handled inside NoteSplitEditor
 
   // Use custom hooks for side effects
   useKeyboardShortcuts(
@@ -153,10 +151,7 @@ export default function NotesPage() {
     initializeData();
   }, [isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized]);
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return cleanupTimeouts;
-  }, [cleanupTimeouts]);
+  // No external scroll sync cleanup needed
 
   // Setup debug utilities
   useEffect(() => {
@@ -308,11 +303,6 @@ export default function NotesPage() {
                       setSelectedNote={setSelectedNote}
                       isSignedIn={isSignedIn}
                       driveService={driveService}
-                      isScrollingSynced={isScrollingSynced}
-                      setIsScrollingSynced={setIsScrollingSynced}
-                      scrollTimeoutRef={scrollTimeoutRef}
-                      scrollThrottleRef={scrollThrottleRef}
-                      lastScrollSource={lastScrollSource}
                       tabSize={tabSize}
                       fontSize={fontSize}
                       previewFontSize={previewFontSize}
