@@ -784,7 +784,16 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                       </div>
                       {isEditorOpen && (
                         // @ts-ignore dynamic import path
-                        React.createElement(require('../_components/ImageEditor').default, { src: imageUrl, driveFileId: (src as string).match(/id=([^&]+)/)?.[1], onClose: () => setIsEditorOpen(false) })
+                        React.createElement(require('../_components/ImageEditor').default, { 
+                          src: imageUrl, 
+                          driveFileId: (src as string).match(/id=([^&]+)/)?.[1], 
+                          onClose: () => setIsEditorOpen(false),
+                          onSaved: (newUrl: string) => {
+                            try { if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl); } catch {}
+                            setImageUrl(newUrl);
+                            setIsEditorOpen(false);
+                          }
+                        })
                       )}
                       {isLightboxOpen && (
                         // @ts-ignore dynamic import path
@@ -833,9 +842,18 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 </div>
               )}
               <>
+                {(() => {
+                  // Local state to allow live refresh after editing
+                  const [inlineUrl, setInlineUrl] = React.useState<string | null>(typeof src === 'string' ? (src as string) : null);
+                  React.useEffect(() => {
+                    if (typeof src === 'string') setInlineUrl(src as string);
+                  }, [src]);
+                  // Render image and modals using inlineUrl
+                  return (
+                    <>
                 <div className="group relative">
                   <img
-                    src={src}
+                    src={inlineUrl || (src as string)}
                     alt={alt || 'Image'}
                     className={`max-w-full h-auto rounded-lg shadow-lg ${isLoading ? 'hidden' : ''} cursor-zoom-in`}
                     onLoad={handleLoad}
@@ -845,19 +863,30 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   />
                  {/* Action overlay removed per request */}
                 </div>
-                {isEditorOpen && src && (
+                {isEditorOpen && (inlineUrl || src) && (
                   // @ts-ignore dynamic import path
-                  React.createElement(require('../_components/ImageEditor').default, { src: src as string, onClose: () => setIsEditorOpen(false) })
+                  React.createElement(require('../_components/ImageEditor').default, { 
+                    src: (inlineUrl || (src as string)) as string, 
+                    onClose: () => setIsEditorOpen(false),
+                    onSaved: (newUrl: string) => {
+                      try { if (inlineUrl?.startsWith('blob:')) URL.revokeObjectURL(inlineUrl); } catch {}
+                      setInlineUrl(newUrl);
+                      setIsEditorOpen(false);
+                    }
+                  })
                 )}
-                {isLightboxOpen && src && (
+                {isLightboxOpen && (inlineUrl || src) && (
                   // @ts-ignore dynamic import path
                   React.createElement(require('../_components/ImageLightbox').default, { 
-                    src: src as string, 
+                    src: (inlineUrl || (src as string)) as string, 
                     alt, 
                     onClose: () => setIsLightboxOpen(false),
                     onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
                   })
                 )}
+                    </>
+                  );
+                })()}
               </>
               {hasError && (
                 <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">

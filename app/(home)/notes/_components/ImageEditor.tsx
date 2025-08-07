@@ -21,10 +21,12 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const [crop, setCrop] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [tool, setTool] = useState<'move' | 'draw' | 'eraser' | 'rect' | 'crop' | 'none'>('draw');
+  const [tool, setTool] = useState<'move' | 'draw' | 'eraser' | 'rect' | 'text' | 'crop' | 'none'>('draw');
   const [brushColor, setBrushColor] = useState('#ff4757');
   const [brushSize, setBrushSize] = useState(4);
   const [scale, setScale] = useState(1);
+  const [textValue, setTextValue] = useState<string>('Text');
+  const [textSize, setTextSize] = useState<number>(28);
   const rectStart = useRef<{ x: number; y: number } | null>(null);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -33,6 +35,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const lastMidRef = useRef<{ x: number; y: number } | null>(null);
   const prevToolRef = useRef<typeof tool | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
+  const [activeText, setActiveText] = useState<{ x: number; y: number } | null>(null);
+  const textDragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
+  const [isDraggingText, setIsDraggingText] = useState(false);
 
   useEffect(() => {
     const isTypingTarget = (el: EventTarget | null) => {
@@ -51,6 +56,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       if (k === 'm') { setTool('move'); }
       if (k === 'b') { setTool('draw'); }
       if (k === 'e') { setTool('eraser'); }
+      if (k === 't') { setTool('text'); }
       if (k === 'c') { setTool('crop'); }
       if (k === '[') { setRotation(r => (r - 90 + 360) % 360); }
       if (k === ']') { setRotation(r => (r + 90) % 360); }
@@ -191,6 +197,35 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       panOriginRef.current = { ...panOffset };
       return;
     }
+    if (tool === 'text') {
+      const pt = toNatural(e.clientX, e.clientY, container);
+      const ctx = (overlayRef.current as HTMLCanvasElement).getContext('2d')!;
+      ctx.font = `${textSize}px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial`;
+      const metrics = ctx.measureText(textValue || 'Text');
+      const w = metrics.width; const h = textSize;
+      if (activeText) {
+        const inside = pt.x >= activeText.x && pt.x <= activeText.x + w && pt.y >= activeText.y && pt.y <= activeText.y + h;
+        if (inside) {
+          textDragOffsetRef.current = { dx: pt.x - activeText.x, dy: pt.y - activeText.y };
+          setIsDraggingText(true);
+          return;
+        }
+        // Commit current text then clear selection if click outside
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = brushColor;
+        ctx.textBaseline = 'top';
+        ctx.fillText(textValue || 'Text', activeText.x, activeText.y);
+        setActiveText(null);
+        setIsDraggingText(false);
+        textDragOffsetRef.current = null;
+        return;
+      }
+      // Start new text placement and allow dragging before committing
+      setActiveText({ x: pt.x, y: pt.y });
+      textDragOffsetRef.current = { dx: 0, dy: 0 };
+      setIsDraggingText(true);
+      return;
+    }
     if (tool === 'draw' || tool === 'eraser') {
       const pt = toNatural(e.clientX, e.clientY, container);
       const ctx = (overlayRef.current as HTMLCanvasElement).getContext('2d')!;
@@ -217,6 +252,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const moveCrop = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!imgRef.current) return;
     const container = e.currentTarget as HTMLDivElement;
+    if (tool === 'text') {
+      if (!activeText || !isDraggingText) return;
+      const pt = toNatural(e.clientX, e.clientY, container);
+      const off = textDragOffsetRef.current || { dx: 0, dy: 0 };
+      setActiveText({ x: pt.x - off.dx, y: pt.y - off.dy });
+      return;
+    }
     if (tool === 'move') {
       if (!isDragging || !panStartRef.current || !panOriginRef.current) return;
       const dx = e.clientX - panStartRef.current.x;
@@ -278,7 +320,16 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
           <div style={{ transform: `translate(calc(-50% + ${panOffset.x}px), calc(-50% + ${panOffset.y}px)) scale(${scale}) rotate(${rotation}deg)`, top: '50%', left: '50%', position: 'absolute' }}>
             <img ref={imgRef} src={src} onLoad={onImageLoad} alt="edit" className="max-w-none rounded block" />
             <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-            <div className="absolute inset-0" onMouseDown={startCrop} onMouseMove={moveCrop} onMouseUp={() => setIsDragging(false)} />
+            {/* Live text preview while placing/moving */}
+            {tool === 'text' && activeText && (
+              <div
+                className="absolute pointer-events-none select-none"
+                style={{ left: activeText.x, top: activeText.y, color: brushColor, fontSize: textSize, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, \"Helvetica Neue\", Arial' }}
+              >
+                {textValue || 'Text'}
+              </div>
+            )}
+            <div className="absolute inset-0" onMouseDown={startCrop} onMouseMove={moveCrop} onMouseUp={() => { setIsDragging(false); setIsDraggingText(false); }} />
           </div>
           {/* Eraser cursor overlay (scaled with zoom) */}
           {tool === 'eraser' && cursor.visible && (
@@ -303,11 +354,18 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
             <option value="draw">Brush</option>
             <option value="eraser">Eraser</option>
             <option value="rect">Rectangle</option>
+            <option value="text">Text</option>
             <option value="crop">Crop</option>
             <option value="none">None</option>
           </select>
           <ColorPicker color={brushColor} onChange={setBrushColor} />
           <input type="range" min={1} max={20} value={brushSize} onChange={(e)=>setBrushSize(parseInt(e.target.value))} />
+          {tool === 'text' && (
+            <>
+              <input value={textValue} onChange={(e)=>setTextValue(e.target.value)} placeholder="Type text" className="px-2 py-1 rounded bg-gray-800/70 text-white w-40" />
+              <input type="range" min={10} max={120} value={textSize} onChange={(e)=>setTextSize(parseInt(e.target.value))} />
+            </>
+          )}
           <span className="text-xs text-white/60">Zoom: {Math.round(scale*100)}%</span>
           <button onClick={() => setRotation((r) => (r - 90 + 360) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
             <RotateCcw size={16} /> Left
