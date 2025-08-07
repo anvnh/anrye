@@ -7,6 +7,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 import { usePasteImage } from '../_hooks/usePasteImage';
+import RenameImageDialog from './RenameImageDialog';
 
 
 interface NoteSplitEditorProps {
@@ -59,6 +60,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   // Ref for textarea to enable context menu functionality
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
 
   // Initialize paste image functionality
   const { handlePasteImage } = usePasteImage({
@@ -67,7 +69,18 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     selectedNote,
     setEditContent,
     setIsLoading,
-    setSyncProgress
+    setSyncProgress,
+    onBeforeUpload: async (defaultFilename) => {
+      return await new Promise<string | null>((resolve) => {
+        setRenameModal({ open: true, defaultName: defaultFilename });
+        const handle = (newName: string | null) => {
+          setRenameModal(null);
+          resolve(newName);
+        };
+        (window as any).__rename_image_cb_split__ = handle;
+      });
+    },
+    getTargetTextarea: () => textareaRef.current
   });
 
   // Add paste event listener to textarea
@@ -407,6 +420,22 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   return (
     <div className="flex h-full w-full relative">
+      {renameModal?.open && (
+        <RenameImageDialog
+          isOpen={renameModal.open}
+          defaultName={renameModal.defaultName}
+          onConfirm={(newName) => {
+            const cb = (window as any).__rename_image_cb_split__ as (n: string | null) => void;
+            if (cb) cb(newName);
+          }}
+          onOpenChange={(open) => {
+            if (!open) {
+              const cb = (window as any).__rename_image_cb_split__ as (n: string | null) => void;
+              if (cb) cb(null);
+            }
+          }}
+        />
+      )}
       {/* Raw Editor Side */}
       <div
         className="flex flex-col border-r border-gray-500"

@@ -10,6 +10,8 @@ interface UsePasteImageProps {
   setEditContent: (content: string) => void;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
+  onBeforeUpload?: (defaultFilename: string, file: File) => Promise<string | null>;
+  getTargetTextarea?: () => HTMLTextAreaElement | null;
 }
 
 export const usePasteImage = ({
@@ -18,7 +20,9 @@ export const usePasteImage = ({
   selectedNote,
   setEditContent,
   setIsLoading,
-  setSyncProgress
+  setSyncProgress,
+  onBeforeUpload,
+  getTargetTextarea
 }: UsePasteImageProps) => {
   const { isSignedIn } = useDrive();
 
@@ -90,19 +94,38 @@ export const usePasteImage = ({
 
       // Generate unique filename with timestamp
       const timestamp = Date.now();
-      const extension = imageFile.name.split('.').pop()?.toLowerCase() || 'png';
-      const filename = `image-${timestamp}.${extension}`;
+      const extension = imageFile.name.split('.')?.pop()?.toLowerCase() || 'png';
+      const defaultFilename = `image-${timestamp}.${extension}`;
+
+      // Allow caller to prompt user for a custom name
+      let finalFilename = defaultFilename;
+      if (onBeforeUpload) {
+        try {
+          const maybeNew = await onBeforeUpload(defaultFilename, imageFile);
+          if (maybeNew && typeof maybeNew === 'string') {
+            // Ensure extension is preserved
+            const provided = maybeNew.trim();
+            if (provided) {
+              finalFilename = provided.endsWith(`.${extension}`)
+                ? provided
+                : `${provided}.${extension}`;
+            }
+          }
+        } catch (_) {
+          // Ignore and keep default filename
+        }
+      }
 
       setSyncProgress(50);
 
       // Upload image to Google Drive in the same folder as the note
-      const imageFileId = await driveService.uploadImage(filename, imageFile, parentDriveId);
+      const imageFileId = await driveService.uploadImage(finalFilename, imageFile, parentDriveId);
 
       setSyncProgress(80);
 
       // Create shareable URL for the image - use direct access format
       const imageUrl = `https://drive.google.com/uc?id=${imageFileId}`;
-      const markdownLink = `![${filename}](${imageUrl})`;
+      const markdownLink = `![${finalFilename}](${imageUrl})`;
 
       setSyncProgress(100);
 
@@ -112,7 +135,7 @@ export const usePasteImage = ({
       }, 500);
 
       return {
-        filename,
+        filename: finalFilename,
         imageUrl,
         markdownLink
       };
@@ -140,34 +163,41 @@ export const usePasteImage = ({
         const file = item.getAsFile();
         if (!file) continue;
 
+        // Capture insertion target and cursor before opening any modal
+        const initialTextarea = getTargetTextarea ? getTargetTextarea() : (document.activeElement as HTMLTextAreaElement);
+        const canInsertHere = initialTextarea && initialTextarea.tagName === 'TEXTAREA';
+        const start = canInsertHere ? initialTextarea!.selectionStart : null;
+        const end = canInsertHere ? initialTextarea!.selectionEnd : null;
+        const initialContent = canInsertHere ? initialTextarea!.value : null;
+
         const result = await uploadPastedImage(file);
         if (result) {
-          // Insert the markdown link at cursor position
-          const textarea = document.activeElement as HTMLTextAreaElement;
-          if (textarea && textarea.tagName === 'TEXTAREA') {
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const currentContent = textarea.value;
-            
-            const newContent = currentContent.substring(0, start) + 
-                             '\n' + result.markdownLink + '\n' + 
-                             currentContent.substring(end);
-            
+          // Insert the markdown link at the original cursor position (before modal)
+          if (canInsertHere && start !== null && end !== null && initialContent !== null) {
+            const newContent = initialContent.substring(0, start) +
+              '\n' + result.markdownLink + '\n' +
+              initialContent.substring(end);
             setEditContent(newContent);
-            
-            // Set cursor position after the inserted image
+
+            // Restore focus and cursor when possible
             setTimeout(() => {
-              textarea.focus();
-              const newPos = start + result.markdownLink.length + 2; // +2 for the newlines
-              textarea.setSelectionRange(newPos, newPos);
+              const textarea = getTargetTextarea ? getTargetTextarea() : initialTextarea;
+              if (textarea) {
+                textarea.focus();
+                const newPos = start + result.markdownLink.length + 2; // +2 for the newlines
+                textarea.setSelectionRange(newPos, newPos);
+              }
             }, 0);
+          } else {
+            // Fallback: append to end of content if we lost the focus element
+            setEditContent((prev) => (prev || '') + '\n' + result.markdownLink + '\n');
           }
           return true;
         }
       }
     }
     return false;
-  }, [uploadPastedImage, setEditContent]);
+  }, [uploadPastedImage, setEditContent, getTargetTextarea]);
 
   return {
     handlePasteImage,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Edit, Split, Menu, PanelLeftOpen } from 'lucide-react';
+import { Save, X, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
@@ -31,6 +31,7 @@ interface NoteNavbarProps {
   onCloseNote: () => void;
   isSidebarHidden: boolean;
   onToggleSidebar: () => void;
+  onOpenImageManager: () => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -59,6 +60,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   onCloseNote,
   isSidebarHidden,
   onToggleSidebar,
+  onOpenImageManager,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
@@ -194,6 +196,18 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           <X size={16} />
           <span className="hidden sm:inline">
             Close
+          </span>
+        </button>
+
+        {/* Image Manager Button */}
+        <button
+          onClick={onOpenImageManager}
+          className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          title="Manage Images"
+        >
+          <ImageIcon size={16} />
+          <span className="hidden sm:inline">
+            Images
           </span>
         </button>
 

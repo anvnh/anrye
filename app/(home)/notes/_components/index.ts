@@ -6,4 +6,5 @@ export { default as NoteOutlineSidebar } from './NoteOutlineSidebar';
 export { EditorToolbar } from './EditorToolbar';
 export { ShareDropdown } from './ShareDropdown';
 export { default as FoldableHeading } from './FoldableHeading';
+export { ImageManager } from './ImageManager';
 export * from './types';

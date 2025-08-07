@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Menu, PanelLeftOpen } from 'lucide-react';
+import { FileText, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
@@ -10,6 +10,7 @@ import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './
 import RenameDialog from './_components/RenameDialog';
 import NoteNavbar from './_components/NoteNavbar';
 import { LoadingSpinner } from './_components/LoadingSpinner';
+import { ImageManager } from './_components/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 // Import custom hooks
@@ -56,6 +57,7 @@ export default function NotesPage() {
     isResizing, setIsResizing,
     isRenameDialogOpen, setIsRenameDialogOpen,
     renameItem, setRenameItem,
+    isImageManagerOpen, setIsImageManagerOpen,
   } = useNotesState();
 
   const {
@@ -280,6 +282,7 @@ export default function NotesPage() {
                 onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}
                 isSidebarHidden={isSidebarHidden}
                 onToggleSidebar={toggleSidebar}
+                onOpenImageManager={() => setIsImageManagerOpen(true)}
               />
 
               {/* Note Content */}
@@ -507,6 +510,17 @@ export default function NotesPage() {
         currentName={renameItem?.currentName || ''}
         type={renameItem?.type || 'file'}
       />
+
+      {/* Image Manager */}
+      {isImageManagerOpen && (
+        <ImageManager
+          notes={notes}
+          selectedNote={selectedNote}
+          setEditContent={setEditContent}
+          isSignedIn={isSignedIn}
+          onClose={() => setIsImageManagerOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -49,6 +49,9 @@ export const useNotesState = () => {
     type: 'file' | 'folder';
   } | null>(null);
 
+  // Image manager state
+  const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
+
   // Load data from localStorage on mount
   useEffect(() => {
     const savedNotes = localStorage.getItem('notes-new');
@@ -206,5 +209,9 @@ export const useNotesState = () => {
     setIsRenameDialogOpen,
     renameItem,
     setRenameItem,
+
+    // Image Manager
+    isImageManagerOpen,
+    setIsImageManagerOpen,
   };
 }; 

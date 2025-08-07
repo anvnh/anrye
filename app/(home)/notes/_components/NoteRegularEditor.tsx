@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage } from '../_hooks/usePasteImage';
 import { Note, Folder } from './types';
+import RenameImageDialog from './RenameImageDialog';
 
 interface NoteRegularEditorProps {
   editContent: string;
@@ -29,6 +30,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   setSyncProgress
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
 
   // Initialize paste image functionality
   const { handlePasteImage } = usePasteImage({
@@ -37,7 +39,19 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
     selectedNote,
     setEditContent,
     setIsLoading,
-    setSyncProgress
+    setSyncProgress,
+    onBeforeUpload: async (defaultFilename) => {
+      return await new Promise<string | null>((resolve) => {
+        setRenameModal({ open: true, defaultName: defaultFilename });
+        const handle = (newName: string | null) => {
+          setRenameModal(null);
+          resolve(newName);
+        };
+        // Attach a one-off handler through state closure below by rendering dialog
+        (window as any).__rename_image_cb__ = handle;
+      });
+    },
+    getTargetTextarea: () => textareaRef.current
   });
 
   // Add paste event listener to textarea
@@ -129,6 +143,22 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   
   return (
     <div className="flex flex-col h-full bg-secondary">
+      {renameModal?.open && (
+        <RenameImageDialog
+          isOpen={renameModal.open}
+          defaultName={renameModal.defaultName}
+          onConfirm={(newName) => {
+            const cb = (window as any).__rename_image_cb__ as (n: string | null) => void;
+            if (cb) cb(newName);
+          }}
+          onOpenChange={(open) => {
+            if (!open) {
+              const cb = (window as any).__rename_image_cb__ as (n: string | null) => void;
+              if (cb) cb(null);
+            }
+          }}
+        />
+      )}
       <EditorToolbar 
         editContent={editContent} 
         setEditContent={setEditContent}
