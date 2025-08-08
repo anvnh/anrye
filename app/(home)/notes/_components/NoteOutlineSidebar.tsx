@@ -158,7 +158,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
   }
 
   return (
-    <div className="h-full w-full px-4 py-6 overflow-hidden">
+    <div className="h-full w-full px-4 py-6 overflow-hidden flex flex-col">
       {/* Header */}
       <div className="pb-2 border-b border-gray-600/30">
         <div className="flex items-center gap-2">
@@ -169,7 +169,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
       </div>
       
       {/* Outline List */}
-      <div className="overflow-y-auto h-full pt-2">
+      <div className="overflow-y-auto flex-1 pt-2">
         {outline.map((item, index) => {
           const isActive = activeHeading === item.id;
           

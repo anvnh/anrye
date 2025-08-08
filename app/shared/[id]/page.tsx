@@ -484,7 +484,7 @@ export default function SharedNotePage() {
                 {/* Outline Panel */}
                 <div
                   ref={outlineRef}
-                  className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
+                  className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
                 >
                   <div className="h-full">
                     <NoteOutlineSidebar content={note.content} />

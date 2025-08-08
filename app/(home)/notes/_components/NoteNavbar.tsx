@@ -182,7 +182,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             </div>
           </div>
         ) : (
-          <h1 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0" title={selectedNote.title}>
+          <h1 className="text-lg sm:text-md font-semibold text-white truncate min-w-0" title={selectedNote.title}>
             {selectedNote.title}
           </h1>
         )}
@@ -191,7 +191,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       <div
         className={
           `flex items-center gap-1 sm:gap-2 flex-shrink-0 justify-end
-           ${isEditing ? 'max-w-[55vw] sm:max-w-none' : 'max-w-none'}
+           ${isEditing ? 'max-w-[50vw] sm:max-w-none' : 'max-w-none'}
            flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap`
         }
       >
