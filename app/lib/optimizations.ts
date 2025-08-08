@@ -325,22 +325,7 @@ export const createResizeObserver = (
   return null;
 };
 
-// Web Worker utility
-export const createWebWorker = (workerScript: string): Worker | null => {
-  if (typeof window !== 'undefined' && 'Worker' in window) {
-    try {
-      // Use a data URL instead of blob URL to avoid static analysis issues
-      const dataUrl = `data:application/javascript;base64,${btoa(workerScript)}`;
-      const worker = new Worker(dataUrl);
-      
-      return worker;
-    } catch (error) {
-      console.warn('Web Worker not supported or failed to create:', error);
-      return null;
-    }
-  }
-  return null;
-};
+// Web Worker utility was removed as it was unused and caused Turbopack analysis errors.
 
 // RequestAnimationFrame utility
 export const raf = {
