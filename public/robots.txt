@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://anrye-notes.netlify.app/sitemap.xml 
