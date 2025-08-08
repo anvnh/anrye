@@ -112,15 +112,15 @@ export default function RecentActivity() {
                 Recent Activity
               </h2>
             </div>
-            <p className="text-gray-400">
+            <p className="text-gray-300">
               Sign in to see your recent activities
             </p>
           </div>
 
           <div className="text-center py-8 min-h-20">
-            <div className="text-gray-500 text-lg">
-              None
-            </div>
+                      <div className="text-gray-400 text-lg">
+            None
+          </div>
           </div>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function RecentActivity() {
           <div className="text-center mb-4">
             <span className="text-sm text-green-400">✓ Connected to Google Drive</span>
           </div>
-          <p className="text-gray-400">
+          <p className="text-gray-300">
             Your latest activities from Google Drive
           </p>
         </div>
@@ -172,7 +172,7 @@ export default function RecentActivity() {
           </div>
         ) : activities.length === 0 ? (
           <div className="text-center py-8 min-h-40">
-            <p className="text-gray-400 mb-4">
+            <p className="text-gray-300 mb-4">
               No recent activities found
             </p>
           </div>

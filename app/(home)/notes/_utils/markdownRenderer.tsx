@@ -237,13 +237,13 @@ const Callout: React.FC<{ type: string; title?: string; children: React.ReactNod
         iconColor: 'text-purple-400',
         title: 'Example'
       },
-      quote: {
-        bg: 'bg-gray-800/30',
-        border: 'border-gray-500',
-        icon: MessageSquare,
-        iconColor: 'text-gray-400',
-        title: 'Quote'
-      },
+              quote: {
+          bg: 'bg-gray-800/30',
+          border: 'border-gray-500',
+          icon: MessageSquare,
+          iconColor: 'text-gray-300',
+          title: 'Quote'
+        },
       // Aliases for compatibility
       error: {
         bg: 'bg-red-900/20',
@@ -641,7 +641,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           return <div className={className} {...props}>{children}</div>;
         },
         blockquote: ({ children, ...props }) => (
-          <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
+          <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-300 my-4 bg-gray-800 bg-opacity-30 py-2" {...props}>
             {children}
           </blockquote>
         ),
@@ -698,7 +698,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           <hr className="border-gray-600 my-8" {...props} />
         ),
         del: ({ children, ...props }) => (
-          <del className="line-through text-gray-400" {...props}>{children}</del>
+          <del className="line-through text-gray-300" {...props}>{children}</del>
         ),
 
         img: ({ src, alt, ...props }) => {
@@ -830,7 +830,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     </>
                   )}
                   {hasError && (
-                    <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
+                    <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
                       <div className="text-sm mb-2">📷</div>
                       <div className="text-xs">[Image: {alt || 'Uploaded image'}]</div>
                     </div>
@@ -925,7 +925,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 })()}
               </>
               {hasError && (
-                <div className="bg-gray-700 text-gray-400 p-4 rounded-lg text-center border border-gray-600">
+                <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
                   <div className="text-sm mb-2">📷</div>
                   <div className="text-xs">[Image: {alt || 'Image'}]</div>
                 </div>

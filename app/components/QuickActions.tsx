@@ -83,7 +83,7 @@ export default function QuickActions() {
               Quick Actions
             </h2>
           </div>
-          <p className="text-gray-400 max-w-2xl mx-auto">
+          <p className="text-gray-300 max-w-2xl mx-auto">
             Access your favorite features and tools with just one click
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function QuickActions() {
                     <h3 className="text-lg font-semibold text-white group-hover:text-primary transition-colors mb-2">
                       {action.title}
                     </h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">
+                    <p className="text-gray-300 text-sm leading-relaxed">
                       {action.description}
                     </p>
                   </div>
@@ -120,18 +120,18 @@ export default function QuickActions() {
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">100%</div>
-            <div className="text-gray-400 text-sm">Privacy Focused</div>
-            <div className="text-gray-400 text-xs mt-1">Your data stays private</div>
+            <div className="text-gray-300 text-sm">Privacy Focused</div>
+            <div className="text-gray-300 text-xs mt-1">Your data stays private</div>
           </div>
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">24/7</div>
-            <div className="text-gray-400 text-sm">Always Available</div>
-            <div className="text-gray-400 text-xs mt-1">Access anytime, anywhere</div>
+            <div className="text-gray-300 text-sm">Always Available</div>
+            <div className="text-gray-300 text-xs mt-1">Access anytime, anywhere</div>
           </div>
           <div className="text-center p-6 rounded-xl bg-gray-800/30 border border-gray-600">
             <div className="text-2xl font-bold text-white mb-2">∞</div>
-            <div className="text-gray-400 text-sm">Unlimited Notes</div>
-            <div className="text-gray-400 text-xs mt-1">Store in Google Drive</div>
+            <div className="text-gray-300 text-sm">Unlimited Notes</div>
+            <div className="text-gray-300 text-xs mt-1">Store in Google Drive</div>
           </div>
         </div>
       </div>

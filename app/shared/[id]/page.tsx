@@ -272,7 +272,7 @@ export default function SharedNotePage() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center text-white">
           <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">404</h1>
-          <p className="text-gray-400 text-sm sm:text-base">{error || 'Shared note not found'}</p>
+                      <p className="text-gray-300 text-sm sm:text-base">{error || 'Shared note not found'}</p>
         </div>
       </div>
     );
@@ -286,7 +286,7 @@ export default function SharedNotePage() {
             <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
               Password Required
             </h2>
-            <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">
+            <p className="text-gray-300 mb-3 sm:mb-4 text-sm sm:text-base">
               This note requires a password to view.
             </p>
             <div className="space-y-3 sm:space-y-4">
@@ -337,7 +337,7 @@ export default function SharedNotePage() {
           <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
             Access Denied
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-gray-300 text-sm sm:text-base">
             You don't have permission to view this note
           </p>
         </div>
@@ -362,7 +362,7 @@ export default function SharedNotePage() {
                   <p className="text-sm text-white">{note.title}</p>
                 </PopoverContent>
               </Popover>
-              <p className="text-xs sm:text-sm text-gray-400">Shared Note</p>
+              <p className="text-xs sm:text-sm text-gray-300">Shared Note</p>
             </div>
             
             {/* Settings Dropdown */}

@@ -368,7 +368,7 @@ export default function NotesPage() {
                 
                 <div className="text-center">
                   <FileText size={64} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">Select a note to start reading</p>
+                  <p className="text-gray-300 text-lg">Select a note to start reading</p>
                   <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
                 </div>
               </div>
@@ -385,7 +385,7 @@ export default function NotesPage() {
         <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
           <DialogHeader>
             <DialogTitle className="text-white">Create New Folder</DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-300">
               {selectedPath ? (
                 <>📁 Creating in: /{selectedPath}</>
               ) : (
@@ -442,7 +442,7 @@ export default function NotesPage() {
             <DialogTitle className="text-white">
               Create New Note
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-300">
               {selectedPath ? (
                 <>Creating in: /{selectedPath}</>
               ) : (
