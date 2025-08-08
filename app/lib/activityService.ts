@@ -1,4 +1,11 @@
-import { GoogleDriveService } from './googleDrive';
+// Lazily import GoogleDriveService to keep it out of the initial bundle
+let driveModulePromise: Promise<typeof import('./googleDrive')> | null = null;
+const loadDrive = () => {
+  if (!driveModulePromise) {
+    driveModulePromise = import('./googleDrive');
+  }
+  return driveModulePromise;
+};
 
 export interface Activity {
   id: string;
@@ -21,18 +28,29 @@ export interface DriveActivity {
 }
 
 class ActivityService {
-  private driveService: GoogleDriveService;
+  private driveService: any | null = null;
 
-  constructor() {
-    this.driveService = new GoogleDriveService();
+  private async ensureDrive() {
+    if (!this.driveService) {
+      const mod = await loadDrive();
+      // Prefer the singleton if available, fallback to class constructor
+      this.driveService = mod.driveService ?? new mod.GoogleDriveService();
+    }
+    return this.driveService;
   }
 
   async getRecentActivities(limit: number = 9): Promise<Activity[]> {
     try {
       const activities: Activity[] = [];
-      
+      // Cheap pre-check: avoid importing Drive if no token
+      const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
+      if (!tokenRaw) {
+        return this.getMockActivities();
+      }
+
+      const drive = await this.ensureDrive();
       // Check if user is signed in
-      const isSignedIn = await this.driveService.isSignedIn();
+      const isSignedIn = await drive.isSignedIn();
       
       if (!isSignedIn) {
         return this.getMockActivities();
@@ -82,9 +100,10 @@ class ActivityService {
 
   private async getNotesFiles(): Promise<DriveActivity[]> {
     try {
-      const notesFolderId = await this.driveService.findOrCreateNotesFolder();
+      const drive = await this.ensureDrive();
+      const notesFolderId = await drive.findOrCreateNotesFolder();
       
-      const files = await this.driveService.listFiles(notesFolderId);
+      const files = await drive.listFiles(notesFolderId);
       
       // More permissive filter - include all text-based files
       const filteredFiles = files.filter(file => 
@@ -103,8 +122,9 @@ class ActivityService {
 
   private async getLoveFiles(): Promise<DriveActivity[]> {
     try {
-      const loveFolderId = await this.driveService.findOrCreateLoveFolder();
-      const files = await this.driveService.listFiles(loveFolderId);
+      const drive = await this.ensureDrive();
+      const loveFolderId = await drive.findOrCreateLoveFolder();
+      const files = await drive.listFiles(loveFolderId);
       return files.filter(file => file.mimeType === 'text/plain' || file.mimeType.includes('document'));
     } catch (error) {
       console.error('Error fetching love files:', error);
@@ -114,8 +134,9 @@ class ActivityService {
 
   private async getUtilsFiles(): Promise<DriveActivity[]> {
     try {
+      const drive = await this.ensureDrive();
       // Look for utils folder or files with utils prefix
-      const allFiles = await this.driveService.listFiles();
+      const allFiles = await drive.listFiles();
       return allFiles.filter(file => 
         file.name.toLowerCase().includes('utils') || 
         file.name.toLowerCase().includes('utility') ||
@@ -129,8 +150,9 @@ class ActivityService {
 
   private async getAllRecentFiles(): Promise<DriveActivity[]> {
     try {
+      const drive = await this.ensureDrive();
       // Get all files and sort by modified time
-      const allFiles = await this.driveService.listFiles();
+      const allFiles = await drive.listFiles();
       
       // Filter for text-based files and sort by modified time
       const textFiles = allFiles.filter(file => 

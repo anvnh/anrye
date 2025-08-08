@@ -1,23 +1,65 @@
 "use client";
 
-import { Heart, Calendar } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 
-interface LoveTime {
+type LoveTime = {
   years: number;
   months: number;
   days: number;
   hours: number;
   minutes: number;
   seconds: number;
-}
+};
 
-interface LoveTimerHoverCardProps {
-  loveTime: LoveTime;
-}
+export default function LoveTimerHoverCard() {
+  const [loveTime, setLoveTime] = useState<LoveTime>({
+    years: 0,
+    months: 0,
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
 
-export default function LoveTimerHoverCard({ loveTime }: LoveTimerHoverCardProps) {
+  useEffect(() => {
+    const calculateLoveTime = () => {
+      const startDate = new Date('2024-08-22T00:00:00+07:00');
+      const now = new Date();
+
+      let years = now.getFullYear() - startDate.getFullYear();
+      let months = now.getMonth() - startDate.getMonth();
+      let days = now.getDate() - startDate.getDate();
+
+      if (days < 0) {
+        months--;
+        const lastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        days += lastMonth.getDate();
+      }
+
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      const totalDiff = now.getTime() - startDate.getTime();
+      const totalSeconds = Math.floor(totalDiff / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+
+      const hours = totalHours % 24;
+      const minutes = totalMinutes % 60;
+      const seconds = totalSeconds % 60;
+
+      setLoveTime({ years, months, days, hours, minutes, seconds });
+    };
+
+    calculateLoveTime();
+    const interval = setInterval(calculateLoveTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <HoverCard>
       <HoverCardTrigger asChild>

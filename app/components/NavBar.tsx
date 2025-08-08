@@ -33,7 +33,8 @@ export default function Navbar() {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
             <Link 
-              href="/utils" 
+              href="/utils"
+              prefetch={false} 
               className={`px-3 py-2 rounded-md hover:bg-gray-700 transition-colors ${
                 isActive('/utils') 
                   ? 'font-semibold text-white' 
@@ -44,7 +45,8 @@ export default function Navbar() {
             </Link>
             
             <Link 
-              href="/editor" 
+              href="/editor"
+              prefetch={false} 
               className={`px-3 py-2 rounded-md hover:bg-gray-700 transition-colors ${
                 isActive('/editor') 
                   ? 'font-semibold text-white' 
@@ -55,7 +57,8 @@ export default function Navbar() {
             </Link>
             
             <Link 
-              href="/notes" 
+              href="/notes"
+              prefetch={false} 
               className={`px-3 py-2 rounded-md hover:bg-gray-700 transition-colors ${
                 isActive('/notes') 
                   ? 'font-semibold text-white' 
@@ -122,7 +125,8 @@ export default function Navbar() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 border-t border-gray-600">
               <Link 
-                href="/utils" 
+                href="/utils"
+                prefetch={false} 
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                   isActive('/utils') 
                     ? 'bg-gray-700 text-white' 
@@ -134,7 +138,8 @@ export default function Navbar() {
               </Link>
               
               <Link 
-                href="/editor" 
+                href="/editor"
+                prefetch={false} 
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                   isActive('/editor') 
                     ? 'bg-gray-700 text-white' 
@@ -146,7 +151,8 @@ export default function Navbar() {
               </Link>
               
               <Link 
-                href="/notes" 
+                href="/notes"
+                prefetch={false} 
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                   isActive('/notes') 
                     ? 'bg-gray-700 text-white' 
@@ -158,7 +164,8 @@ export default function Navbar() {
               </Link>
               
               <Link 
-                href="/milestones" 
+                href="/milestones"
+                prefetch={false} 
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                   isActive('/milestones') 
                     ? 'bg-gray-700 text-white' 

@@ -93,6 +93,7 @@ export default function QuickActions() {
             <Link
               key={index}
               href={action.href}
+              prefetch={false}
               className="group block"
             >
               <div className={`rounded-xl p-6 border border-gray-600 hover:border-gray-500 transition-all duration-300 ${action.bgColor}`}>

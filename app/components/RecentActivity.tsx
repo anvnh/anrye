@@ -267,6 +267,7 @@ export default function RecentActivity() {
         <div className="text-center mt-8">
           <Link
             href="/activity"
+            prefetch={false}
             className="inline-flex items-center space-x-2 px-6 py-3 bg-main text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
           >
             <Calendar className="w-5 h-5" />
