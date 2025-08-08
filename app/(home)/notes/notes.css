@@ -1,0 +1,34 @@
+/* Route-level styles for Notes pages to avoid render-blocking global CSS */
+@import 'katex/dist/katex.min.css';
+
+/* Prose and KaTeX tweaks that were inlined in components */
+.prose { overflow-x: hidden; }
+.prose * { max-width: 100%; box-sizing: border-box; }
+
+/* Mobile optimizations for prose */
+@media (max-width: 640px) {
+  .prose { line-height: 1.6; }
+  .prose p { margin-bottom: 0.75rem; }
+  .prose li { margin-bottom: 0.25rem; }
+}
+
+/* KaTeX dark theme adjustments */
+.katex { color: #e5e7eb; max-width: 100%; word-wrap: break-word; }
+.katex-display { margin: 1.5em 0; text-align: center; overflow-x: auto; overflow-y: hidden; max-width: 100%; padding: 0.5rem 0; -webkit-overflow-scrolling: touch; }
+.katex-display > .katex { display: inline-block; white-space: nowrap; min-width: max-content; max-width: none; }
+
+@media (max-width: 480px) {
+  .katex { font-size: 0.9em; }
+  .katex-display { margin: 1em 0; padding: 0.25rem 0; }
+  .katex-display > .katex { font-size: 0.85em; }
+}
+
+@media (max-width: 360px) {
+  .katex { font-size: 0.8em; }
+  .katex-display > .katex { font-size: 0.75em; }
+}
+
+/* Reserve space for images to reduce CLS */
+.md-img-wrapper { position: relative; display: block; }
+.md-img { max-width: 100%; height: auto; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,.5); contain: layout paint style; contain-intrinsic-size: 200px 200px; }
+.md-img-skeleton { height: 200px; width: 100%; border-radius: 0.75rem; }

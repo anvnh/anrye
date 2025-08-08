@@ -773,8 +773,19 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 };
               }, [fileId]);
 
+              // Try to parse width/height hints from alt for layout reservation
+              let hintedWidth: number | undefined;
+              let hintedHeight: number | undefined;
+              if (typeof alt === 'string') {
+                const sizeMatch = alt.match(/\|(\d+)x(\d+)/);
+                if (sizeMatch) {
+                  hintedWidth = Number(sizeMatch[1]);
+                  hintedHeight = Number(sizeMatch[2]);
+                }
+              }
+
               return (
-                <div className="relative my-4">
+                <div className="relative my-4 md-img-wrapper">
                   {isLoading && (
                     <div className="flex flex-col space-y-3">
                       <Skeleton className="h-[200px] w-full rounded-xl" />
@@ -786,7 +797,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                         <img
                           src={imageUrl}
                           alt={alt || 'Image'}
-                          className="max-w-full h-auto rounded-lg shadow-lg cursor-zoom-in"
+                          className="md-img cursor-zoom-in"
+                          width={hintedWidth}
+                          height={hintedHeight}
                           onClick={() => setIsLightboxOpen(true)}
                           {...props}
                         />
@@ -840,8 +853,19 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             setHasError(true);
           };
 
+          // Try to parse width/height hints from markdown alt text like alt="desc|800x400"
+          let hintedWidth: number | undefined;
+          let hintedHeight: number | undefined;
+          if (typeof alt === 'string') {
+            const sizeMatch = alt.match(/\|(\d+)x(\d+)/);
+            if (sizeMatch) {
+              hintedWidth = Number(sizeMatch[1]);
+              hintedHeight = Number(sizeMatch[2]);
+            }
+          }
+
           return (
-            <div className="relative my-4">
+            <div className="relative my-4 md-img-wrapper">
               {isLoading && (
                 <div className="flex flex-col space-y-3">
                   <Skeleton className="h-[200px] w-full rounded-xl" />
@@ -865,7 +889,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   <img
                     src={inlineUrl || (src as string)}
                     alt={alt || 'Image'}
-                    className={`max-w-full h-auto rounded-lg shadow-lg ${isLoading ? 'hidden' : ''} cursor-zoom-in`}
+                    className={`md-img ${isLoading ? 'hidden' : ''} cursor-zoom-in`}
+                    width={hintedWidth}
+                    height={hintedHeight}
                     onLoad={handleLoad}
                     onError={handleError}
                     onClick={() => setIsLightboxOpen(true)}
