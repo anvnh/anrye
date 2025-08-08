@@ -1,6 +1,7 @@
-const CACHE_NAME = 'anrye-v1';
-const STATIC_CACHE = 'anrye-static-v1';
-const DYNAMIC_CACHE = 'anrye-dynamic-v1';
+const CACHE_VERSION = 'v1.0.0';
+const CACHE_NAME = `anrye-${CACHE_VERSION}`;
+const STATIC_CACHE = `anrye-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `anrye-dynamic-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
