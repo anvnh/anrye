@@ -137,7 +137,6 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       saveNote();
       
       // Note: The rename logic is now handled in the saveNote function
-      // No need to rename separately here as it's already done in saveNote
     } catch (error) {
       console.error('Error saving note:', error);
     }
@@ -190,9 +189,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
 
       <div
         className={
-          `flex items-center gap-1 sm:gap-2 flex-shrink-0 justify-end
-           ${isEditing ? 'max-w-[50vw] sm:max-w-none' : 'max-w-none'}
-           flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap`
+          `flex items-center gap-1 sm:gap-2 shrink justify-end
+           ${isEditing ? 'max-w-[60vw]' : 'max-w-none'}
+           min-w-0 flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap`
         }
       >
         {/* Close Note Button */}
