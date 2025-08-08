@@ -146,7 +146,10 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
   const fetchSharedNotes = async () => {
     try {
       setLoadingSharedNotes(true);
-      const response = await fetch(`/api/shared-notes?noteId=${noteId}`);
+      // Include title as fallback identifier in case note IDs differ across devices
+      const params = new URLSearchParams({ noteId });
+      if (noteTitle) params.set('title', noteTitle);
+      const response = await fetch(`/api/shared-notes?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setSharedNotes(data.sharedNotes || []);

@@ -45,24 +45,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const shortId = searchParams.get('id');
     const noteId = searchParams.get('noteId');
+    const title = searchParams.get('title');
 
     const { db } = await connectToDatabase();
-
-    // If noteId is provided, get all shared notes for that note
-    if (noteId) {
-      const sharedNotes = await db.collection('sharedNotes')
-        .find({ 'note.id': noteId })
-        .project({ 
-          shortId: 1, 
-          settings: 1, 
-          createdAt: 1, 
-          expireAt: 1,
-          _id: 0 
-        })
-        .toArray();
-
-      return NextResponse.json({ sharedNotes });
-    }
 
     // If shortId is provided, get specific shared note
     if (shortId) {
@@ -77,7 +62,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ note, settings, createdAt });
     }
 
-    return NextResponse.json({ error: 'Missing shortId or noteId' }, { status: 400 });
+    // If noteId or title is provided, get all shared notes for that note
+    if (noteId || title) {
+      const orCriteria: any[] = [];
+      if (noteId) orCriteria.push({ 'note.id': noteId });
+      if (title) orCriteria.push({ 'note.title': title });
+
+      const query = orCriteria.length > 0 ? { $or: orCriteria } : {};
+      const sharedNotes = await db.collection('sharedNotes')
+        .find(query)
+        .project({
+          shortId: 1,
+          settings: 1,
+          createdAt: 1,
+          expireAt: 1,
+          _id: 0
+        })
+        .toArray();
+
+      return NextResponse.json({ sharedNotes });
+    }
+
+    return NextResponse.json({ error: 'Missing shortId or noteId or title' }, { status: 400 });
   } catch (error) {
     // ...existing code...
     return NextResponse.json({ error: 'Failed to fetch shared note' }, { status: 500 });
