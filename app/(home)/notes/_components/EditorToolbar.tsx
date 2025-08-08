@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { 
   Bold, 
   Italic, 
@@ -34,6 +34,31 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   textareaRef,
   onPasteImage
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Translate vertical wheel to horizontal scroll for the toolbar
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Prefer vertical delta for horizontal scroll, fallback to native horizontal delta
+      const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (!delta) return;
+      if (el.scrollWidth <= el.clientWidth) return; // no horizontal overflow
+
+      const before = el.scrollLeft;
+      el.scrollLeft += delta;
+      if (el.scrollLeft !== before) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel as EventListener);
+    };
+  }, []);
   const updateSelection = useCallback(() => {
     if (textareaRef?.current) {
       const textarea = textareaRef.current;
@@ -161,7 +186,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }, [textareaRef]);
 
   return (
-    <div className="flex items-center gap-1 px-4 py-2 bg-main border-b border-gray-700 text-gray-300">
+    <div
+      ref={containerRef}
+      className="flex items-center gap-1 px-4 py-2 bg-main border-b border-gray-700 text-gray-300 overflow-x-auto overflow-y-hidden whitespace-nowrap w-full"
+    >
       {/* Undo/Redo Group */}
       <div className="flex items-center gap-1">
         <button
