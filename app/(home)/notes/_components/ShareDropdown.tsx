@@ -470,15 +470,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       >
         <DropdownMenuTrigger asChild>
           <button
-            className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
             title="Share Note"
           >
             <Share size={16} />
-            <span
-              className="hidden sm:inline"
-            >
-              Share
-            </span>
+            <span className="hidden sm:inline">Share</span>
           </button>
         </DropdownMenuTrigger>
 

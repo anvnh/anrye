@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
+import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
@@ -169,15 +169,17 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         
         {isEditing ? (
           <div className="flex-1 min-w-0">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white min-w-0"
-              style={{ 
-                width: `${inputWidth}ch` 
-              }}
-            />
+            <div className="overflow-x-auto max-w-full">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white inline-block"
+                style={{
+                  width: `${inputWidth}ch`
+                }}
+              />
+            </div>
           </div>
         ) : (
           <h1 className="text-lg sm:text-xl font-semibold text-white truncate min-w-0" title={selectedNote.title}>
@@ -186,14 +188,20 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         )}
       </div>
 
-      <div className="flex items-center space-x-1 flex-shrink-0">
+      <div
+        className={
+          `flex items-center gap-1 sm:gap-2 flex-shrink-0 justify-end
+           ${isEditing ? 'max-w-[55vw] sm:max-w-none' : 'max-w-none'}
+           flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap`
+        }
+      >
         {/* Close Note Button */}
         <button
           onClick={onCloseNote}
-          className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
           title="Close Note"
         >
-          <X size={16} />
+          <XCircle size={16} />
           <span className="hidden sm:inline">
             Close
           </span>
@@ -202,7 +210,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         {/* Image Manager Button */}
         <button
           onClick={onOpenImageManager}
-          className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
           title="Manage Images"
         >
           <ImageIcon size={16} />
@@ -262,9 +270,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             <button
               onClick={cancelEdit}
               className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
-              title="Cancel"
+              title="Exit Edit"
             >
-              <X size={14} className="sm:w-4 sm:h-4" />
+              <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
             </button>
           </>
         ) : (
