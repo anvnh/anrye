@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { Shield, Lock, Eye, Database, Users, FileText, Mail, Calendar } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - Anrye',
-  description: 'Privacy Policy for Anrye - Your secure note-taking and learning platform',
+  title: 'Privacy Policy - AnRye',
+  description: 'Privacy Policy for AnRye - Your secure note-taking and learning platform',
 };
 
 export default function PrivacyPolicy() {
@@ -74,10 +74,10 @@ export default function PrivacyPolicy() {
             </h2>
             <div className="prose prose-gray max-w-none">
               <p className="text-gray-300 leading-relaxed">
-                Welcome to Anrye ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our note-taking and learning platform.
+                Welcome to AnRye ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our note-taking and learning platform.
               </p>
               <p className="text-gray-300 leading-relaxed mt-4">
-                By using Anrye, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our service.
+                By using AnRye, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our service.
               </p>
             </div>
           </section>
@@ -450,9 +450,9 @@ export default function PrivacyPolicy() {
           {/* Footer */}
           <div className="border-t border-gray-600 pt-8 mt-8">
             <div className="text-center text-gray-400">
-              <p className="mb-2">Thank you for trusting Anrye with your information.</p>
+              <p className="mb-2">Thank you for trusting AnRye with your information.</p>
               <Link href="/" className="text-blue-400 hover:text-blue-300 font-medium">
-                ← Back to Anrye
+                ← Back to AnRye
               </Link>
             </div>
           </div>

@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AnRye - Personal Website",
+  title: "AnRye",
   description: "Personal website with utilities and notes",
   manifest: "/manifest.json",
   appleWebApp: {

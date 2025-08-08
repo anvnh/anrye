@@ -81,7 +81,7 @@ export default function LoginPage() {
           <div className="bg-secondary rounded-lg shadow-2xl p-8 border border-gray-600">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-primary mb-2">
-                Anrye
+                AnRye
               </h2>
               <p className="text-gray-400 mb-8">
                 Secure Access Required

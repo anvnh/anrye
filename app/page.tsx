@@ -12,7 +12,7 @@ function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <h1 className="font-bold mb-6 text-4xl md:text-6xl leading-tight md:leading-none transition-colors">
-            Welcome to AnRye Notes
+            Welcome to AnRye
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-90 transition-colors">
             Personal website with utilities and notes
