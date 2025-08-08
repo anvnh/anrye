@@ -1,6 +1,6 @@
 /* @import './syntax-highlighter/frappe.css'; */
 @import "tailwindcss";
-@import "katex/dist/katex.min.css";
+/* Load KaTeX styles only on notes routes to avoid render-blocking CSS on non-math pages */
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));

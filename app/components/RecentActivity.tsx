@@ -105,7 +105,8 @@ export default function RecentActivity() {
     return (
       <div className="py-12 bg-secondary">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
+          {/* Reserve space to avoid CLS regardless of copy length */}
+          <div className="text-center mb-8 min-h-14">
             <div className="flex items-center justify-center space-x-4 mb-4">
               <h2 className="text-3xl font-bold text-white">
                 Recent Activity
@@ -116,7 +117,7 @@ export default function RecentActivity() {
             </p>
           </div>
 
-          <div className="text-center py-8">
+          <div className="text-center py-8 min-h-20">
             <div className="text-gray-500 text-lg">
               None
             </div>
@@ -129,7 +130,7 @@ export default function RecentActivity() {
   return (
     <div className="py-12 bg-secondary">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 min-h-14">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <button
               onClick={handleRefresh}
@@ -153,14 +154,14 @@ export default function RecentActivity() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
+          <div className="flex justify-center items-center py-12 min-h-40">
             <div className="flex items-center space-x-3 text-gray-400">
               <RefreshCw className="w-6 h-6 animate-spin" />
               <span>Loading activities...</span>
             </div>
           </div>
         ) : error ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8 min-h-40">
             <p className="text-red-400 mb-4">{error}</p>
             <button
               onClick={handleRefresh}
@@ -170,7 +171,7 @@ export default function RecentActivity() {
             </button>
           </div>
         ) : activities.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8 min-h-40">
             <p className="text-gray-400 mb-4">
               No recent activities found
             </p>
