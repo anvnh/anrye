@@ -4,7 +4,6 @@ import "./globals.css";
 import { DriveProvider } from "./lib/driveContext";
 import Script from "next/script";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
-import PWAStatus from "./components/PWAStatus";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -82,7 +81,6 @@ export default function RootLayout({
           {children}
         </DriveProvider>
         <PWAInstallPrompt />
-        <PWAStatus />
         <Script src="/sw-register.js" strategy="afterInteractive" />
       </body>
     </html>
