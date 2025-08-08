@@ -95,6 +95,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
   // Initialize sharing URL on component mount (client-side only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const draftKey = `shareDraft_${noteId}`;
       // Check if this note already has a shared link
       const existingSharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
       let existingShortId = '';
@@ -119,15 +120,20 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
           readPassword: existingSettings?.readPassword || '',
           expireAt: existingSettings?.expireAt || null
         }));
+        // Clear any draft once a real share exists
+        localStorage.removeItem(draftKey);
       } else {
-        // If no existing shared link, create a placeholder shortId but don't set the URL yet
-        const placeholderShortId = generateShortId();
+        // If no existing shared link, reuse a draft shortId (persisted across reloads)
+        const draftShortId = localStorage.getItem(draftKey);
+        const placeholderShortId = draftShortId || generateShortId();
         setShortId(placeholderShortId);
         setShareSettings(prev => ({
           ...prev,
           sharingUrl: `${window.location.origin}/shared/${placeholderShortId}`,
           expireAt: null
         }));
+        // Persist the draft so it stays stable across refreshes
+        localStorage.setItem(draftKey, placeholderShortId);
       }
     }
   }, [noteId, noteTitle, noteContent]); // Add dependencies to re-run when note changes
@@ -223,6 +229,10 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
       // Save the shared note to db
       await saveSharedNote(shortId);
+      // Clear draft once saved to server
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`shareDraft_${noteId}`);
+      }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
@@ -435,6 +445,10 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
       }
       return newSettings;
     });
+    // Persist the new draft so the UI remains stable across refreshes
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`shareDraft_${noteId}`, newShortId);
+    }
   };
 
   const handleOpenMenu = () => {
