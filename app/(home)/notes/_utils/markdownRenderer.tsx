@@ -454,18 +454,31 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             </FoldableHeading>
           );
         },
-        p: ({ children, ...props }) => {
+        p: ({ children, node, ...props }) => {
+          // If this paragraph contains an image anywhere (even inside links),
+          // switch the outer wrapper to a div to avoid <div> inside <p> which breaks hydration.
+          const hasImageDeep = (n: any): boolean => {
+            if (!n) return false;
+            if (n.type === 'image' || (n.type === 'element' && n.tagName === 'img')) return true;
+            const kids = (n.children || []) as any[];
+            for (const k of kids) {
+              if (hasImageDeep(k)) return true;
+            }
+            return false;
+          };
+          const containsImage = hasImageDeep(node);
+
+          // Fallback runtime check in case children are already React elements with block wrappers
           const hasBlockChild = React.Children.toArray(children).some((child: any) => {
-            // Detect known block wrappers we render (divs for images, skeletons, etc.)
             if (!child || typeof child !== 'object') return false;
             const type = (child as any).type;
             const displayName = type?.displayName || type?.name || '';
-            // If this renders to a 'div' or known block-like component, treat as block
-            return type === 'div' || type === 'pre' || type === 'table' || 
+            return type === 'div' || type === 'pre' || type === 'table' ||
                    displayName === 'Skeleton' ||
                    (child.props && child.props.className && child.props.className.includes('md-img-wrapper'));
           });
-          const Wrapper: any = hasBlockChild ? 'div' : 'p';
+
+          const Wrapper: any = (containsImage || hasBlockChild) ? 'div' : 'p';
           return (
             <Wrapper className="mb-4 text-gray-300 leading-relaxed" {...props}>
               {children}
