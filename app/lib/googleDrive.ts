@@ -1046,12 +1046,16 @@ class GoogleDriveService {
     
     // Make the image publicly accessible for direct viewing
     try {
-      await window.gapi.client.drive.permissions.create({
-        'fileId': fileId,
-        'resource': {
+      await window.gapi.client.request({
+        'path': `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+        'method': 'POST',
+        'headers': {
+          'Content-Type': 'application/json'
+        },
+        'body': JSON.stringify({
           'type': 'anyone',
           'role': 'reader'
-        }
+        })
       });
     } catch (error) {
               // Failed to make image public, but upload succeeded

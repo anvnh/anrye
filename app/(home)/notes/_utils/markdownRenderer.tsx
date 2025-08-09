@@ -58,18 +58,26 @@ interface MarkdownRendererProps {
 // Utility function to extract text content from React nodes
 const getTextContent = (node: unknown): string => {
   if (typeof node === 'string') return node;
+  if (typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(getTextContent).join('');
-  if (typeof node === 'object' && node !== null &&
-    node && typeof node === 'object' && 'props' in node &&
-    node.props && typeof node.props === 'object' && 'children' in node.props) {
-    return getTextContent((node.props as { children: unknown }).children);
+  if (typeof node === 'object' && node !== null) {
+    // Handle React elements
+    if ('props' in node && node.props && typeof node.props === 'object' && 'children' in node.props) {
+      return getTextContent((node.props as { children: unknown }).children);
+    }
+    // Handle plain objects that might have a toString method
+    if (typeof (node as any).toString === 'function') {
+      return String(node);
+    }
   }
   return '';
 };
 
 // Function to strip markdown formatting from text
 const stripMarkdown = (text: string): string => {
-  return text
+  // Ensure we have a string
+  const safeText = typeof text === 'string' ? text : String(text || '');
+  return safeText
     .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
     .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*
     .replace(/`(.*?)`/g, '$1') // Remove inline code `text`
