@@ -37,13 +37,20 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, onClose, onEdit
   const handleImageLoad = useCallback(() => {
     if (imgRef.current) {
       const { naturalWidth, naturalHeight } = imgRef.current;
-      setImageSize({ width: naturalWidth, height: naturalHeight });
+      const newImageSize = { width: naturalWidth, height: naturalHeight };
+      setImageSize(newImageSize);
+      
+      // Calculate fit scale directly with the new dimensions
+      const viewportWidth = window.innerWidth - 100; // Account for padding
+      const viewportHeight = window.innerHeight - 100;
+      const scaleX = viewportWidth / newImageSize.width;
+      const scaleY = viewportHeight / newImageSize.height;
+      const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up smaller images
       
       // Set initial scale to fit viewport
-      const fitScale = calculateFitScale();
       setScale(fitScale);
     }
-  }, [calculateFitScale]);
+  }, []);
 
   // Toggle between fit-to-viewport and actual size (100%)
   const toggleActualSize = useCallback(() => {
@@ -62,6 +69,19 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, onClose, onEdit
       setOffset({ x: 0, y: 0 });
     }
   }, [imageSize, fitToViewport, calculateFitScale]);
+
+  // Handle window resize to recalculate fit scale
+  useEffect(() => {
+    const handleResize = () => {
+      if (fitToViewport && imageSize) {
+        const fitScale = calculateFitScale();
+        setScale(fitScale);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitToViewport, imageSize, calculateFitScale]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
