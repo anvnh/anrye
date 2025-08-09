@@ -1,8 +1,4 @@
 import React from 'react';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import { visit } from 'unist-util-visit';
 import { MemoizedMarkdown } from '../_utils';
 import { Note } from '../_components/types';
 
@@ -17,41 +13,76 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
-// Parse markdown to AST and split into top-level blocks
+// Check if a line contains an image
+function isImageLine(line: string): boolean {
+  return /^\s*!\[.*?\]\(.*?\)\s*$/.test(line.trim());
+}
+
+// Parse markdown content and split into granular blocks, isolating images
 export function splitMarkdownBlocksAST(content: string): { type: string; value: string; startLine: number; endLine: number; key: string }[] {
-  const tree = unified().use(remarkParse).parse(content);
+  const lines = content.split('\n');
   const blocks: { type: string; value: string; startLine: number; endLine: number; key: string }[] = [];
-  let lastPos = 0;
-  // Each top-level node in AST is a block
-  tree.children.forEach((node: any) => {
-    if (
-      node.position &&
-      typeof node.position.start.offset === 'number' &&
-      typeof node.position.end.offset === 'number' &&
-      typeof node.position.start.line === 'number'
-    ) {
-      const value = content.slice(node.position.start.offset, node.position.end.offset);
-      const key = simpleHash(value);
-      blocks.push({ type: node.type, value, startLine: node.position.start.line - 1, endLine: node.position.end.line - 1, key });
-      lastPos = node.position.end.offset;
+  
+  let currentBlock = '';
+  let blockStartLine = 0;
+  let blockType = 'text';
+  
+  const flushCurrentBlock = (endLine: number) => {
+    if (currentBlock.trim()) {
+      const key = simpleHash(currentBlock);
+      blocks.push({
+        type: blockType,
+        value: currentBlock,
+        startLine: blockStartLine,
+        endLine: endLine,
+        key
+      });
+    }
+    currentBlock = '';
+    blockType = 'text';
+  };
+  
+  lines.forEach((line, lineIndex) => {
+    if (isImageLine(line)) {
+      // Flush any accumulated content before the image
+      if (currentBlock.trim()) {
+        flushCurrentBlock(lineIndex - 1);
+      }
+      
+      // Create a standalone image block
+      const imageKey = simpleHash(line);
+      blocks.push({
+        type: 'image',
+        value: line,
+        startLine: lineIndex,
+        endLine: lineIndex,
+        key: imageKey
+      });
+      
+      // Reset for next block
+      blockStartLine = lineIndex + 1;
+    } else {
+      // Accumulate non-image content
+      if (currentBlock === '') {
+        blockStartLine = lineIndex;
+      }
+      currentBlock += (currentBlock ? '\n' : '') + line;
     }
   });
-  if (lastPos < content.length) {
-    // Estimate line number for trailing content
-    const prevBlock = blocks[blocks.length - 1];
-    const prevEnd = prevBlock ? prevBlock.endLine + 1 : 0;
-    const trailing = content.slice(lastPos);
-    const trailingLen = trailing.split('\n').length - 1;
-    const key = simpleHash(trailing);
-    blocks.push({ type: 'text', value: trailing, startLine: prevEnd, endLine: prevEnd + Math.max(0, trailingLen), key });
+  
+  // Flush any remaining content
+  if (currentBlock.trim()) {
+    flushCurrentBlock(lines.length - 1);
   }
+  
   return blocks;
 }
 
-// Memoized block renderer with full MemoizedMarkdown features including callouts
+// Memoized block renderer with enhanced comparison for image blocks
 const MemoizedMarkdownBlock = React.memo(
   ({
     content,
+    blockType,
     notes,
     selectedNote,
     setEditContent,
@@ -62,6 +93,7 @@ const MemoizedMarkdownBlock = React.memo(
     onNavigateToNote
   }: {
     content: string;
+    blockType: string;
     notes: Note[];
     selectedNote: Note | null;
     setEditContent: (content: string) => void;
@@ -87,12 +119,23 @@ const MemoizedMarkdownBlock = React.memo(
       />
     );
   },
-  (prev, next) => 
-    prev.content === next.content && 
-    prev.selectedNote?.id === next.selectedNote?.id &&
-    prev.isSignedIn === next.isSignedIn &&
-    prev.notes.length === next.notes.length
+  (prev, next) => {
+    // For image blocks, only re-render if the image content actually changes
+    if (prev.blockType === 'image' && next.blockType === 'image') {
+      return prev.content === next.content && prev.isSignedIn === next.isSignedIn;
+    }
+    
+    // For other blocks, use standard comparison
+    return (
+      prev.content === next.content && 
+      prev.selectedNote?.id === next.selectedNote?.id &&
+      prev.isSignedIn === next.isSignedIn &&
+      prev.notes.length === next.notes.length
+    );
+  }
 );
+
+MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
 
 export const OptimizedMarkdownBlocksAST: React.FC<{
   content: string;
@@ -119,9 +162,17 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   return (
     <div>
       {blocks.map((block, i) => (
-        <div key={block.key} data-block-index={i} data-start-line={block.startLine} data-end-line={block.endLine} style={{ contain: 'layout paint style' }}>
+        <div 
+          key={block.key} 
+          data-block-index={i} 
+          data-block-type={block.type}
+          data-start-line={block.startLine} 
+          data-end-line={block.endLine} 
+          style={{ contain: 'layout paint style' }}
+        >
           <MemoizedMarkdownBlock
             content={block.value}
+            blockType={block.type}
             notes={notes}
             selectedNote={selectedNote}
             setEditContent={setEditContent}

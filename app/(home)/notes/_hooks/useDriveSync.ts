@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
 import { Note, Folder } from '../_components/types';
@@ -13,9 +13,9 @@ const loadDriveService = async () => {
 
 export const useDriveSync = (
   notes: Note[],
-  setNotes: (notes: Note[]) => void,
+  setNotes: React.Dispatch<React.SetStateAction<Note[]>>,
   folders: Folder[],
-  setFolders: (folders: Folder[]) => void,
+  setFolders: React.Dispatch<React.SetStateAction<Folder[]>>,
   setIsLoading: (loading: boolean) => void,
   setSyncProgress: (progress: number) => void
 ) => {

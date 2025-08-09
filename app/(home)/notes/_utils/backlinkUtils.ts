@@ -27,7 +27,7 @@ export const findBacklinks = (targetNote: Note, allNotes: Note[]): BacklinkInfo[
     
     lines.forEach((line, lineIndex) => {
       wikilinkPattern.lastIndex = 0; // Reset regex state
-      let match;
+      let match: RegExpExecArray | null;
       while ((match = wikilinkPattern.exec(line)) !== null) {
         // Extract context around the match (up to 100 characters before and after)
         const start = Math.max(0, match.index - 50);
@@ -37,7 +37,7 @@ export const findBacklinks = (targetNote: Note, allNotes: Note[]): BacklinkInfo[
         // Check if this exact occurrence already exists (avoid duplicates)
         const isDuplicate = occurrences.some(existing => 
           existing.line === lineIndex + 1 && 
-          existing.position === match.index
+          existing.position === match!.index
         );
         
         if (!isDuplicate) {

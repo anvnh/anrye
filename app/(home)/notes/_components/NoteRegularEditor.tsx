@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage } from '../_hooks/usePasteImage';
 import { useWikilinkAutocomplete } from '../_hooks/useWikilinkAutocomplete';
@@ -95,7 +95,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   const renumberNumberedLists = useCallback((content: string, preserveCursor?: { start: number; end: number }): { content: string; cursorAdjustment: number } => {
     const lines = content.split('\n');
     const updatedLines = [...lines];
-    let totalAdjustment = 0;
+    const totalAdjustment = 0;
     let cursorLineAdjustment = 0;
     
     // Track which lines we've already processed to avoid double-processing
@@ -288,7 +288,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           
           // Now renumber all subsequent numbered list items
           const lines = newContent.split('\n');
-          let updatedLines = [...lines];
+          const updatedLines = [...lines];
           let numberToUse = nextNumber + 1;
           
           // Find the line we just inserted and start from the next line

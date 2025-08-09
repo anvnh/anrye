@@ -565,7 +565,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           
           // Now renumber all subsequent numbered list items
           const lines = newContent.split('\n');
-          let updatedLines = [...lines];
+          const updatedLines = [...lines];
           let numberToUse = nextNumber + 1;
           
           // Find the line we just inserted and start from the next line
