@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Minus, RotateCcw, RotateCw, Edit3 } from 'lucide-react';
+import { Plus, Minus, RotateCcw, RotateCw, Edit3 } from 'lucide-react';
 
 interface ImageLightboxProps {
   src: string;
@@ -164,41 +164,37 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, onClose, onEdit
   };
 
   const content = (
-    <div className="fixed inset-0 z-[9998]">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-
-      {/* Image container */}
-      <div className="absolute inset-0 flex items-center justify-center select-none">
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt || 'Image'}
-          className="max-w-none rounded-md shadow-2xl"
-          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`, transition: isDragging ? 'none' : 'transform 0.08s ease-out' }}
-          onLoad={handleImageLoad}
-          onWheel={handleWheel}
-          onMouseDown={startDrag}
-          onMouseMove={onDrag}
-          onMouseUp={endDrag}
-          onMouseLeave={endDrag}
-          onDoubleClick={toggleZoom}
-          draggable={false}
-        />
-      </div>
+    <div 
+      className="fixed inset-0 z-[9998] bg-black/80 flex items-center justify-center select-none"
+      onClick={onClose}
+    >
+      {/* Image */}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt || 'Image'}
+        className="max-w-none rounded-md shadow-2xl"
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`, transition: isDragging ? 'none' : 'transform 0.08s ease-out' }}
+        onLoad={handleImageLoad}
+        onWheel={handleWheel}
+        onMouseDown={startDrag}
+        onMouseMove={onDrag}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onDoubleClick={toggleZoom}
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking on image
+        draggable={false}
+      />
 
       {/* Controls */}
-      <div className="absolute top-4 right-4 flex gap-2">
+      <div className="absolute top-4 right-4 flex gap-2" onClick={(e) => e.stopPropagation()}>
         {onEdit && (
           <button onClick={onEdit} className="p-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white" title="Edit image">
             <Edit3 size={18} />
           </button>
         )}
-        <button onClick={onClose} className="p-2 rounded-md bg-gray-800/70 hover:bg-gray-700 text-white">
-          <X size={18} />
-        </button>
       </div>
-      <div className="absolute bottom-4 right-4 flex gap-2">
+      <div className="absolute bottom-4 right-4 flex gap-2" onClick={(e) => e.stopPropagation()}>
         <button onClick={() => setRotation((r) => (r - 90 + 360) % 360)} className="p-2 rounded-md bg-gray-800/70 hover:bg-gray-700 text-white" title="Rotate left">
           <RotateCcw size={18} />
         </button>
