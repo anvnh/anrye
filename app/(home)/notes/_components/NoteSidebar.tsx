@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home } from 'lucide-react';
 import {
   ContextMenu,
@@ -9,6 +10,8 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { NoteSidebarProps } from './types';
+import { MobileItemMenu } from './MobileFileOperations';
+import MobileMoveDialog from './MobileMoveDialog';
 
 export default function NoteSidebar({
   notes,
@@ -103,9 +106,21 @@ export default function NoteSidebar({
                   >
                     {folder.name}
                   </span>
-                  {folder.driveFolderId && (
-                    <Cloud size={12} className="text-green-400 mr-1 opacity-80" />
-                  )}
+                  <MobileItemMenu
+                    item={folder}
+                    itemType="folder"
+                    onCreateFolder={(path) => {
+                      onSetSelectedPath(path);
+                      onSetIsCreatingFolder(true);
+                    }}
+                    onCreateNote={(path) => {
+                      onSetSelectedPath(path);
+                      onSetIsCreatingNote(true);
+                    }}
+                    onRenameItem={(id, name) => onRenameFolder(id, name)}
+                    onDeleteItem={(id) => onDeleteFolder(id)}
+                    onMoveItem={handleMobileMove}
+                  />
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
@@ -186,9 +201,15 @@ export default function NoteSidebar({
                   >
                     {note.title}
                   </span>
-                  {note.driveFileId && (
-                    <Cloud size={12} className="text-green-400 mr-1 opacity-80" />
-                  )}
+                  <MobileItemMenu
+                    item={note}
+                    itemType="note"
+                    onOpenNote={(note) => onSelectNote(note)}
+                    onRenameItem={(id, title) => onRenameNote(id, title)}
+                    onDeleteItem={(id) => onDeleteNote(id)}
+                    onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
+                    onMoveItem={handleMobileMove}
+                  />
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
@@ -227,6 +248,33 @@ export default function NoteSidebar({
         ))}
       </div>
     );
+  };
+
+  // Get current selected path for FAB
+  const currentPath = folders.find(f => f.path === selectedNote?.path)?.path || '';
+
+  // Mobile move dialog state
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [moveItem, setMoveItem] = useState<{ item: Note | Folder; type: 'note' | 'folder' } | null>(null);
+
+  // Handle mobile move operations
+  const handleMobileMove = (item: Note | Folder, type: 'note' | 'folder') => {
+    setMoveItem({ item, type });
+    setIsMoveDialogOpen(true);
+  };
+
+  const handleMoveConfirm = (targetFolderId: string) => {
+    if (!moveItem) return;
+    
+    // Set the dragged item state first
+    const mockDraggedItem = { type: moveItem.type, id: moveItem.item.id };
+    onDragStart({} as React.DragEvent, moveItem.type, moveItem.item.id);
+    
+    // Then trigger the drop with the target folder
+    onDrop({} as React.DragEvent, targetFolderId);
+    
+    setMoveItem(null);
+    setIsMoveDialogOpen(false);
   };
 
   return (
@@ -385,6 +433,30 @@ export default function NoteSidebar({
                   <Home size={16} className="text-blue-400" />
                   <span>Home</span>
                 </a>
+
+                {/* Mobile Create Buttons */}
+                <div className="lg:hidden mt-3 space-y-2">
+                  <button
+                    onClick={() => {
+                      onSetSelectedPath(currentPath);
+                      onSetIsCreatingNote(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-600/20 hover:border-blue-500/30 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <FileText size={16} className="text-blue-400" />
+                    <span>Create New Note</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onSetSelectedPath(currentPath);
+                      onSetIsCreatingFolder(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-green-600/20 hover:border-green-500/30 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <FolderPlus size={16} className="text-green-400" />
+                    <span>Create New Folder</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -436,6 +508,19 @@ export default function NoteSidebar({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Mobile Move Dialog */}
+      <MobileMoveDialog
+        isOpen={isMoveDialogOpen}
+        item={moveItem?.item || null}
+        itemType={moveItem?.type || 'note'}
+        folders={folders}
+        onClose={() => {
+          setIsMoveDialogOpen(false);
+          setMoveItem(null);
+        }}
+        onMove={handleMoveConfirm}
+      />
     </>
   );
 }

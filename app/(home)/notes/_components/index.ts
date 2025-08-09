@@ -7,4 +7,6 @@ export { EditorToolbar } from './EditorToolbar';
 export { ShareDropdown } from './ShareDropdown';
 export { default as FoldableHeading } from './FoldableHeading';
 export { ImageManager } from './ImageManager';
+export { default as MobileFileOperations, MobileItemMenu } from './MobileFileOperations';
+export { default as MobileMoveDialog } from './MobileMoveDialog';
 export * from './types';
