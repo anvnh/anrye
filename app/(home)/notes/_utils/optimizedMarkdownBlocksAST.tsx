@@ -45,7 +45,8 @@ const MemoizedMarkdownBlock = React.memo(
     setNotes,
     setSelectedNote,
     isSignedIn,
-    driveService
+    driveService,
+    onNavigateToNote
   }: {
     content: string;
     notes: Note[];
@@ -55,6 +56,7 @@ const MemoizedMarkdownBlock = React.memo(
     setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
     isSignedIn: boolean;
     driveService: any;
+    onNavigateToNote?: (noteId: string) => void;
   }) => {
     return (
       <MemoizedMarkdown
@@ -68,6 +70,7 @@ const MemoizedMarkdownBlock = React.memo(
         setSelectedNote={setSelectedNote}
         isSignedIn={isSignedIn}
         driveService={driveService}
+        onNavigateToNote={onNavigateToNote}
       />
     );
   },
@@ -83,6 +86,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
   isSignedIn: boolean;
   driveService: any;
+  onNavigateToNote?: (noteId: string) => void;
 }> = ({
   content,
   notes,
@@ -91,7 +95,8 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   setNotes,
   setSelectedNote,
   isSignedIn,
-  driveService
+  driveService,
+  onNavigateToNote
 }) => {
   const blocks = React.useMemo(() => splitMarkdownBlocksAST(content), [content]);
   return (
@@ -107,6 +112,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
             setSelectedNote={setSelectedNote}
             isSignedIn={isSignedIn}
             driveService={driveService}
+            onNavigateToNote={onNavigateToNote}
           />
         </div>
       ))}

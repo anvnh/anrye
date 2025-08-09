@@ -7,12 +7,14 @@ Start writing your note here...
 
 - **Bold text** and *italic text*
 - [Links](https://example.com)
+- [[Wiki-style links]] to other notes (type [[ to see autocomplete!)
 - \`inline code\`
 - Lists and checkboxes
 - Tables
 - Blockquotes
 - **LaTeX Math Support**
 - **Obsidian-style Callouts**
+- **Backlinks Panel** - see connected notes
 - And much more!
 
 ## Callouts Examples

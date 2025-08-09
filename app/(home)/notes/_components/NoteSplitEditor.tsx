@@ -7,7 +7,9 @@ import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 import { usePasteImage } from '../_hooks/usePasteImage';
+import { useWikilinkAutocomplete } from '../_hooks/useWikilinkAutocomplete';
 import RenameImageDialog from './RenameImageDialog';
+import WikilinkAutocomplete from './WikilinkAutocomplete';
 
 
 interface NoteSplitEditorProps {
@@ -45,11 +47,27 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   setIsLoading,
   setSyncProgress
 }) => {
-
+  
   // Refs for scroll sync targets
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const domHeadingElsRef = useRef<HTMLElement[]>([]);
+
+  // Handle wikilink navigation
+  const handleNavigateToNote = (noteId: string) => {
+    const targetNote = notes.find(note => note.id === noteId);
+    if (targetNote) {
+      setSelectedNote(targetNote);
+    }
+  };
+
+  // Wikilink autocomplete
+  const { autocompleteState, insertSuggestion, closeAutocomplete } = useWikilinkAutocomplete({
+    notes,
+    textareaRef: textareaRef as React.RefObject<HTMLTextAreaElement>,
+    editContent,
+    setEditContent
+  });
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
 
@@ -588,6 +606,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           setSelectedNote={setSelectedNote}
           isSignedIn={isSignedIn}
           driveService={driveService}
+          onNavigateToNote={handleNavigateToNote}
         />
       </div>
     );
@@ -710,7 +729,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             }
           }}
         />
-        <div className="flex-1 px-4 py-4 overflow-hidden">
+        <div className="flex-1 px-4 py-4 overflow-hidden relative">
           <textarea
             ref={textareaRef}
             value={editContent}
@@ -732,6 +751,17 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
+          />
+          
+          {/* Wikilink Autocomplete */}
+          <WikilinkAutocomplete
+            isOpen={autocompleteState.isOpen}
+            suggestions={autocompleteState.suggestions}
+            selectedIndex={autocompleteState.selectedIndex}
+            position={autocompleteState.position}
+            query={autocompleteState.query}
+            onSelect={insertSuggestion}
+            onClose={closeAutocomplete}
           />
         </div>
       </div>

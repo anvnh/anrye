@@ -8,4 +8,5 @@ export { useDragAndDrop } from './useDragAndDrop';
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useSidebarResize } from './useSidebarResize';
 export { useResponsiveLayout } from './useResponsiveLayout';
-export { usePasteImage } from './usePasteImage'; 
+export { usePasteImage } from './usePasteImage';
+export { useWikilinkAutocomplete } from './useWikilinkAutocomplete'; 

@@ -53,6 +53,7 @@ interface MarkdownRendererProps {
   driveService?: {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
+  onNavigateToNote?: (noteId: string) => void;
 }
 
 // Utility function to extract text content from React nodes
@@ -162,6 +163,24 @@ const remarkCallouts = () => {
       }
     });
   };
+};
+
+// Function to preprocess content and convert wikilinks to markdown with data attributes
+const preprocessWikilinks = (content: string, notes: Note[] = []): string => {
+  const wikilinkRegex = /\[\[([^\]]+)\]\]/g;
+  
+  return content.replace(wikilinkRegex, (match, linkText) => {
+    // Find the corresponding note
+    const targetNote = notes.find(note => 
+      note.title.toLowerCase() === linkText.toLowerCase()
+    );
+    
+    const exists = targetNote ? 'true' : 'false';
+    const noteId = targetNote?.id || '';
+    
+    // Use a special markdown link format that we can detect and transform
+    return `[${linkText}](wikilink:${noteId}:${exists})`;
+  });
 };
 
 // Callout component that matches Obsidian's styling
@@ -307,6 +326,7 @@ const Callout: React.FC<{ type: string; title?: string; children: React.ReactNod
 
 export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   content,
+  notes = [],
   selectedNote,
   isEditing = false,
   editContent = '',
@@ -314,19 +334,23 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   setNotes,
   setSelectedNote,
   isSignedIn = false,
-  driveService
+  driveService,
+  onNavigateToNote
 }) => {
-  // Pre-process content to get all headings with consistent IDs
-  // and to ensure $$...$$ blocks are on their own lines
+  // Pre-process content to get all headings with consistent IDs,
+  // ensure $$...$$ blocks are on their own lines, and convert wikilinks
   const preprocessedContent = useMemo(() => {
+    // First, process wikilinks
+    let processed = preprocessWikilinks(content, notes);
+    
     // Ensure that any $$...$$ block is on its own line
     // Replace inline $$...$$ with newlines before and after
     // Replace all $$...$$ (multiline) with newlines before and after
-    let processed = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => `\n$$${p1}$$\n`);
+    processed = processed.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => `\n$$${p1}$$\n`);
     // Remove duplicate newlines
     processed = processed.replace(/\n{3,}/g, '\n\n');
     return processed;
-  }, [content]);
+  }, [content, notes]);
 
   const headingIds = useMemo(() => {
     const lines = preprocessedContent.split('\n');
@@ -368,7 +392,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
         rehypePlugins={[rehypeKatex]}
-        skipHtml={true}
+        skipHtml={false}
         components={{
         h1: ({ children, ...props }) => {
           const text = getTextContent(children);
@@ -678,17 +702,46 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             {children}
           </blockquote>
         ),
-        a: ({ children, href, ...props }) => (
-          <a
-            href={href}
-            className="text-blue-400 hover:text-blue-300 underline transition-colors"
-            target="_blank"
-            rel="noopener noreferrer"
-            {...props}
-          >
-            {children}
-          </a>
-        ),
+        a: ({ children, href, ...props }) => {
+          // Check if this is a wikilink
+          if (href && href.startsWith('wikilink:')) {
+            const [, noteId, exists] = href.split(':');
+            const isExisting = exists === 'true';
+            const noteTitle = Array.isArray(children) ? children.join('') : String(children || '');
+            
+            return (
+              <span
+                className={`wikilink cursor-pointer px-1 py-0.5 rounded ${
+                  isExisting 
+                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30' 
+                    : 'text-gray-500 hover:text-gray-400 hover:bg-gray-500/10 border border-gray-500/30 border-dashed'
+                } transition-all duration-200`}
+                title={isExisting ? `Go to "${noteTitle}"` : `Note "${noteTitle}" doesn't exist`}
+                onClick={() => {
+                  if (isExisting && noteId && onNavigateToNote) {
+                    onNavigateToNote(noteId);
+                  }
+                }}
+                {...props}
+              >
+                {children}
+              </span>
+            );
+          }
+          
+          // Regular link
+          return (
+            <a
+              href={href}
+              className="text-blue-400 hover:text-blue-300 underline transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        },
         strong: ({ children, ...props }) => (
           <strong className="font-bold text-white" {...props}>{children}</strong>
         ),
@@ -1001,6 +1054,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           if (className === 'math math-inline') {
             return <span className="math-inline" {...props}>{children}</span>;
           }
+          
           return <span className={className} {...props}>{children}</span>;
         },
       }}
@@ -1016,7 +1070,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     prevProps.editContent === nextProps.editContent &&
     prevProps.isSignedIn === nextProps.isSignedIn &&
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
-    prevProps.selectedNote?.updatedAt === nextProps.selectedNote?.updatedAt
+    prevProps.selectedNote?.updatedAt === nextProps.selectedNote?.updatedAt &&
+    prevProps.notes?.length === nextProps.notes?.length &&
+    prevProps.onNavigateToNote === nextProps.onNavigateToNote
   );
 });
 

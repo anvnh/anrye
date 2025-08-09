@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { List, X } from 'lucide-react';
+import { List, X, Network } from 'lucide-react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
+import BacklinksPanel from './BacklinksPanel';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -35,12 +36,24 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   previewFontSize = '16px'
 }) => {
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
+  const [isBacklinksOpen, setIsBacklinksOpen] = useState(false);
   const outlineRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const backlinksRef = useRef<HTMLDivElement>(null);
+  const backlinksBtnRef = useRef<HTMLButtonElement>(null);
+  const backlinksBackdropRef = useRef<HTMLDivElement>(null);
 
   // Check if the note has headings
   const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
+
+  // Handle wikilink navigation
+  const handleNavigateToNote = (noteId: string) => {
+    const targetNote = notes.find(note => note.id === noteId);
+    if (targetNote) {
+      setSelectedNote(targetNote);
+    }
+  };
 
   // GSAP animations for outline
   useEffect(() => {
@@ -69,6 +82,99 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
       gsap.to(outline, { x: -320, opacity: 0, duration: 0.3, ease: "power2.in" });
     }
   }, [isOutlineOpen]);
+
+  // GSAP animations for backlinks panel
+  useEffect(() => {
+    if (!backlinksRef.current || !backlinksBackdropRef.current) return;
+
+    const backlinksPanel = backlinksRef.current;
+    const backlinksBackdrop = backlinksBackdropRef.current;
+
+    if (isBacklinksOpen) {
+      // Animate backdrop fade in
+      gsap.fromTo(backlinksBackdrop, 
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power2.out" }
+      );
+
+      // Animate backlinks panel slide in from right
+      gsap.fromTo(backlinksPanel,
+        { x: 320, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power2.out" }
+      );
+    } else {
+      // Animate backdrop fade out
+      gsap.to(backlinksBackdrop, { opacity: 0, duration: 0.2, ease: "power2.in" });
+
+      // Animate backlinks panel slide out to right
+      gsap.to(backlinksPanel, { x: 320, opacity: 0, duration: 0.3, ease: "power2.in" });
+    }
+  }, [isBacklinksOpen]);
+
+  // Touch gesture handling for mobile backlinks panel
+  useEffect(() => {
+    if (!backlinksRef.current) return;
+
+    const panel = backlinksRef.current;
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      isDragging = true;
+      panel.style.transition = 'none';
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+      
+      currentX = e.touches[0].clientX;
+      const deltaX = currentX - startX;
+      
+      // Only allow swiping to the right (closing gesture)
+      if (deltaX > 0) {
+        const clampedDelta = Math.min(deltaX, 320);
+        panel.style.transform = `translateX(${clampedDelta}px)`;
+        
+        // Update backdrop opacity based on swipe progress
+        if (backlinksBackdropRef.current) {
+          const opacity = 1 - (clampedDelta / 320);
+          backlinksBackdropRef.current.style.opacity = opacity.toString();
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDragging) return;
+      
+      isDragging = false;
+      panel.style.transition = '';
+      
+      const deltaX = currentX - startX;
+      
+      // Close if swiped more than 25% of panel width
+      if (deltaX > 80) {
+        setIsBacklinksOpen(false);
+      } else {
+        // Snap back to original position
+        panel.style.transform = '';
+        if (backlinksBackdropRef.current) {
+          backlinksBackdropRef.current.style.opacity = '1';
+        }
+      }
+    };
+
+    panel.addEventListener('touchstart', handleTouchStart, { passive: true });
+    panel.addEventListener('touchmove', handleTouchMove, { passive: true });
+    panel.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      panel.removeEventListener('touchstart', handleTouchStart);
+      panel.removeEventListener('touchmove', handleTouchMove);
+      panel.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isBacklinksOpen]);
 
   // Button animation on hover
   useEffect(() => {
@@ -107,15 +213,27 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         setSelectedNote={setSelectedNote}
         isSignedIn={isSignedIn}
         driveService={driveService}
+        onNavigateToNote={handleNavigateToNote}
       />
     );
-  }, [selectedNote, notes, setNotes, setSelectedNote, isSignedIn, driveService]);
+  }, [selectedNote, notes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote]);
 
   return (
     <div className="relative h-full">
-      {/* Mobile Outline Toggle Button */}
-      {hasOutline && (
-        <div className="lg:hidden absolute top-4 right-4 z-50">
+      {/* Mobile Toggle Buttons */}
+      <div className={`lg:hidden absolute top-4 right-4 z-50 flex gap-2 transition-opacity duration-300 ${isBacklinksOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        {/* Backlinks Toggle Button */}
+        <button
+          ref={backlinksBtnRef}
+          onClick={() => setIsBacklinksOpen(!isBacklinksOpen)}
+          className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+          title="Toggle backlinks"
+        >
+          {isBacklinksOpen ? <X size={20} /> : <Network size={20} />}
+        </button>
+        
+        {/* Outline Toggle Button */}
+        {hasOutline && (
           <button
             ref={buttonRef}
             onClick={() => setIsOutlineOpen(!isOutlineOpen)}
@@ -124,6 +242,39 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
           >
             {isOutlineOpen ? <X size={20} /> : <List size={20} />}
           </button>
+        )}
+      </div>
+
+      {/* Mobile Backlinks Overlay */}
+      {isBacklinksOpen && (
+        <div className="lg:hidden absolute inset-0 z-40">
+          {/* Backdrop */}
+          <div 
+            ref={backlinksBackdropRef}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsBacklinksOpen(false)}
+          />
+          
+          {/* Backlinks Panel */}
+          <div 
+            ref={backlinksRef}
+            className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-l border-gray-700 shadow-xl"
+          >
+            {/* Swipe indicator */}
+            <div className="absolute top-4 left-2 w-1 h-8 bg-gray-500/30 rounded-full"></div>
+            <div className="h-full pb-[env(safe-area-inset-bottom)]">
+              <BacklinksPanel 
+                selectedNote={selectedNote}
+                allNotes={notes}
+                isMobile={true}
+                onClose={() => setIsBacklinksOpen(false)}
+                onNavigateToNote={(noteId) => {
+                  handleNavigateToNote(noteId);
+                  setIsBacklinksOpen(false); // Close the mobile panel after navigation
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -159,7 +310,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         )}
 
         {/* Main Content */}
-        <div className={`${hasOutline ? 'flex-1' : 'w-full'} px-4 sm:px-8 md:px-16 lg:px-32 xl:px-32 py-6 overflow-y-auto`}>
+        <div className={`flex-1 px-4 sm:px-8 md:px-16 lg:px-8 xl:px-16 py-6 overflow-y-auto`}>
           <div className="prose prose-invert max-w-none" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
           /* Mobile optimizations - respect font-size settings */
@@ -265,6 +416,16 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         `}</style>
             {memoizedMarkdown}
           </div>
+        </div>
+        
+        {/* Desktop Backlinks Sidebar */}
+        <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
+          <BacklinksPanel 
+            selectedNote={selectedNote}
+            allNotes={notes}
+            isMobile={false}
+            onNavigateToNote={handleNavigateToNote}
+          />
         </div>
       </div>
     </div>

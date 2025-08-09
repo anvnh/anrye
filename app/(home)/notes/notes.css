@@ -5,6 +5,50 @@
 .prose { overflow-x: hidden; }
 .prose * { max-width: 100%; box-sizing: border-box; }
 
+/* Wikilink styles for beautiful, Obsidian-like appearance */
+.wikilink {
+  position: relative;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.15s ease-in-out;
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.wikilink:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.wikilink:active {
+  transform: translateY(0);
+}
+
+/* Non-existent note links */
+.wikilink[data-exists="false"] {
+  position: relative;
+}
+
+.wikilink[data-exists="false"]::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 2px,
+    currentColor 2px,
+    currentColor 4px
+  );
+}
+
 /* Mobile optimizations for prose */
 @media (max-width: 640px) {
   .prose { line-height: 1.6; }

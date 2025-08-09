@@ -9,4 +9,6 @@ export { default as FoldableHeading } from './FoldableHeading';
 export { ImageManager } from './ImageManager';
 export { default as MobileFileOperations, MobileItemMenu } from './MobileFileOperations';
 export { default as MobileMoveDialog } from './MobileMoveDialog';
+export { default as BacklinksPanel } from './BacklinksPanel';
+export { default as WikilinkAutocomplete } from './WikilinkAutocomplete';
 export * from './types';
