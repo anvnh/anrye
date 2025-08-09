@@ -36,10 +36,17 @@ export const MilestoneImageViewer: React.FC<MilestoneImageViewerProps> = ({
         setLoadingImages(prev => new Set(prev).add(image.id));
         
         try {
+          // Check if user is signed in to Google Drive first
+          const isSignedIn = await driveService.isSignedIn();
+          if (!isSignedIn) {
+            console.warn(`User not signed in to Google Drive, cannot load image ${image.name}`);
+            return;
+          }
+          
           // Get access token first
           const accessToken = await driveService.getAccessToken();
           if (!accessToken) {
-            console.error(`No access token available for image ${image.name}`);
+            console.error(`No access token available for image ${image.name} - authentication may have expired`);
             return;
           }
 

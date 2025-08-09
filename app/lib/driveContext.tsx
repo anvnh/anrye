@@ -110,6 +110,12 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       const mod = await loadDriveModule();
       const success = await mod.driveService.signIn();
       setIsSignedIn(!!success);
+      
+      // Clear any old cache and reset authentication state in image manager
+      if (success) {
+        const { imageLoadingManager } = await import('../(home)/notes/_utils/imageLoadingManager');
+        imageLoadingManager.clearCache();
+      }
     } catch (error) {
       console.error('Sign in failed:', error);
       setIsSignedIn(false);
@@ -122,6 +128,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     try {
       const mod = await loadDriveModule();
       await mod.driveService.signOut();
+      
+      // Clear image cache when signing out
+      const { imageLoadingManager } = await import('../(home)/notes/_utils/imageLoadingManager');
+      imageLoadingManager.clearCache();
     } catch {}
     setIsSignedIn(false);
   };

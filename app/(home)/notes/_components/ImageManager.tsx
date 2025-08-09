@@ -69,8 +69,18 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
   const loadBlobPreview = async (image: ImageInfo, key: string) => {
     if (!image.driveFileId) return;
     try {
+      // Check if user is signed in to Google Drive first
+      const isSignedIn = await driveService.isSignedIn();
+      if (!isSignedIn) {
+        console.warn('User not signed in to Google Drive, cannot load image preview');
+        return;
+      }
+      
       const token = await driveService.getAccessToken();
-      if (!token) return;
+      if (!token) {
+        console.warn('No access token available for image preview - authentication may have expired');
+        return;
+      }
       const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${image.driveFileId}?alt=media`, {
         headers: { Authorization: `Bearer ${token}` }
       });

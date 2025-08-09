@@ -29,6 +29,27 @@
 }
 
 /* Reserve space for images to reduce CLS */
-.md-img-wrapper { position: relative; display: block; }
-.md-img { max-width: 100%; height: auto; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,.5); contain: layout paint style; contain-intrinsic-size: 200px 200px; }
+.md-img-wrapper { position: relative; display: block; contain: layout; will-change: auto; }
+.md-img { 
+  max-width: 100%; 
+  height: auto; 
+  border-radius: 0.5rem; 
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,.5); 
+  contain: layout paint style; 
+  contain-intrinsic-size: 200px 200px;
+  /* Ensure proper aspect ratio is maintained */
+  object-fit: contain;
+  /* Prevent dimension corruption on refresh */
+  image-rendering: auto;
+}
 .md-img-skeleton { height: 200px; width: 100%; border-radius: 0.75rem; }
+
+/* Prevent flashing during Drive sync - stable rendering optimizations */
+.code-block-stable {
+  contain: layout style;
+  will-change: auto;
+}
+
+.markdown-content {
+  contain: layout style;
+}

@@ -505,13 +505,22 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             );
           }
 
-          // Convert children to string for copying
-          let codeString = '';
-          if (Array.isArray(children)) {
-            codeString = children.map(c => (typeof c === 'string' ? c : '')).join('');
-          } else if (typeof children === 'string') {
-            codeString = children;
-          }
+          // Memoize code content to prevent flashing during re-renders
+          const codeString = React.useMemo(() => {
+            if (Array.isArray(children)) {
+              return children.map(c => (typeof c === 'string' ? c : '')).join('');
+            } else if (typeof children === 'string') {
+              return children;
+            }
+            return '';
+          }, [children]);
+
+          // Create stable key for this code block to prevent flashing
+          const stableKey = React.useMemo(() => {
+            const language = match?.[1] || 'text';
+            const contentHash = codeString.substring(0, 50).replace(/\s/g, '');
+            return `code-${language}-${contentHash}`;
+          }, [match, codeString]);
 
           const handleCopy = (e: React.MouseEvent) => {
             e.stopPropagation();
@@ -521,7 +530,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           };
 
           return (
-            <div className="relative group/codeblock my-4">
+            <div key={stableKey} className="relative group/codeblock my-4 code-block-stable">
               {showAlert && (
                 <Alert variant="default" className="alert-custom fixed bottom-4 right-4 z-50 w-80">
                   <CheckCircle2Icon className="h-5 w-5" />
@@ -541,7 +550,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               </button>
               <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 overflow-x-auto">
                 <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
-                  {children}
+                  {codeString}
                 </code>
               </pre>
             </div>
@@ -729,71 +738,88 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const [isLoading, setIsLoading] = React.useState(true);
           const [hasError, setHasError] = React.useState(false);
           const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+          const [loadingProgress, setLoadingProgress] = React.useState(0);
+          const [isStable, setIsStable] = React.useState(false);
 
-          // Reset states when src changes
-          React.useEffect(() => {
-            setIsLoading(true);
-            setHasError(false);
-            setImageUrl(null);
+          // Stable key to prevent flashing during re-renders
+          const stableKey = React.useMemo(() => {
+            if (src && typeof src === 'string') {
+              return src.includes('drive.google.com') 
+                ? src.match(/id=([^&]+)/)?.[1] || src
+                : src;
+            }
+            return src;
           }, [src]);
+
+          // Reset states when src changes, but preserve stable images
+          React.useEffect(() => {
+            // Only reset if the source actually changed (not just a re-render)
+            if (!isStable || !imageUrl) {
+              setIsLoading(true);
+              setHasError(false);
+              setImageUrl(null);
+              setLoadingProgress(0);
+              setIsStable(false);
+            }
+          }, [stableKey]); // Use stableKey instead of src to prevent unnecessary resets
 
           // Lightbox + inline edit
           const [isLightboxOpen, setIsLightboxOpen] = React.useState(false);
           const [isEditorOpen, setIsEditorOpen] = React.useState(false);
 
-          // Handle Google Drive URLs with direct API access
+          // Handle Google Drive URLs with optimized loading
           if (src && typeof src === 'string' && src.includes('drive.google.com')) {
             // Extract file ID from Google Drive URL
             const fileId = src.match(/id=([^&]+)/)?.[1];
             if (fileId) {
-              // Load image directly from Google Drive API
+              // Load image with optimized caching and queue management
               React.useEffect(() => {
+                let isCancelled = false;
+                
                 const loadImageFromDrive = async () => {
                   try {
-                    // Import drive service dynamically
-                    const { driveService } = await import('../../../lib/googleDrive');
+                    setLoadingProgress(20);
                     
-                    // Get access token
-                    const accessToken = await driveService.getAccessToken();
-                    if (!accessToken) {
-                      console.error('No access token available for image');
-                      setHasError(true);
-                      setIsLoading(false);
-                      return;
-                    }
-
-                    // Get the file content as blob from Google Drive API
-                    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                      headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                      }
-                    });
+                    // Use the optimized image loading manager
+                    const { imageLoadingManager } = await import('./imageLoadingManager');
+                    if (isCancelled) return;
                     
-                    if (response.ok) {
-                      const blob = await response.blob();
-                      const url = URL.createObjectURL(blob);
+                    setLoadingProgress(50);
+                    
+                    // Load image with priority (higher priority for images near viewport)
+                    const priority = 1; // Could be adjusted based on viewport position
+                    const url = await imageLoadingManager.loadImage(fileId, priority);
+                    
+                    if (!isCancelled) {
                       setImageUrl(url);
+                      setLoadingProgress(100);
                       setIsLoading(false);
                       setHasError(false);
-                    } else {
-                      console.error(`Failed to load image: ${response.status}`);
-                      setHasError(true);
-                      setIsLoading(false);
+                      setIsStable(true); // Mark as stable to prevent flashing
                     }
                   } catch (error) {
-                    console.error('Failed to load image from Drive:', error);
-                    setHasError(true);
-                    setIsLoading(false);
+                    if (!isCancelled) {
+                      console.error('Failed to load image from Drive:', error);
+                      // Fallback to direct high-quality thumbnail
+                      try {
+                        const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`;
+                        setImageUrl(thumbnailUrl);
+                        setIsLoading(false);
+                        setHasError(false);
+                      } catch {
+                        setHasError(true);
+                        setIsLoading(false);
+                      }
+                    }
                   }
                 };
 
-                loadImageFromDrive();
-
-                // Cleanup function to revoke object URL
+                // Small delay to prevent overwhelming on initial page load
+                const timeoutId = setTimeout(loadImageFromDrive, Math.random() * 200 + 50);
+                
                 return () => {
-                  if (imageUrl && imageUrl.startsWith('blob:')) {
-                    URL.revokeObjectURL(imageUrl);
-                  }
+                  isCancelled = true;
+                  clearTimeout(timeoutId);
                 };
               }, [fileId]);
 
@@ -813,6 +839,14 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   {isLoading && (
                     <div className="flex flex-col space-y-3">
                       <Skeleton className="h-[200px] w-full rounded-xl" />
+                      {loadingProgress > 0 && (
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${loadingProgress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {imageUrl && !isLoading && (
@@ -856,7 +890,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   {hasError && (
                     <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
                       <div className="text-sm mb-2">📷</div>
-                      <div className="text-xs">[Image: {alt || 'Uploaded image'}]</div>
+                      <div className="text-xs mb-1">[Image: {alt || 'Uploaded image'}]</div>
+                      <div className="text-xs text-gray-400">
+                        Authentication required for Google Drive images
+                      </div>
                     </div>
                   )}
                 </div>
@@ -951,7 +988,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               {hasError && (
                 <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
                   <div className="text-sm mb-2">📷</div>
-                  <div className="text-xs">[Image: {alt || 'Image'}]</div>
+                  <div className="text-xs mb-1">[Image: {alt || 'Image'}]</div>
+                  <div className="text-xs text-gray-400">
+                    Authentication required for Google Drive images
+                  </div>
                 </div>
               )}
             </div>
@@ -967,6 +1007,16 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     >
       {preprocessedContent}
     </ReactMarkdown>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders during Drive sync
+  return (
+    prevProps.content === nextProps.content &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.editContent === nextProps.editContent &&
+    prevProps.isSignedIn === nextProps.isSignedIn &&
+    prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
+    prevProps.selectedNote?.updatedAt === nextProps.selectedNote?.updatedAt
   );
 });
 

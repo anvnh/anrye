@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: #f5f5f5;
+            background: #222831;
         }
         .container {
             background: white;
@@ -137,9 +137,8 @@ export async function GET(request: NextRequest) {
 </head>
 <body>
     <div class="container">
-        <div class="success">✓ Authorization Successful!</div>
+        <div class="success">Authorization Successful!</div>
         <div class="info">You have been successfully authenticated with Google Drive.</div>
-        <div class="info">Refresh token: ${tokens.refresh_token ? 'Yes' : 'No'}</div>
         <div class="spinner"></div>
         <div style="margin-top: 1rem; color: #6b7280;">Redirecting...</div>
     </div>

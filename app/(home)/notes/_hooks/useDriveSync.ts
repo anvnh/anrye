@@ -103,18 +103,23 @@ export const useDriveSync = (
                 n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
               );
             } else if (existingNote) {
-              // Note exists, update content from Drive
+              // Note exists, check if content actually changed before updating
               driveService.getFile(file.id).then((content: string) => {
                 setNotes(currentNotes => {
-                  return currentNotes.map(n => 
-                    n.driveFileId === file.id 
-                      ? { 
-                          ...n, 
-                          content: content,
-                          updatedAt: file.modifiedTime 
-                        } 
-                      : n
-                  );
+                  const currentNote = currentNotes.find(n => n.driveFileId === file.id);
+                  if (currentNote && currentNote.content !== content) {
+                    // Only update if content actually changed
+                    return currentNotes.map(n => 
+                      n.driveFileId === file.id 
+                        ? { 
+                            ...n, 
+                            content: content,
+                            updatedAt: file.modifiedTime 
+                          } 
+                        : n
+                    );
+                  }
+                  return currentNotes; // No change if content is the same
                 });
               }).catch((error: any) => {
                 console.error('Failed to update note content for', noteTitle, ':', error);
