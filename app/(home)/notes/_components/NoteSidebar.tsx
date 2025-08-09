@@ -9,7 +9,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import { NoteSidebarProps } from './types';
+import { NoteSidebarProps, Note, Folder } from './types';
 import { MobileItemMenu } from './MobileFileOperations';
 import MobileMoveDialog from './MobileMoveDialog';
 
@@ -109,16 +109,16 @@ export default function NoteSidebar({
                   <MobileItemMenu
                     item={folder}
                     itemType="folder"
-                    onCreateFolder={(path) => {
+                    onCreateFolder={(path: string) => {
                       onSetSelectedPath(path);
                       onSetIsCreatingFolder(true);
                     }}
-                    onCreateNote={(path) => {
+                    onCreateNote={(path: string) => {
                       onSetSelectedPath(path);
                       onSetIsCreatingNote(true);
                     }}
-                    onRenameItem={(id, name) => onRenameFolder(id, name)}
-                    onDeleteItem={(id) => onDeleteFolder(id)}
+                    onRenameItem={(id: string, name: string) => onRenameFolder(id, name)}
+                    onDeleteItem={(id: string) => onDeleteFolder(id)}
                     onMoveItem={handleMobileMove}
                   />
                 </div>
@@ -204,9 +204,9 @@ export default function NoteSidebar({
                   <MobileItemMenu
                     item={note}
                     itemType="note"
-                    onOpenNote={(note) => onSelectNote(note)}
-                    onRenameItem={(id, title) => onRenameNote(id, title)}
-                    onDeleteItem={(id) => onDeleteNote(id)}
+                    onOpenNote={(note: Note) => onSelectNote(note)}
+                    onRenameItem={(id: string, title: string) => onRenameNote(id, title)}
+                    onDeleteItem={(id: string) => onDeleteNote(id)}
                     onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
                     onMoveItem={handleMobileMove}
                   />

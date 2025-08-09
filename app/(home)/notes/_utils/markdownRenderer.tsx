@@ -459,8 +459,11 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             // Detect known block wrappers we render (divs for images, skeletons, etc.)
             if (!child || typeof child !== 'object') return false;
             const type = (child as any).type;
+            const displayName = type?.displayName || type?.name || '';
             // If this renders to a 'div' or known block-like component, treat as block
-            return type === 'div' || type === 'pre' || type === 'table';
+            return type === 'div' || type === 'pre' || type === 'table' || 
+                   displayName === 'Skeleton' ||
+                   (child.props && child.props.className && child.props.className.includes('md-img-wrapper'));
           });
           const Wrapper: any = hasBlockChild ? 'div' : 'p';
           return (
