@@ -85,32 +85,32 @@ const updateCheckboxContent = (
   lineIndex: number,
   newChecked: boolean
 ): string => {
-  // console.log('updateCheckboxContent called:', { lineIndex, newChecked, contentLength: content.length });
+
   
   // Split preserving all lines, including trailing empty lines
   const matchLines = content.match(/[^\n]*\n?|$/g);
   const lines = matchLines ? matchLines.slice(0, -1) : [];
   
-  // console.log('Lines found:', lines.length, 'Line index:', lineIndex);
+
   
   if (lineIndex < 0 || lineIndex >= lines.length) {
-    console.warn('Invalid lineIndex:', lineIndex, 'Total lines:', lines.length);
+    // Invalid line index
     return content;
   }
   
   const line = lines[lineIndex].replace(/\r?\n$/, '');
-  // console.log('Processing line:', line);
+
   
   const checkboxMatch = line.match(/^(\s*)-\s*\[[ xX]?\]\s*(.*)$/);
   if (checkboxMatch) {
     const [, indent, lineText] = checkboxMatch;
     const newLine = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
     lines[lineIndex] = newLine;
-    // console.log('Updated line:', newLine);
+
     // Preserve all lines and trailing newlines
     return lines.join('');
   } else {
-    // console.warn('No checkbox pattern found in line:', line);
+    // No checkbox pattern found
     return content;
   }
 };

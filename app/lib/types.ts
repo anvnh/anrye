@@ -1,5 +1,6 @@
 interface GoogleAuth {
   access_token: string;
+  refresh_token?: string;
   error?: string;
   expires_in?: number;
 }
@@ -50,6 +51,7 @@ declare global {
           initTokenClient: (config: {
             client_id: string;
             scope: string;
+            access_type?: string;
             callback: (response: GoogleAuth) => void;
           }) => GoogleTokenClient;
           revoke: (token: string) => void;

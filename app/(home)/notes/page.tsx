@@ -33,6 +33,7 @@ import { clearAllData, setupDebugUtils } from './_utils/debugUtils';
 // Removed: heading-based sync is now self-contained in NoteSplitEditor
 
 export default function NotesPage() {
+
   // Use custom hooks for state management
   const {
     notes, setNotes,
@@ -111,7 +112,50 @@ export default function NotesPage() {
     notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress
   );
 
-  const { isSignedIn, signIn, signOut } = useDrive();
+  const { isSignedIn, signIn, signOut, checkSignInStatus } = useDrive();
+
+  // Check for OAuth success after hooks are initialized
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth_success') === 'true') {
+      // Remove the auth_success parameter from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('auth_success');
+      window.history.replaceState({}, document.title, newUrl.toString());
+      
+      // Process temporary tokens if they exist
+      const processTokens = async () => {
+        try {
+          const { driveService } = await import('../../lib/googleDrive');
+          const success = await driveService.signIn();
+          if (success) {
+            // Google Drive authentication successful
+            // Trigger a re-check of sign-in status
+            if (checkSignInStatus) {
+              checkSignInStatus();
+            }
+          } else {
+            // Failed to process OAuth tokens
+          }
+        } catch (error) {
+          // Error processing OAuth tokens
+        }
+      };
+      
+      processTokens();
+    }
+    
+    const authError = urlParams.get('auth_error');
+    if (authError) {
+      // Remove the auth_error parameter from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('auth_error');
+      window.history.replaceState({}, document.title, newUrl.toString());
+      
+      // Google Drive authentication error
+      // You might want to show an error message to the user here
+    }
+  }, [checkSignInStatus]);
 
   // Scroll synchronization handled inside NoteSplitEditor
 
@@ -143,7 +187,7 @@ export default function NotesPage() {
 
         setIsInitialized(true);
       } catch (error) {
-        console.error('Failed to initialize notes:', error);
+        // Failed to initialize notes
         setIsInitialized(true);
       }
     };
@@ -177,7 +221,7 @@ export default function NotesPage() {
         await renameNote(renameItem.id, renameItem.currentName, newName);
       }
     } catch (error) {
-      console.error('Failed to rename item:', error);
+      // Failed to rename item
     } finally {
       setIsRenameDialogOpen(false);
       setRenameItem(null);
@@ -242,7 +286,10 @@ export default function NotesPage() {
           onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
           onToggleSidebar={toggleSidebar}
           onForceSync={forceSync}
-          onSignIn={signIn}
+          onSignIn={() => {
+            // Use the new server-side OAuth flow
+            window.location.href = '/api/auth/google?action=login';
+          }}
           onSignOut={signOut}
         />
 

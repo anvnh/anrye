@@ -252,31 +252,37 @@ class GoogleDriveService {
     this.refreshToken = null;
   }
 
-  // Refresh access token using refresh token
+  // Refresh access token using refresh token via server endpoint
   private async refreshWithRefreshToken(): Promise<boolean> {
     if (!this.refreshToken) {
-
+      // No refresh token available
       return false;
     }
 
     try {
-
+      // Refreshing access token using refresh token
       
-      // Use Google's token endpoint to refresh
-      const response = await fetch('https://oauth2.googleapis.com/token', {
+      // Use our server endpoint to refresh the token securely
+      const response = await fetch('/api/auth/google/token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          client_id: this.CLIENT_ID,
+        body: JSON.stringify({
           refresh_token: this.refreshToken,
-          grant_type: 'refresh_token',
         }),
       });
 
       if (!response.ok) {
-        console.error('Refresh token request failed:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        // Refresh token request failed
+        
+        // If refresh token is invalid, clear it and force re-authentication
+        if (response.status === 401 && errorData.code === 'INVALID_REFRESH_TOKEN') {
+          // Refresh token is invalid, clearing stored tokens
+          this.clearSavedToken();
+          return false;
+        }
         return false;
       }
 
@@ -284,71 +290,38 @@ class GoogleDriveService {
       
       if (data.access_token) {
         this.accessToken = data.access_token;
-        // Note: refresh token may or may not be returned - keep existing if not provided
-        this.saveToken(data.access_token, data.expires_in, data.refresh_token);
-
+        // Keep existing refresh token if new one not provided
+        const refreshToken = data.refresh_token || this.refreshToken;
+        this.saveToken(data.access_token, data.expires_in, refreshToken);
+        // Access token refreshed successfully
         return true;
       } else {
-        console.error('No access token in refresh response:', data);
+        // No access token in refresh response
         return false;
       }
     } catch (error) {
-      console.error('Error refreshing token:', error);
+      // Error refreshing token
       return false;
     }
   }
 
-  // Silent refresh method (fallback)
+  // Silent refresh method - no longer needed with server-side OAuth
   private async silentRefresh(): Promise<boolean> {
-    if (!this.tokenClient) {
-      return false;
-    }
-
-    return new Promise((resolve) => {
-      // Save original callback
-      const originalCallback = this.tokenClient?.callback;
-      
-      // Set up silent refresh callback
-      if (this.tokenClient) {
-        this.tokenClient.callback = (response: GoogleAuth) => {
-          if (response.access_token) {
-            this.accessToken = response.access_token;
-            this.saveToken(response.access_token, response.expires_in, response.refresh_token);
-    
-            resolve(true);
-          } else {
-
-            resolve(false);
-          }
-          
-          // Restore original callback
-          if (this.tokenClient && originalCallback) {
-            this.tokenClient.callback = originalCallback;
-          }
-        };
-        
-        // Request new token silently
-        try {
-          this.tokenClient.requestAccessToken({ prompt: '' });
-        } catch (error) {
-  
-          resolve(false);
-        }
-      } else {
-        resolve(false);
-      }
-    });
+    // With server-side OAuth flow, we don't need silent refresh
+    // All token management is handled via the refresh token endpoint
+    // Silent refresh not available with server-side OAuth flow
+    return false;
   }
 
   async loadGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
       
-      if (window.gapi?.client?.drive && this.tokenClient) {
+      if (window.gapi?.client?.drive) {
         resolve();
         return;
       }
 
-      // Load Google API script first
+      // Load Google API script for Drive API only
       const loadGapi = () => {
         return new Promise<void>((gapiResolve, gapiReject) => {
           if (window.gapi?.client?.drive) {
@@ -384,81 +357,29 @@ class GoogleDriveService {
         });
       };
 
-      // Load Google Identity Services script
-      const loadGSI = () => {
-        return new Promise<void>((gsiResolve, gsiReject) => {
-          if (document.querySelector('script[src*="accounts.google.com"]')) {
-            gsiResolve();
-            return;
-          }
-
-          const gsiScript = document.createElement('script');
-          gsiScript.src = 'https://accounts.google.com/gsi/client';
-          gsiScript.async = true;
-          gsiScript.defer = true;
-          gsiScript.onload = () => {
-            gsiResolve();
-          };
-          gsiScript.onerror = () => {
-            gsiReject(new Error('Failed to load Google Identity Services'));
-          };
-          document.head.appendChild(gsiScript);
-        });
-      };
-
-      // Load both and then setup token client
-      Promise.all([loadGapi(), loadGSI()])
+      // Only load GAPI for Drive API - no longer need GSI
+      loadGapi()
         .then(() => {
-          // Wait a bit for GSI to be ready
-          setTimeout(() => {
-            this.setupTokenClient();
-            resolve();
-          }, 100);
+          resolve();
         })
         .catch(reject);
     });
   }
 
+  // Legacy method - no longer needed with server-side OAuth
   private setupTokenClient(): void {
-    const clientId = getGoogleClientId();
-    
-    if (!clientId) {
-      return;
-    }
-    
-    if (window.google?.accounts?.oauth2) {
-      const config: TokenClientConfig = {
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        // Request offline access to get refresh token
-        access_type: 'offline',
-        callback: (response: GoogleAuth) => {
-          if (response.access_token) {
-            this.accessToken = response.access_token;
-            if (response.refresh_token) {
-              this.refreshToken = response.refresh_token;
-      
-            } else {
-      
-            }
-            this.saveToken(response.access_token, response.expires_in, response.refresh_token);
-    
-            //   access_token: '***',
-            //   refresh_token: response.refresh_token ? '***' : 'none',
-            //   expires_in: response.expires_in
-            // });
-          }
-        },
-      };
-      this.tokenClient = window.google.accounts.oauth2.initTokenClient(config);
-    }
+    // This method is kept for compatibility but no longer used
+    // We now use server-side OAuth flow instead
   }
 
   async signIn(): Promise<boolean> {
     try {
       // Check if we already have a valid token
       if (this.accessToken) {
-        return true;
+        const isValid = await this.validateAndRefreshToken();
+        if (isValid) {
+          return true;
+        }
       }
 
       // Check if Google Client ID is configured
@@ -467,74 +388,110 @@ class GoogleDriveService {
         return false;
       }
 
-      await this.loadGoogleAPI();
+      // Check for temporary tokens from OAuth callback
+      const tempTokens = localStorage.getItem('google_drive_tokens_temp');
+      if (tempTokens) {
+        try {
+          const tokens = JSON.parse(tempTokens);
+          localStorage.removeItem('google_drive_tokens_temp');
+          
+          if (tokens.access_token) {
+            this.accessToken = tokens.access_token;
+            this.refreshToken = tokens.refresh_token;
+            this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
+                      // OAuth tokens processed successfully
+            
+            // Load Google API for Drive operations
+            await this.loadGoogleAPI();
+            return true;
+          }
+        } catch (error) {
+          // Error processing temporary tokens
+          localStorage.removeItem('google_drive_tokens_temp');
+        }
+      }
+
+      // Start OAuth flow
+      return await this.startOAuthFlow();
+    } catch (error) {
+      // Sign in error
+      return false;
+    }
+  }
+
+  private async startOAuthFlow(): Promise<boolean> {
+    try {
+      // Get OAuth URL from server
+      const response = await fetch('/api/auth/google?action=login');
       
-      if (!this.tokenClient) {
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        // Failed to get OAuth URL
         return false;
       }
 
+      const { authUrl } = await response.json();
+      
       return new Promise((resolve) => {
-        let resolved = false;
-        
-        // Set timeout for popup blocking detection
-        const timeoutId = setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-    
-            alert('Popup may have been blocked. Please allow popups for this site and try again.');
-            resolve(false);
-          }
-        }, 30000);
+        // Open popup for OAuth
+        const popup = window.open(
+          authUrl,
+          'google-oauth',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
 
-        // Update callback to resolve promise
-        if (this.tokenClient) {
-          this.tokenClient.callback = (response: GoogleAuth) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              
-              if (response.access_token) {
-                this.accessToken = response.access_token;
-                if (response.refresh_token) {
-                  this.refreshToken = response.refresh_token;
-                }
-                this.saveToken(response.access_token, response.expires_in, response.refresh_token);
-        
-                resolve(true);
-              } else if (response.error) {
-        
-                
-                // Handle popup blocking
-                if (response.error === 'popup_blocked_by_browser' || response.error === 'popup_closed_by_user') {
-                  alert('Authentication popup was blocked. Please allow popups for this site and try again.');
-                }
-                resolve(false);
-              } else {
-        
-                resolve(false);
-              }
-            }
-          };
-          
-          try {
-            // Request access token with consent to ensure refresh token
-            this.tokenClient.requestAccessToken({ prompt: 'consent' });
-          } catch (error) {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              console.error('Error requesting access token:', error);
+        if (!popup) {
+          alert('Popup blocked. Please enable popups for this site and try again.');
+          resolve(false);
+          return;
+        }
+
+        // Listen for messages from popup
+        const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) {
+            return;
+          }
+
+          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+            window.removeEventListener('message', messageHandler);
+            
+            const tokens = event.data.tokens;
+            if (tokens.access_token) {
+              this.accessToken = tokens.access_token;
+              this.refreshToken = tokens.refresh_token;
+              this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
+              // OAuth completed successfully
+              resolve(true);
+            } else {
+              // No access token received
               resolve(false);
             }
           }
-        } else {
-          resolved = true;
-          clearTimeout(timeoutId);
+        };
+
+        window.addEventListener('message', messageHandler);
+
+        // Check if popup was closed manually
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageHandler);
+            resolve(false);
+          }
+        }, 1000);
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          if (!popup.closed) {
+            popup.close();
+          }
           resolve(false);
-        }
+        }, 5 * 60 * 1000);
       });
     } catch (error) {
-      console.error('Sign in error:', error);
+      // Error starting OAuth flow
       return false;
     }
   }
@@ -596,7 +553,7 @@ class GoogleDriveService {
           discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         });
       } catch (e) {
-        console.error('Error resetting GAPI client:', e);
+        // Error resetting GAPI client
       }
     }
   }
@@ -624,7 +581,7 @@ class GoogleDriveService {
         return await this.forceReAuthenticate();
       }
     } catch (error) {
-      console.error('Token refresh error:', error);
+      // Token refresh error
       return await this.forceReAuthenticate();
     }
   }
@@ -749,7 +706,7 @@ class GoogleDriveService {
     try {
       return await apiCall();
     } catch (error: unknown) {
-      console.error('Google Drive API call failed:', error);
+      // Google Drive API call failed
       
       // Check if it's a specific GAPI error
       if (typeof error === 'object' && error !== null) {
@@ -1097,7 +1054,7 @@ class GoogleDriveService {
         }
       });
     } catch (error) {
-      console.warn('Failed to make image public, but upload succeeded:', error);
+              // Failed to make image public, but upload succeeded
     }
     
     return fileId;

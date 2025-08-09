@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // Reset rate limiting on successful login
     loginAttempts.delete(clientIP);
     
-    // Create JWT token with 24 hour expiration
+    // Create JWT token with 30 day expiration
     const token = jwt.sign(
       { 
         username: ADMIN_USERNAME,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         ip: clientIP
       },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
     
     // Create response with secure cookie
@@ -108,14 +108,14 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: false, // Set to false for localhost development
       sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
-      maxAge: 24 * 60 * 60, // 24 hours
+      maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/',
     });
     
     return response;
     
   } catch (error) {
-    console.error('Login error:', error);
+    // Login error
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

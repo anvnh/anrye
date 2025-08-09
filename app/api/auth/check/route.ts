@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     
-    // Check if token is still valid (24 hours)
+    // Check if token is still valid (30 days)
     const now = Date.now();
     const tokenAge = now - decoded.loginTime;
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
     
     if (tokenAge > maxAge) {
       return NextResponse.json({ authenticated: false, error: 'Session expired' }, { status: 401 });
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Auth check error:', error);
+    // Auth check error
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 }

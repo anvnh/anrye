@@ -188,49 +188,31 @@ export const runImageCleanup = async (
 ) => {
   const script = new ImageCleanupScript(notes, isSignedIn);
   
-  console.log('🔍 Image Cleanup Script');
-  console.log('========================');
+  // Image cleanup started
   
   // Generate report
   const report = script.generateReport();
-  console.log('\n📊 Image Usage Report:');
-  console.log(`Total Notes: ${report.summary.totalNotes}`);
-  console.log(`Notes with Images: ${report.summary.notesWithImages}`);
-  console.log(`Total Images: ${report.summary.totalImages}`);
-  console.log(`Unique Images: ${report.summary.uniqueImages}`);
+  // Image usage report generated
 
-  if (options.dryRun) {
-    console.log('\n🧪 DRY RUN MODE - No changes will be made');
-  }
+  // Dry run mode check
 
   // Cleanup orphaned images if requested
   if (options.removeFromDrive && isSignedIn) {
-    console.log('\n🗑️  Cleaning up orphaned images...');
     try {
       const result = await script.cleanupOrphanedImages();
-      console.log(`✅ Deleted ${result.deleted.length} orphaned images`);
-      if (result.failed.length > 0) {
-        console.log(`❌ Failed to delete ${result.failed.length} images`);
-      }
+      // Cleanup completed
     } catch (error) {
-      console.error('❌ Failed to cleanup orphaned images:', error);
+      // Cleanup failed
     }
   }
 
   // Remove images from notes if requested
   if (options.removeFromNotes) {
     const noteIds = options.noteIds || notes.map(n => n.id);
-    console.log(`\n🗑️  Removing images from ${noteIds.length} notes...`);
     
     const results = await script.removeImagesFromNotes(noteIds, options);
-    const totalRemoved = results.reduce((sum, r) => sum + r.imagesRemoved, 0);
-    const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
-    
-    console.log(`✅ Removed ${totalRemoved} images from notes`);
-    if (totalErrors > 0) {
-      console.log(`❌ ${totalErrors} errors occurred`);
-    }
+    // Images removed from notes
   }
 
-  console.log('\n✅ Cleanup completed!');
+  // Cleanup completed
 }; 
