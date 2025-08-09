@@ -581,12 +581,12 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           );
         },
         ul: ({ children, ...props }) => (
-          <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
+          <ul className="list-disc list-outside mb-4 text-gray-300 space-y-1 ml-6" {...props}>
             {children}
           </ul>
         ),
         ol: ({ children, ...props }) => (
-          <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
+          <ol className="list-decimal list-outside mb-4 text-gray-300 space-y-1 ml-6" {...props}>
             {children}
           </ol>
         ),

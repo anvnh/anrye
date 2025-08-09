@@ -367,7 +367,71 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <List size={16} />
         </button>
         <button
-          onClick={() => insertAtCursor('1. ')}
+          onClick={() => {
+            if (!textareaRef?.current) return;
+            
+            const { start, end, selected } = updateSelection();
+            
+            // If no selection, just insert numbered item at cursor
+            if (start === end) {
+              insertAtCursor('1. ');
+              return;
+            }
+            
+            // Find the start and end of the lines that contain the selection
+            const before = editContent.substring(0, start);
+            const after = editContent.substring(end);
+            
+            // Find the start of the first line containing selection
+            const lineStart = before.lastIndexOf('\n') + 1;
+            
+            // Find the end of the last line containing selection
+            const lineEnd = after.indexOf('\n');
+            const actualLineEnd = lineEnd !== -1 ? end + lineEnd : editContent.length;
+            
+            // Get the complete lines that contain the selection
+            const completeLines = editContent.substring(lineStart, actualLineEnd);
+            const lines = completeLines.split('\n');
+            
+            // Check if all lines are already numbered lists
+            const numberedPattern = /^(\s*)\d+\.\s/;
+            const allAreNumbered = lines.every(line => line.trim() === '' || numberedPattern.test(line));
+            
+            let newLines: string[];
+            if (allAreNumbered) {
+              // Remove numbered list formatting from all lines
+              newLines = lines.map(line => {
+                const match = line.match(numberedPattern);
+                if (match) {
+                  return line.substring(match[0].length);
+                }
+                return line;
+              });
+            } else {
+              // Add numbered list formatting to all lines
+              let counter = 1;
+              newLines = lines.map(line => {
+                if (line.trim() === '') return line; // Skip empty lines
+                // Preserve leading whitespace for indentation, but ensure clean numbering
+                const match = line.match(/^(\s*)(.*)/);
+                const leadingWhitespace = match ? match[1] : '';
+                const content = match ? match[2] : line;
+                return `${leadingWhitespace}${counter++}. ${content}`;
+              });
+            }
+            
+            const newContent = editContent.substring(0, lineStart) + newLines.join('\n') + editContent.substring(actualLineEnd);
+            setEditContent(newContent);
+            
+            // Restore focus and selection
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.focus();
+                const newEnd = lineStart + newLines.join('\n').length;
+                textareaRef.current.setSelectionRange(lineStart, newEnd);
+              }
+            }, 0);
+          }}
           className="p-2 hover:bg-gray-700 rounded transition-colors"
           title="Numbered List (Ctrl+Shift+&)"
         >
