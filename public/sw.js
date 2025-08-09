@@ -14,13 +14,22 @@ const STATIC_ASSETS = [
 ];
 
 // Install event - cache static resources
+// Avoid caching when running on localhost (dev safety)
+const isLocalhost = typeof self !== 'undefined' && (
+  self.location?.hostname === 'localhost' ||
+  self.location?.hostname === '127.0.0.1' ||
+  self.location?.hostname === '::1'
+);
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('Opened static cache');
-        return cache.addAll(STATIC_ASSETS);
-      })
+    isLocalhost
+      ? Promise.resolve()
+      : caches.open(STATIC_CACHE)
+          .then((cache) => {
+            console.log('Opened static cache');
+            return cache.addAll(STATIC_ASSETS);
+          })
   );
 });
 
@@ -35,9 +44,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Handle static assets with cache-first strategy
-  if (STATIC_ASSETS.includes(url.pathname) || 
+  if (!isLocalhost && (STATIC_ASSETS.includes(url.pathname) || 
       url.pathname.startsWith('/icons/') ||
-      url.pathname.startsWith('/_next/static/')) {
+      url.pathname.startsWith('/_next/static/'))) {
     event.respondWith(
       caches.match(request)
         .then((response) => {
@@ -57,7 +66,7 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           // Cache successful responses
-          if (response.status === 200) {
+          if (!isLocalhost && response.status === 200) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE)
               .then((cache) => {
@@ -68,10 +77,10 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // Fallback to cache
-          return caches.match(request)
+          return (isLocalhost ? Promise.resolve(undefined) : caches.match(request))
             .then((response) => {
               // If no cached response and it's a navigation request, show offline page
-              if (!response && request.mode === 'navigate') {
+              if (!response && request.mode === 'navigate' && !isLocalhost) {
                 return caches.match('/offline.html');
               }
               return response;

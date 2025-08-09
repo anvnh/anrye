@@ -81,7 +81,9 @@ export default function RootLayout({
           {children}
         </DriveProvider>
         <PWAInstallPrompt />
-        <Script src="/sw-register.js" strategy="afterInteractive" />
+        {process.env.NODE_ENV === 'production' && (
+          <Script src="/sw-register.js" strategy="afterInteractive" />
+        )}
       </body>
     </html>
   );
