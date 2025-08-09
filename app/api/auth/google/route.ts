@@ -19,10 +19,10 @@ setInterval(() => {
 
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url);
-    const action = url.searchParams.get('action');
+  const url = new URL(request.url);
+  const action = url.searchParams.get('action');
 
-    if (action === 'login') {
+  if (action === 'login') {
       // Generate OAuth authorization URL
       if (!GOOGLE_CLIENT_ID) {
         return NextResponse.json(
@@ -31,16 +31,17 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Generate random state parameter for CSRF protection
-      const state = randomBytes(32).toString('hex');
-      const origin = request.headers.get('origin') || 'http://localhost:3000';
+  // Generate random state parameter for CSRF protection
+  const state = randomBytes(32).toString('hex');
+  // Derive origin from the request URL to support direct navigation (no Origin header)
+  const origin = `${url.protocol}//${url.host}`;
       
       // Store state with timestamp
       stateStore.set(state, { timestamp: Date.now(), origin });
 
       const redirectUri = `${origin}/api/auth/google/callback`;
       
-      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('response_type', 'code');
@@ -49,6 +50,16 @@ export async function GET(request: NextRequest) {
       authUrl.searchParams.set('prompt', 'consent'); // Force consent to ensure refresh token
       authUrl.searchParams.set('state', state);
 
+      // Decide response mode based on navigation vs programmatic fetch
+      const fetchMode = request.headers.get('sec-fetch-mode');
+      const wantsRedirect = url.searchParams.get('mode') === 'redirect' || fetchMode === 'navigate';
+
+      if (wantsRedirect) {
+        // Redirect directly to Google OAuth for top-level navigation
+        return NextResponse.redirect(authUrl.toString());
+      }
+
+      // Default: return JSON for programmatic fetch (popup flow)
       return NextResponse.json({ authUrl: authUrl.toString() });
     }
 

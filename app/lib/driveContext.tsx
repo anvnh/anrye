@@ -34,6 +34,18 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     const initializeAuth = async () => {
       if (typeof window !== 'undefined') {
         try {
+          // If we just returned from OAuth in the same window, process tokens now
+          const temp = window.localStorage.getItem('google_drive_tokens_temp');
+          if (temp) {
+            try {
+              const mod = await loadDriveModule();
+              const ok = await mod.driveService.signIn();
+              setIsSignedIn(!!ok);
+              setIsLoading(false);
+              return;
+            } catch {}
+          }
+
           const tokenRaw = window.localStorage.getItem('google_drive_token');
           if (!tokenRaw) {
             setIsSignedIn(false);

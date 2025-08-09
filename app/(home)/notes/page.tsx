@@ -288,7 +288,7 @@ export default function NotesPage() {
           onForceSync={forceSync}
           onSignIn={() => {
             // Use the new server-side OAuth flow
-            window.location.href = '/api/auth/google?action=login';
+            window.location.href = '/api/auth/google?action=login&mode=redirect';
           }}
           onSignOut={signOut}
         />

@@ -382,13 +382,7 @@ class GoogleDriveService {
         }
       }
 
-      // Check if Google Client ID is configured
-      if (!isGoogleClientIdConfigured()) {
-        alert('Google Drive integration is not configured. Please check the console for details.');
-        return false;
-      }
-
-      // Check for temporary tokens from OAuth callback
+      // 1) First, check for temporary tokens from OAuth callback (same-window redirect)
       const tempTokens = localStorage.getItem('google_drive_tokens_temp');
       if (tempTokens) {
         try {
@@ -411,7 +405,13 @@ class GoogleDriveService {
         }
       }
 
-      // Start OAuth flow
+      // 2) If no tokens to process, verify client config only when starting OAuth flow
+      if (!isGoogleClientIdConfigured()) {
+        alert('Google Drive integration is not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID.');
+        return false;
+      }
+
+      // Start OAuth flow (popup/programmatic mode)
       return await this.startOAuthFlow();
     } catch (error) {
       // Sign in error
