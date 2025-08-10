@@ -7,6 +7,15 @@ const loadDrive = () => {
   return driveModulePromise;
 };
 
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  parents?: string[];
+  createdTime: string;
+  modifiedTime: string;
+}
+
 export interface Activity {
   id: string;
   type: 'note' | 'milestone' | 'utility' | 'editor';
@@ -106,7 +115,7 @@ class ActivityService {
       const files = await drive.listFiles(notesFolderId);
       
       // More permissive filter - include all text-based files
-      const filteredFiles = files.filter(file => 
+      const filteredFiles = files.filter((file: DriveFile) => 
         file.mimeType === 'text/plain' || 
         file.mimeType.includes('document') ||
         file.mimeType.includes('text') ||
@@ -125,7 +134,7 @@ class ActivityService {
       const drive = await this.ensureDrive();
       const loveFolderId = await drive.findOrCreateLoveFolder();
       const files = await drive.listFiles(loveFolderId);
-      return files.filter(file => file.mimeType === 'text/plain' || file.mimeType.includes('document'));
+      return files.filter((file: DriveFile) => file.mimeType === 'text/plain' || file.mimeType.includes('document'));
     } catch (error) {
       console.error('Error fetching love files:', error);
       return [];
@@ -137,7 +146,7 @@ class ActivityService {
       const drive = await this.ensureDrive();
       // Look for utils folder or files with utils prefix
       const allFiles = await drive.listFiles();
-      return allFiles.filter(file => 
+      return allFiles.filter((file: DriveFile) => 
         file.name.toLowerCase().includes('utils') || 
         file.name.toLowerCase().includes('utility') ||
         file.name.toLowerCase().includes('tool')
@@ -155,7 +164,7 @@ class ActivityService {
       const allFiles = await drive.listFiles();
       
       // Filter for text-based files and sort by modified time
-      const textFiles = allFiles.filter(file => 
+      const textFiles = allFiles.filter((file: DriveFile) => 
         file.mimeType === 'text/plain' || 
         file.mimeType.includes('document') ||
         file.mimeType.includes('text') ||
@@ -163,7 +172,7 @@ class ActivityService {
       );
       
       // Sort by modified time (most recent first) and take top 10
-      textFiles.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
+      textFiles.sort((a: DriveFile, b: DriveFile) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
       
       return textFiles.slice(0, 10);
     } catch (error) {

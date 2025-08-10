@@ -551,23 +551,155 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
       if (bulletMatch) {
         e.preventDefault();
-        const prefix = bulletMatch[1] + (bulletMatch[2].match(/\d+\./) ? (parseInt(bulletMatch[2]) + 1) + '. ' : bulletMatch[2]);
-        setEditContent(
-          value.slice(0, start) + '\n' + prefix + value.slice(end)
-        );
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-        }, 0);
+        
+        // Check if this is a numbered list
+        const numberedMatch = bulletMatch[2].match(/(\d+)\./);
+        if (numberedMatch) {
+          // This is a numbered list - we need to renumber subsequent items
+          const currentNumber = parseInt(numberedMatch[1]);
+          const nextNumber = currentNumber + 1;
+          const prefix = bulletMatch[1] + nextNumber + '. ';
+          
+          // Insert the new line with the next number
+          const newContent = value.slice(0, start) + '\n' + prefix + value.slice(end);
+          
+          // Now renumber all subsequent numbered list items
+          const lines = newContent.split('\n');
+          const updatedLines = [...lines];
+          let numberToUse = nextNumber + 1;
+          
+          // Find the line we just inserted and start from the next line
+          const insertedLineIndex = before.split('\n').length; // Line index where we inserted
+          
+          for (let i = insertedLineIndex + 1; i < updatedLines.length; i++) {
+            const line = updatedLines[i];
+            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s/);
+            if (lineNumberMatch) {
+              // This line is a numbered list item - update its number
+              const indentation = lineNumberMatch[1];
+              const restOfLine = line.substring(lineNumberMatch[0].length);
+              updatedLines[i] = indentation + numberToUse + '. ' + restOfLine;
+              numberToUse++;
+            } else if (line.trim() !== '' && !line.match(/^(\s*)([-*+] |\d+\. )/)) {
+              // If we hit a non-list line that's not empty, stop renumbering
+              break;
+            }
+          }
+          
+          const finalContent = updatedLines.join('\n');
+          setEditContent(finalContent);
+          
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
+          }, 0);
+        } else {
+          // Regular bullet list (-, *, +)
+          const prefix = bulletMatch[1] + bulletMatch[2];
+          setEditContent(
+            value.slice(0, start) + '\n' + prefix + value.slice(end)
+          );
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
+          }, 0);
+        }
         return;
       }
     }
   }, [setEditContent, tabSize]);
 
-  // Optimized onChange handler with performance monitoring
+  // Debounced renumbering to avoid excessive calls
+  const renumberTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Function to renumber consecutive numbered lists (optimized)
+  const renumberNumberedLists = useCallback((content: string, preserveCursor?: { start: number; end: number }): { content: string; cursorAdjustment: number } => {
+    const lines = content.split('\n');
+    const updatedLines = [...lines];
+    let cursorLineAdjustment = 0;
+    
+    // Track which lines we've already processed to avoid double-processing
+    const processedLines = new Set<number>();
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (processedLines.has(i)) continue;
+      
+      const line = lines[i];
+      const numberedMatch = line.match(/^(\s*)(\d+)\.\s/);
+      
+      if (numberedMatch) {
+        // Found a numbered list item, check if renumbering is needed
+        const baseIndentation = numberedMatch[1];
+        let currentNumber = 1;
+        let needsRenumbering = false;
+        const listItems: number[] = [];
+        
+        // First pass: collect all list items and check if renumbering is needed
+        for (let j = i; j < lines.length; j++) {
+          const currentLine = lines[j];
+          const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+          
+          if (currentMatch && currentMatch[1] === baseIndentation) {
+            listItems.push(j);
+            const actualNumber = parseInt(currentMatch[2]);
+            if (actualNumber !== currentNumber) {
+              needsRenumbering = true;
+            }
+            currentNumber++;
+          } else if (currentLine.trim() === '') {
+            continue;
+          } else if (currentMatch && currentMatch[1].length > baseIndentation.length) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        
+        // Only renumber if actually needed
+        if (needsRenumbering) {
+          let newNumber = 1;
+          for (const lineIndex of listItems) {
+            processedLines.add(lineIndex);
+            const currentLine = lines[lineIndex];
+            const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+            
+            if (currentMatch) {
+              const oldNumber = currentMatch[2];
+              const newNumberStr = newNumber.toString();
+              const restOfLine = currentLine.substring(currentMatch[0].length);
+              const newLine = baseIndentation + newNumberStr + '. ' + restOfLine;
+              
+              updatedLines[lineIndex] = newLine;
+              
+              // Track cursor position adjustment if needed
+              if (preserveCursor && lineIndex <= preserveCursor.start) {
+                const lengthDiff = newNumberStr.length - oldNumber.length;
+                if (lineIndex === preserveCursor.start) {
+                  cursorLineAdjustment += lengthDiff;
+                }
+              }
+              
+              newNumber++;
+            }
+          }
+        }
+        
+        // Skip the lines we just processed
+        i = Math.max(i, ...listItems);
+      }
+    }
+    
+    return { 
+      content: updatedLines.join('\n'), 
+      cursorAdjustment: cursorLineAdjustment 
+    };
+  }, []);
+
+  // Optimized onChange handler with performance monitoring and debounced renumbering
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     performanceMonitor.start('content-change');
     
     const newValue = e.target.value;
+    
+    // Immediately update content for responsive feel
     setEditContent(newValue);
 
     // Batch updates to avoid excessive re-renders
@@ -579,12 +711,49 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
     updateTimeoutRef.current = setTimeout(() => {
       if (pendingUpdateRef.current !== null) {
-        // Trigger any expensive operations here if needed
         pendingUpdateRef.current = null;
       }
       performanceMonitor.end('content-change');
     }, 50);
-  }, [setEditContent]);
+    
+    // Debounced renumbering for performance
+    if (renumberTimeoutRef.current) {
+      clearTimeout(renumberTimeoutRef.current);
+    }
+    
+    // Only schedule renumbering if content contains numbered lists
+    if (/^\s*\d+\.\s/m.test(newValue)) {
+      renumberTimeoutRef.current = setTimeout(() => {
+        const textarea = textareaRef.current;
+        const cursorPos = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : undefined;
+        
+        const result = renumberNumberedLists(newValue, cursorPos);
+        
+        // Only update if content actually changed
+        if (result.content !== newValue) {
+          setEditContent(result.content);
+          
+          // Restore cursor position with adjustment
+          if (textarea && cursorPos) {
+            setTimeout(() => {
+              const newStart = cursorPos.start + result.cursorAdjustment;
+              const newEnd = cursorPos.end + result.cursorAdjustment;
+              textarea.setSelectionRange(newStart, newEnd);
+            }, 0);
+          }
+        }
+      }, 300); // 300ms debounce for smooth experience
+    }
+  }, [setEditContent, renumberNumberedLists]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (renumberTimeoutRef.current) {
+        clearTimeout(renumberTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Optimized real-time preview with enhanced debounced content and performance monitoring
   const realtimePreview = useMemo(() => {

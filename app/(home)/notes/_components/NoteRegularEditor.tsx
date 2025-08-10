@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage } from '../_hooks/usePasteImage';
 import { useWikilinkAutocomplete } from '../_hooks/useWikilinkAutocomplete';
@@ -88,6 +88,137 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
     };
   }, [handlePasteImage]);
 
+  // Debounced renumbering to avoid excessive calls
+  const renumberTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Function to renumber consecutive numbered lists (optimized)
+  const renumberNumberedLists = useCallback((content: string, preserveCursor?: { start: number; end: number }): { content: string; cursorAdjustment: number } => {
+    const lines = content.split('\n');
+    const updatedLines = [...lines];
+    const totalAdjustment = 0;
+    let cursorLineAdjustment = 0;
+    
+    // Track which lines we've already processed to avoid double-processing
+    const processedLines = new Set<number>();
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (processedLines.has(i)) continue;
+      
+      const line = lines[i];
+      const numberedMatch = line.match(/^(\s*)(\d+)\.\s/);
+      
+      if (numberedMatch) {
+        // Found a numbered list item, check if renumbering is needed
+        const baseIndentation = numberedMatch[1];
+        let currentNumber = 1;
+        let needsRenumbering = false;
+        const listItems: number[] = [];
+        
+        // First pass: collect all list items and check if renumbering is needed
+        for (let j = i; j < lines.length; j++) {
+          const currentLine = lines[j];
+          const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+          
+          if (currentMatch && currentMatch[1] === baseIndentation) {
+            listItems.push(j);
+            const actualNumber = parseInt(currentMatch[2]);
+            if (actualNumber !== currentNumber) {
+              needsRenumbering = true;
+            }
+            currentNumber++;
+          } else if (currentLine.trim() === '') {
+            continue;
+          } else if (currentMatch && currentMatch[1].length > baseIndentation.length) {
+            continue;
+          } else {
+            break;
+          }
+        }
+        
+        // Only renumber if actually needed
+        if (needsRenumbering) {
+          let newNumber = 1;
+          for (const lineIndex of listItems) {
+            processedLines.add(lineIndex);
+            const currentLine = lines[lineIndex];
+            const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
+            
+            if (currentMatch) {
+              const oldNumber = currentMatch[2];
+              const newNumberStr = newNumber.toString();
+              const restOfLine = currentLine.substring(currentMatch[0].length);
+              const newLine = baseIndentation + newNumberStr + '. ' + restOfLine;
+              
+              updatedLines[lineIndex] = newLine;
+              
+              // Track cursor position adjustment if needed
+              if (preserveCursor && lineIndex <= preserveCursor.start) {
+                const lengthDiff = newNumberStr.length - oldNumber.length;
+                if (lineIndex === preserveCursor.start) {
+                  cursorLineAdjustment += lengthDiff;
+                }
+              }
+              
+              newNumber++;
+            }
+          }
+        }
+        
+        // Skip the lines we just processed
+        i = Math.max(i, ...listItems);
+      }
+    }
+    
+    return { 
+      content: updatedLines.join('\n'), 
+      cursorAdjustment: cursorLineAdjustment 
+    };
+  }, []);
+
+  // Optimized content change handler with debouncing
+  const handleContentChange = useCallback((newContent: string) => {
+    // Immediately update content for responsive feel
+    setEditContent(newContent);
+    
+    // Debounced renumbering for performance
+    if (renumberTimeoutRef.current) {
+      clearTimeout(renumberTimeoutRef.current);
+    }
+    
+    // Only schedule renumbering if content contains numbered lists
+    if (/^\s*\d+\.\s/m.test(newContent)) {
+      renumberTimeoutRef.current = setTimeout(() => {
+        const textarea = textareaRef.current;
+        const cursorPos = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : undefined;
+        
+        const result = renumberNumberedLists(newContent, cursorPos);
+        
+        // Only update if content actually changed
+        if (result.content !== newContent) {
+          setEditContent(result.content);
+          
+          // Restore cursor position with adjustment
+          if (textarea && cursorPos) {
+            setTimeout(() => {
+              const newStart = cursorPos.start + result.cursorAdjustment;
+              const newEnd = cursorPos.end + result.cursorAdjustment;
+              textarea.setSelectionRange(newStart, newEnd);
+            }, 0);
+          }
+        }
+      }, 300); // 300ms debounce for smooth experience
+    }
+  }, [renumberNumberedLists]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (renumberTimeoutRef.current) {
+        clearTimeout(renumberTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
@@ -143,13 +274,57 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
       const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
       if (bulletMatch) {
         e.preventDefault();
-        const prefix = bulletMatch[1] + (bulletMatch[2].match(/\d+\./) ? (parseInt(bulletMatch[2]) + 1) + '. ' : bulletMatch[2]);
-        setEditContent(
-          value.slice(0, start) + '\n' + prefix + value.slice(end)
-        );
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-        }, 0);
+        
+        // Check if this is a numbered list
+        const numberedMatch = bulletMatch[2].match(/(\d+)\./);
+        if (numberedMatch) {
+          // This is a numbered list - we need to renumber subsequent items
+          const currentNumber = parseInt(numberedMatch[1]);
+          const nextNumber = currentNumber + 1;
+          const prefix = bulletMatch[1] + nextNumber + '. ';
+          
+          // Insert the new line with the next number
+          const newContent = value.slice(0, start) + '\n' + prefix + value.slice(end);
+          
+          // Now renumber all subsequent numbered list items
+          const lines = newContent.split('\n');
+          const updatedLines = [...lines];
+          let numberToUse = nextNumber + 1;
+          
+          // Find the line we just inserted and start from the next line
+          const insertedLineIndex = before.split('\n').length; // Line index where we inserted
+          
+          for (let i = insertedLineIndex + 1; i < updatedLines.length; i++) {
+            const line = updatedLines[i];
+            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s/);
+            if (lineNumberMatch) {
+              // This line is a numbered list item - update its number
+              const indentation = lineNumberMatch[1];
+              const restOfLine = line.substring(lineNumberMatch[0].length);
+              updatedLines[i] = indentation + numberToUse + '. ' + restOfLine;
+              numberToUse++;
+            } else if (line.trim() !== '' && !line.match(/^(\s*)([-*+] |\d+\. )/)) {
+              // If we hit a non-list line that's not empty, stop renumbering
+              break;
+            }
+          }
+          
+          const finalContent = updatedLines.join('\n');
+          setEditContent(finalContent);
+          
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
+          }, 0);
+        } else {
+          // Regular bullet list (-, *, +)
+          const prefix = bulletMatch[1] + bulletMatch[2];
+          setEditContent(
+            value.slice(0, start) + '\n' + prefix + value.slice(end)
+          );
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
+          }, 0);
+        }
         return;
       }
     }
@@ -189,7 +364,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
         <textarea
           ref={textareaRef}
           value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
+          onChange={(e) => handleContentChange(e.target.value)}
           onKeyDown={handleKeyDown}
           className="w-full h-full resize-none bg-secondary text-gray-300 focus:outline-none font-mono text-sm"
           placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"

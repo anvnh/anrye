@@ -581,12 +581,12 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           );
         },
         ul: ({ children, ...props }) => (
-          <ul className="list-disc list-inside mb-4 text-gray-300 space-y-1" {...props}>
+          <ul className="list-disc list-outside mb-4 text-gray-300 space-y-1 ml-6" {...props}>
             {children}
           </ul>
         ),
         ol: ({ children, ...props }) => (
-          <ol className="list-decimal list-inside mb-4 text-gray-300 space-y-1" {...props}>
+          <ol className="list-decimal list-outside mb-4 text-gray-300 space-y-1 ml-6" {...props}>
             {children}
           </ol>
         ),
@@ -788,21 +788,21 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         ),
 
         img: ({ src, alt, ...props }) => {
-          const [isLoading, setIsLoading] = React.useState(true);
-          const [hasError, setHasError] = React.useState(false);
-          const [imageUrl, setImageUrl] = React.useState<string | null>(null);
-          const [loadingProgress, setLoadingProgress] = React.useState(0);
-          const [isStable, setIsStable] = React.useState(false);
-
-          // Stable key to prevent flashing during re-renders
+          // Stable key to prevent flashing during re-renders - use this as the component key
           const stableKey = React.useMemo(() => {
             if (src && typeof src === 'string') {
               return src.includes('drive.google.com') 
                 ? src.match(/id=([^&]+)/)?.[1] || src
                 : src;
             }
-            return src;
+            return typeof src === 'string' ? src : 'img-' + Math.random().toString(36).substr(2, 9);
           }, [src]);
+
+          const [isLoading, setIsLoading] = React.useState(true);
+          const [hasError, setHasError] = React.useState(false);
+          const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+          const [loadingProgress, setLoadingProgress] = React.useState(0);
+          const [isStable, setIsStable] = React.useState(false);
 
           // Reset states when src changes, but preserve stable images
           React.useEffect(() => {
@@ -979,7 +979,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           }
 
           return (
-            <div className="relative my-4 md-img-wrapper">
+            <div key={stableKey} className="relative my-4 md-img-wrapper">
               {isLoading && (
                 <div className="flex flex-col space-y-3">
                   <Skeleton className="h-[200px] w-full rounded-xl" />
@@ -1001,6 +1001,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                     <>
                 <div className="group relative">
                   <img
+                    key={stableKey}
                     src={inlineUrl || (src as string)}
                     alt={alt || 'Image'}
                     className={`md-img ${isLoading ? 'hidden' : ''} cursor-zoom-in`}

@@ -12,7 +12,7 @@ interface WikilinkAutocompleteState {
 
 interface UseWikilinkAutocompleteProps {
   notes: Note[];
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   editContent: string;
   setEditContent: (content: string) => void;
 }

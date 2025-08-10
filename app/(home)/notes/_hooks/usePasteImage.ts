@@ -190,7 +190,8 @@ export const usePasteImage = ({
             }, 0);
           } else {
             // Fallback: append to end of content if we lost the focus element
-            setEditContent((prev) => (prev || '') + '\n' + result.markdownLink + '\n');
+            const currentContent = selectedNote?.content || '';
+            setEditContent(currentContent + '\n' + result.markdownLink + '\n');
           }
           return true;
         }
