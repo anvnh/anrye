@@ -1,0 +1,269 @@
+'use client';
+
+import React, { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { EditorState, Extension, Compartment } from '@codemirror/state';
+import { EditorView, keymap } from '@codemirror/view';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { indentWithTab } from '@codemirror/commands';
+import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
+
+export interface CMEditorApi {
+  focus: () => void;
+  insertTextAtSelection: (text: string) => void;
+  wrapSelection: (prefix: string, suffix?: string) => void;
+  toggleHeadingAtLine: (level: number) => void;
+  undo: () => void;
+  redo: () => void;
+  getSelectionLine: () => number;
+  getDocLineCount: () => number;
+  scrollDOM: HTMLElement | null;
+  contentDOM: HTMLElement | null;
+}
+
+type CMEditorProps = {
+  value: string;
+  onChange: (next: string) => void;
+  tabSize?: number;
+  fontSize?: string;
+  className?: string;
+  onReady?: (api: CMEditorApi) => void;
+  onPasteImage?: (file: File) => Promise<string | null>;
+  onSelectionChange?: (line: number) => void;
+};
+
+const baseExtensions: Extension[] = [
+  history(),
+  keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...completionKeymap]),
+  autocompletion(),
+  markdown(),
+  oneDark,
+  EditorView.lineWrapping
+];
+
+export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>(function CMEditor(
+  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange },
+  ref
+) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const themeCompartmentRef = useRef<Compartment | null>(null);
+  const tabCompartmentRef = useRef<Compartment | null>(null);
+
+  // Memoize tab size and font size style
+  const styleExt = useMemo(() => EditorView.theme({
+    // Root .cm-editor element
+    '&': {
+      fontSize,
+      height: '100%',
+      backgroundColor: 'transparent'
+    },
+    '.cm-content': {
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      backgroundColor: 'transparent'
+    },
+    // Ensure internal scroller can actually scroll within the fixed height
+    '.cm-scroller': {
+      overflow: 'auto',
+      height: '100%',
+      backgroundColor: 'transparent'
+    },
+    '.cm-gutters': {
+      backgroundColor: 'transparent'
+    }
+  }), [fontSize]);
+
+  const tabExt = useMemo(() => EditorState.tabSize.of(tabSize), [tabSize]);
+
+  useEffect(() => {
+    if (!hostRef.current) return;
+    if (viewRef.current) return; // already initialized
+
+  // Initialize compartments for dynamic reconfiguration
+  themeCompartmentRef.current = new Compartment();
+  tabCompartmentRef.current = new Compartment();
+
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        ...baseExtensions,
+    themeCompartmentRef.current.of(styleExt),
+    tabCompartmentRef.current.of(tabExt),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+          if (update.selectionSet || update.focusChanged) {
+            try {
+              const line = update.state.doc.lineAt(update.state.selection.main.from).number - 1;
+              onSelectionChange?.(line);
+            } catch {}
+          }
+        }),
+      ]
+    });
+
+    const view = new EditorView({
+      state,
+      parent: hostRef.current
+    });
+    viewRef.current = view;
+
+    // Paste image handler (optional)
+    const contentDOM = (view as any).contentDOM as HTMLElement;
+    const handlePaste = async (event: ClipboardEvent) => {
+      if (!onPasteImage) return;
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = it.getAsFile();
+          if (!file) continue;
+          try {
+            const link = await onPasteImage(file);
+            if (link) {
+              view.dispatch({
+                changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: `\n${link}\n` }
+              });
+            }
+          } catch (_) {}
+          break;
+        }
+      }
+    };
+    contentDOM.addEventListener('paste', handlePaste);
+
+    // Expose API
+    const api: CMEditorApi = {
+      focus: () => view.focus(),
+      insertTextAtSelection: (text: string) => {
+        view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
+        view.focus();
+      },
+      wrapSelection: (prefix: string, suffix: string = prefix) => {
+        const sel = view.state.selection.main;
+        const selected = view.state.doc.sliceString(sel.from, sel.to);
+        const isWrapped = selected.startsWith(prefix) && selected.endsWith(suffix);
+        const replacement = isWrapped ? selected.slice(prefix.length, selected.length - suffix.length) : `${prefix}${selected}${suffix}`;
+        view.dispatch({ changes: { from: sel.from, to: sel.to, insert: replacement }, selection: { anchor: sel.from + (isWrapped ? 0 : prefix.length), head: sel.from + (isWrapped ? selected.length : selected.length + prefix.length) } });
+        view.focus();
+      },
+      toggleHeadingAtLine: (level: number) => {
+        const { state } = view;
+        const line = state.doc.lineAt(state.selection.main.from);
+        const heading = '#'.repeat(level) + ' ';
+        const current = state.doc.sliceString(line.from, line.to);
+        let newLine = '';
+        if (current.startsWith(heading)) {
+          newLine = current.slice(heading.length);
+        } else if (/^#+\s+/.test(current)) {
+          newLine = heading + current.replace(/^#+\s+/, '');
+        } else {
+          newLine = heading + current;
+        }
+        view.dispatch({ changes: { from: line.from, to: line.to, insert: newLine }, selection: { anchor: Math.min(line.from + newLine.length, state.doc.length) } });
+        view.focus();
+      },
+      undo: () => { (EditorView as any).undo?.() || document.execCommand('undo'); },
+      redo: () => { (EditorView as any).redo?.() || document.execCommand('redo'); },
+      getSelectionLine: () => {
+        const { state } = view;
+        const line = state.doc.lineAt(state.selection.main.from);
+        return line.number - 1; // zero-based like textarea
+      },
+      getDocLineCount: () => view.state.doc.lines,
+      scrollDOM: (view as any).scrollDOM as HTMLElement,
+      contentDOM: (view as any).contentDOM as HTMLElement,
+    };
+
+    onReady?.(api);
+
+    return () => {
+      contentDOM.removeEventListener('paste', handlePaste);
+      view.destroy();
+      viewRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep external value in sync when it changes from outside
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current !== value) {
+      view.dispatch({
+        changes: { from: 0, to: current.length, insert: value }
+      });
+    }
+  }, [value]);
+
+  // Reconfigure theme (font size) live when prop changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !themeCompartmentRef.current) return;
+    view.dispatch({ effects: themeCompartmentRef.current.reconfigure(styleExt) });
+  }, [styleExt]);
+
+  // Reconfigure tab size live when prop changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !tabCompartmentRef.current) return;
+    view.dispatch({ effects: tabCompartmentRef.current.reconfigure(tabExt) });
+  }, [tabExt]);
+
+  useImperativeHandle(ref, () => {
+    const view = viewRef.current;
+    if (!view) return undefined as any;
+    return {
+      focus: () => view.focus(),
+      insertTextAtSelection: (text: string) => {
+        view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
+        view.focus();
+      },
+      wrapSelection: (prefix: string, suffix?: string) => {
+        const sel = view.state.selection.main;
+        const selected = view.state.doc.sliceString(sel.from, sel.to);
+        const end = suffix ?? prefix;
+        const isWrapped = selected.startsWith(prefix) && selected.endsWith(end);
+        const replacement = isWrapped ? selected.slice(prefix.length, selected.length - end.length) : `${prefix}${selected}${end}`;
+        view.dispatch({ changes: { from: sel.from, to: sel.to, insert: replacement }, selection: { anchor: sel.from + (isWrapped ? 0 : prefix.length), head: sel.from + (isWrapped ? selected.length : selected.length + prefix.length) } });
+        view.focus();
+      },
+      toggleHeadingAtLine: (level: number) => {
+        const { state } = view;
+        const line = state.doc.lineAt(state.selection.main.from);
+        const heading = '#'.repeat(level) + ' ';
+        const current = state.doc.sliceString(line.from, line.to);
+        let newLine = '';
+        if (current.startsWith(heading)) {
+          newLine = current.slice(heading.length);
+        } else if (/^#+\s+/.test(current)) {
+          newLine = heading + current.replace(/^#+\s+/, '');
+        } else {
+          newLine = heading + current;
+        }
+        view.dispatch({ changes: { from: line.from, to: line.to, insert: newLine }, selection: { anchor: Math.min(line.from + newLine.length, state.doc.length) } });
+        view.focus();
+      },
+      undo: () => { (EditorView as any).undo?.() || document.execCommand('undo'); },
+      redo: () => { (EditorView as any).redo?.() || document.execCommand('redo'); },
+      getSelectionLine: () => {
+        const { state } = view;
+        const line = state.doc.lineAt(state.selection.main.from);
+        return line.number - 1;
+      },
+      getDocLineCount: () => view.state.doc.lines,
+      scrollDOM: (view as any).scrollDOM as HTMLElement,
+      contentDOM: (view as any).contentDOM as HTMLElement,
+    } as CMEditorApi;
+  });
+
+  const combinedClass = [className, 'raw-content'].filter(Boolean).join(' ');
+  return <div ref={hostRef} className={combinedClass} style={{ height: '100%' }} />;
+});
+
+export default CMEditor;

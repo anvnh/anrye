@@ -8,6 +8,7 @@ import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 import { usePasteImage } from '../_hooks/usePasteImage';
 import RenameImageDialog from './RenameImageDialog';
+import CMEditor, { CMEditorApi } from './CMEditor';
 
 
 interface NoteSplitEditorProps {
@@ -45,11 +46,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   setIsLoading,
   setSyncProgress
 }) => {
-  
+
   // Refs for scroll sync targets
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cmRef = useRef<CMEditorApi | undefined>(undefined);
   const previewRef = useRef<HTMLDivElement>(null);
   const domHeadingElsRef = useRef<HTMLElement[]>([]);
+  const [editorReady, setEditorReady] = useState(false);
 
   // Handle wikilink navigation
   const handleNavigateToNote = (noteId: string) => {
@@ -66,7 +68,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
 
   // Initialize paste image functionality
-  const { handlePasteImage } = usePasteImage({
+  const { handlePasteImage, uploadPastedImage } = usePasteImage({
     notes,
     folders,
     selectedNote,
@@ -83,28 +85,10 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         (window as any).__rename_image_cb_split__ = handle;
       });
     },
-    getTargetTextarea: () => textareaRef.current
+    getTargetTextarea: () => null
   });
 
-  // Add paste event listener to textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const handlePaste = async (event: ClipboardEvent) => {
-      const handled = await handlePasteImage(event);
-      if (handled) {
-        // Image was pasted and handled, don't do default paste
-        return;
-      }
-      // If no image was found, let the default paste behavior continue
-    };
-
-    textarea.addEventListener('paste', handlePaste);
-    return () => {
-      textarea.removeEventListener('paste', handlePaste);
-    };
-  }, [handlePasteImage]);
+  // CMEditor will handle paste via onPasteImage
 
   // Split pane resize state
   const [leftPaneWidth, setLeftPaneWidth] = useState(50); // Percentage
@@ -143,7 +127,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       const line = before.split('\n').length - 1;
       caretLineRef.current = line;
       lastCaretChangeRef.current = Date.now();
-    } catch {}
+    } catch { }
   }, []);
 
   // Remove the old debounce effect since we're using the advanced hook
@@ -275,7 +259,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     return offset;
   }
 
-  function computeAnchors(rawElement: HTMLTextAreaElement) {
+  function computeAnchors(rawElement: HTMLElement) {
     const container = previewRef.current;
     if (!container) return null;
 
@@ -350,7 +334,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   }, [scrollPreviewToElement]);
 
   // ---------- Scroll handlers using heading alignment ----------
-  const syncPreviewFromRaw = useCallback((rawElement: HTMLTextAreaElement) => {
+  const syncPreviewFromRaw = useCallback((rawElement: HTMLElement) => {
     if (!rawElement) return;
     if (isSyncingRef.current && lastSourceRef.current !== 'raw') return;
 
@@ -448,13 +432,14 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     });
   }, [editContent, findHeadingForApproxLine, scrollPreviewToElement, scrollPreviewToHeadingId, computeAnchors]);
 
-  const handleRawScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
+  const handleRawScroll = useCallback(() => {
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastRawScrollTime = now;
-    const textarea = e.currentTarget;
+    const raw = cmRef.current?.scrollDOM;
+    if (!raw) return;
     // Always sync preview when editor scrolls
-    syncPreviewFromRaw(textarea);
+    syncPreviewFromRaw(raw);
   }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -464,7 +449,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     (lastScrollPositions.current as any).lastPreviewScrollTime = now;
 
     const container = previewRef.current;
-    const textarea = textareaRef.current;
+    const textarea = cmRef.current?.scrollDOM || null;
     if (!container || !textarea) return;
     if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
 
@@ -499,161 +484,69 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }, 16);
   }, [computeAnchors]);
 
-  // Track caret changes from user interactions
-  const handleRawSelect = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    updateCaretInfo(e.currentTarget);
-  }, [updateCaretInfo]);
+  // Textarea-only key/select handlers removed; CMEditor handles this.
 
+  // Attach raw scroll listener to CMEditor scroller
+  const rawScrollElRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = cmRef.current?.scrollDOM ?? null;
+    if (!el) return;
+    if (rawScrollElRef.current === el) return; // already attached to this scroller
 
-  // Handle Tab key, auto bracket/quote, auto bullet, etc.
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const textarea = e.currentTarget;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const value = textarea.value;
-    
-    // Tab key for indentation
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const indent = ' '.repeat(tabSize);
-      setEditContent(value.slice(0, start) + indent + value.slice(end));
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + indent.length;
-      }, 0);
-      return;
-    }
-    
-    // Auto close brackets/quotes
-    const pairs: Record<string, string> = {
-      '(': ')',
-      '[': ']',
-      '{': '}',
-      '"': '"',
-      "'": "'",
-      '`': '`',
+    const onScroll = () => handleRawScroll();
+    const onWheel = () => handleRawScroll();
+    const onTouchMove = () => handleRawScroll();
+    el.addEventListener('scroll', onScroll, { passive: true } as any);
+    el.addEventListener('wheel', onWheel, { passive: true } as any);
+    el.addEventListener('touchmove', onTouchMove, { passive: true } as any);
+    rawScrollElRef.current = el;
+
+    return () => {
+      try { el.removeEventListener('scroll', onScroll as any); } catch { }
+      try { el.removeEventListener('wheel', onWheel as any); } catch { }
+      try { el.removeEventListener('touchmove', onTouchMove as any); } catch { }
+      if (rawScrollElRef.current === el) rawScrollElRef.current = null;
     };
-    if (Object.keys(pairs).includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      const close = pairs[e.key];
-      setEditContent(value.slice(0, start) + e.key + close + value.slice(end));
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 1;
-      }, 0);
-      return;
+  }, [editorReady, handleRawScroll]);
+
+  // Perform an initial sync when editor/preview are ready or content changes
+  useEffect(() => {
+    const raw = cmRef.current?.scrollDOM;
+    if (raw && previewRef.current) {
+      syncPreviewFromRaw(raw);
     }
-    
-    // Auto continue bullet/checkbox list
-    if (e.key === 'Enter') {
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-      const lineStart = before.lastIndexOf('\n') + 1;
-      const currentLine = before.slice(lineStart);
-      
-      // Continue checkbox: always insert '- [ ] '
-      const checkboxMatch = currentLine.match(/^(\s*)- \[[ xX]?\] /);
-      if (checkboxMatch) {
-        e.preventDefault();
-        const prefix = checkboxMatch[1] + '- [ ] ';
-        setEditContent(value.slice(0, start) + '\n' + prefix + value.slice(end));
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-        }, 0);
-        return;
-      }
-      
-      // Bullet: - , * , + , numbered list
-      const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
-      if (bulletMatch) {
-        e.preventDefault();
-        
-        // Check if this is a numbered list
-        const numberedMatch = bulletMatch[2].match(/(\d+)\./);
-        if (numberedMatch) {
-          // This is a numbered list - we need to renumber subsequent items
-          const currentNumber = parseInt(numberedMatch[1]);
-          const nextNumber = currentNumber + 1;
-          const prefix = bulletMatch[1] + nextNumber + '. ';
-          
-          // Insert the new line with the next number
-          const newContent = value.slice(0, start) + '\n' + prefix + value.slice(end);
-          
-          // Now renumber all subsequent numbered list items
-          const lines = newContent.split('\n');
-          const updatedLines = [...lines];
-          let numberToUse = nextNumber + 1;
-          
-          // Find the line we just inserted and start from the next line
-          const insertedLineIndex = before.split('\n').length; // Line index where we inserted
-          
-          for (let i = insertedLineIndex + 1; i < updatedLines.length; i++) {
-            const line = updatedLines[i];
-            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s/);
-            if (lineNumberMatch) {
-              // This line is a numbered list item - update its number
-              const indentation = lineNumberMatch[1];
-              const restOfLine = line.substring(lineNumberMatch[0].length);
-              updatedLines[i] = indentation + numberToUse + '. ' + restOfLine;
-              numberToUse++;
-            } else if (line.trim() !== '' && !line.match(/^(\s*)([-*+] |\d+\. )/)) {
-              // If we hit a non-list line that's not empty, stop renumbering
-              break;
-            }
-          }
-          
-          const finalContent = updatedLines.join('\n');
-          setEditContent(finalContent);
-          
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-          }, 0);
-        } else {
-          // Regular bullet list (-, *, +)
-          const prefix = bulletMatch[1] + bulletMatch[2];
-          setEditContent(
-            value.slice(0, start) + '\n' + prefix + value.slice(end)
-          );
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-          }, 0);
-        }
-        return;
-      }
-    }
-    
-    // For all other keys, ensure they work normally
-    // Don't prevent default for normal text input
-  }, [setEditContent, tabSize]);
+  }, [editorReady, debouncedContent, syncPreviewFromRaw]);
 
   // Debounced renumbering to avoid excessive calls
   const renumberTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Function to renumber consecutive numbered lists (optimized)
   const renumberNumberedLists = useCallback((content: string, preserveCursor?: { start: number; end: number }): { content: string; cursorAdjustment: number } => {
     const lines = content.split('\n');
     const updatedLines = [...lines];
     let cursorLineAdjustment = 0;
-    
+
     // Track which lines we've already processed to avoid double-processing
     const processedLines = new Set<number>();
-    
+
     for (let i = 0; i < lines.length; i++) {
       if (processedLines.has(i)) continue;
-      
+
       const line = lines[i];
       const numberedMatch = line.match(/^(\s*)(\d+)\.\s/);
-      
+
       if (numberedMatch) {
         // Found a numbered list item, check if renumbering is needed
         const baseIndentation = numberedMatch[1];
         let currentNumber = 1;
         let needsRenumbering = false;
         const listItems: number[] = [];
-        
+
         // First pass: collect all list items and check if renumbering is needed
         for (let j = i; j < lines.length; j++) {
           const currentLine = lines[j];
           const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
-          
+
           if (currentMatch && currentMatch[1] === baseIndentation) {
             listItems.push(j);
             const actualNumber = parseInt(currentMatch[2]);
@@ -669,7 +562,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             break;
           }
         }
-        
+
         // Only renumber if actually needed
         if (needsRenumbering) {
           let newNumber = 1;
@@ -677,15 +570,15 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             processedLines.add(lineIndex);
             const currentLine = lines[lineIndex];
             const currentMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
-            
+
             if (currentMatch) {
               const oldNumber = currentMatch[2];
               const newNumberStr = newNumber.toString();
               const restOfLine = currentLine.substring(currentMatch[0].length);
               const newLine = baseIndentation + newNumberStr + '. ' + restOfLine;
-              
+
               updatedLines[lineIndex] = newLine;
-              
+
               // Track cursor position adjustment if needed
               if (preserveCursor && lineIndex <= preserveCursor.start) {
                 const lengthDiff = newNumberStr.length - oldNumber.length;
@@ -693,29 +586,27 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
                   cursorLineAdjustment += lengthDiff;
                 }
               }
-              
+
               newNumber++;
             }
           }
         }
-        
+
         // Skip the lines we just processed
         i = Math.max(i, ...listItems);
       }
     }
-    
-    return { 
-      content: updatedLines.join('\n'), 
-      cursorAdjustment: cursorLineAdjustment 
+
+    return {
+      content: updatedLines.join('\n'),
+      cursorAdjustment: cursorLineAdjustment
     };
   }, []);
 
   // Optimized onChange handler with performance monitoring and debounced renumbering
-  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleContentChange = useCallback((newValue: string) => {
     performanceMonitor.start('content-change');
-    
-    const newValue = e.target.value;
-    
+
     // Immediately update content for responsive feel
     setEditContent(newValue);
 
@@ -732,32 +623,20 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       }
       performanceMonitor.end('content-change');
     }, 50);
-    
+
     // Debounced renumbering for performance
     if (renumberTimeoutRef.current) {
       clearTimeout(renumberTimeoutRef.current);
     }
-    
+
     // Only schedule renumbering if content contains numbered lists
     if (/^\s*\d+\.\s/m.test(newValue)) {
       renumberTimeoutRef.current = setTimeout(() => {
-        const textarea = textareaRef.current;
-        const cursorPos = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : undefined;
-        
-        const result = renumberNumberedLists(newValue, cursorPos);
-        
+        const result = renumberNumberedLists(newValue, undefined);
+
         // Only update if content actually changed
         if (result.content !== newValue) {
           setEditContent(result.content);
-          
-          // Restore cursor position with adjustment
-          if (textarea && cursorPos) {
-            setTimeout(() => {
-              const newStart = cursorPos.start + result.cursorAdjustment;
-              const newEnd = cursorPos.end + result.cursorAdjustment;
-              textarea.setSelectionRange(newStart, newEnd);
-            }, 0);
-          }
         }
       }, 300); // 300ms debounce for smooth experience
     }
@@ -772,27 +651,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     };
   }, []);
 
-  // Ensure textarea is properly initialized for browser compatibility
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      // Ensure textarea is properly set up for editing
-      textarea.setAttribute('spellcheck', 'false');
-      textarea.setAttribute('autocomplete', 'off');
-      textarea.setAttribute('autocorrect', 'off');
-      textarea.setAttribute('autocapitalize', 'off');
-      
-      // Force focus to ensure it's editable
-      if (document.activeElement !== textarea) {
-        textarea.focus();
-      }
-    }
-  }, [editContent]);
+  // CMEditor manages focus and attributes; no textarea to initialize.
 
   // Optimized real-time preview with enhanced debounced content and performance monitoring
   const realtimePreview = useMemo(() => {
     performanceMonitor.start('preview-render');
-    
+
     const preview = (
       <div className="relative">
         {isPending && (
@@ -813,12 +677,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         />
       </div>
     );
-    
+
     // Use RAF for non-blocking rendering
     batchDOMUpdates(() => {
       performanceMonitor.end('preview-render');
     });
-    
+
     return preview;
   }, [debouncedContent, isPending, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
 
@@ -914,7 +778,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       )}
       {/* Raw Editor Side */}
       <div
-        className="flex flex-col border-r border-gray-500"
+        className="flex flex-col min-h-0 border-r border-gray-500"
         style={{
           backgroundColor: '#31363F',
           width: `${leftPaneWidth}%`
@@ -923,40 +787,29 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         <EditorToolbar
           editContent={editContent}
           setEditContent={setEditContent}
-          textareaRef={textareaRef}
-          onPasteImage={() => {
-            // Trigger paste event on textarea
-            if (textareaRef.current) {
-              textareaRef.current.focus();
-              document.execCommand('paste');
-            }
-          }}
+          textareaRef={undefined as any}
+          cmApiRef={cmRef as any}
+          onPasteImage={() => cmRef.current?.focus()}
         />
-        <div className="flex-1 px-4 py-4 overflow-hidden relative">
-          <textarea
-            ref={textareaRef}
+        <div className="flex-1 min-h-0 overflow-hidden relative p-0">
+          <CMEditor
+            ref={cmRef as any}
             value={editContent}
             onChange={handleContentChange}
-            onScroll={handleRawScroll}
-            onSelect={handleRawSelect}
-            onKeyDown={handleKeyDown}
-            onFocus={(e) => {
-              // Ensure proper focus handling for browser compatibility
-              e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length);
+            tabSize={tabSize}
+            fontSize={fontSize}
+            className="w-full h-full"
+            onReady={(api) => { api.focus(); setEditorReady(true); }}
+            onPasteImage={async (file) => {
+              const result = await uploadPastedImage(file);
+              return result?.markdownLink ?? null;
             }}
-            className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
-            placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
-            style={{
-              backgroundColor: '#31363F',
-              fontSize: fontSize,
-              // Remove problematic performance optimizations that cause browser compatibility issues
-              // willChange: 'scroll-position',
-              // containIntrinsicSize: '1px 1000px'
+            onSelectionChange={() => {
+              try {
+                caretLineRef.current = cmRef.current?.getSelectionLine() ?? 0;
+                lastCaretChangeRef.current = Date.now();
+              } catch { }
             }}
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
           />
         </div>
       </div>
@@ -980,7 +833,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
       {/* Preview Side */}
       <div
-        className="flex flex-col"
+        className="flex flex-col min-h-0"
         style={{
           backgroundColor: '#222831',
           width: `${100 - leftPaneWidth}%`
@@ -988,7 +841,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       >
         <div
           ref={previewRef}
-          className="preview-content flex-1 px-4 py-4 overflow-y-auto"
+          className="preview-content flex-1 overflow-y-auto p-3.5"
           onScroll={handlePreviewScroll}
           style={{
             scrollBehavior: 'auto',
@@ -998,7 +851,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             backgroundColor: '#222831'
           }}
         >
-          <div className="prose prose-invert max-w-none w-full" style={{ fontSize: previewFontSize }}>
+          <div className="prose prose-invert max-w-none w-full m-0 p-0" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
               /* Enhanced KaTeX mobile responsiveness */
               .katex { 

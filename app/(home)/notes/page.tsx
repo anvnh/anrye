@@ -243,14 +243,29 @@ export default function NotesPage() {
     setIsRenameDialogOpen(true);
   };
 
+  // Create handlers: close dialogs on success
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    await createFolder(newFolderName);
+    setIsCreatingFolder(false);
+    setNewFolderName('');
+  };
+
+  const handleCreateNote = async () => {
+    if (!newNoteName.trim()) return;
+    await createNote(newNoteName);
+    setIsCreatingNote(false);
+    setNewNoteName('');
+  };
+
   // Show loading spinner while initializing
   if (!isInitialized) {
     return <LoadingSpinner />;
   }
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: '#222831' }}>
-      <div className="flex flex-1 overflow-hidden">
+    <div className="h-full min-h-0 flex flex-col" style={{ backgroundColor: '#222831' }}>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* File Explorer Sidebar */}
         <NoteSidebar
           notes={notes}
@@ -290,7 +305,7 @@ export default function NotesPage() {
         />
 
         {/* Main content area */}
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
+  <div className={`flex-1 min-h-0 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
           {selectedNote ? (
             <>
               {/* Note Header */}
@@ -325,7 +340,7 @@ export default function NotesPage() {
 
               {/* Note Content */}
               <div
-                className="flex-1 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
+                className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
                 style={{
                   backgroundColor: '#222831',
                   fontFamily: fontFamily,
@@ -447,7 +462,8 @@ export default function NotesPage() {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  createFolder(newFolderName);
+          e.preventDefault();
+          void handleCreateFolder();
                 } else if (e.key === 'Escape') {
                   setIsCreatingFolder(false);
                   setNewFolderName('');
@@ -466,7 +482,8 @@ export default function NotesPage() {
               Cancel
             </button>
             <button
-              onClick={() => createFolder(newFolderName)}
+              onClick={() => void handleCreateFolder()}
+              disabled={!newFolderName.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Create
@@ -504,7 +521,8 @@ export default function NotesPage() {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  createNote(newNoteName);
+          e.preventDefault();
+          void handleCreateNote();
                 } else if (e.key === 'Escape') {
                   setIsCreatingNote(false);
                   setNewNoteName('');
@@ -523,7 +541,8 @@ export default function NotesPage() {
               Cancel
             </button>
             <button
-              onClick={() => createNote(newNoteName)}
+              onClick={() => void handleCreateNote()}
+              disabled={!newNoteName.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Create

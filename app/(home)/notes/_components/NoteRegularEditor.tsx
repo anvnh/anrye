@@ -5,6 +5,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage } from '../_hooks/usePasteImage';
 import { Note, Folder } from './types';
 import RenameImageDialog from './RenameImageDialog';
+import CMEditor, { CMEditorApi } from './CMEditor';
 
 interface NoteRegularEditorProps {
   editContent: string;
@@ -29,7 +30,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   setIsLoading,
   setSyncProgress
 }) => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cmRef = useRef<CMEditorApi | undefined>(undefined);
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
 
 
@@ -37,7 +38,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
  
 
   // Initialize paste image functionality
-  const { handlePasteImage } = usePasteImage({
+  const { handlePasteImage, uploadPastedImage } = usePasteImage({
     notes,
     folders,
     selectedNote,
@@ -55,28 +56,9 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
         (window as any).__rename_image_cb__ = handle;
       });
     },
-    getTargetTextarea: () => textareaRef.current
+    getTargetTextarea: () => null
   });
-
-  // Add paste event listener to textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const handlePaste = async (event: ClipboardEvent) => {
-      const handled = await handlePasteImage(event);
-      if (handled) {
-        // Image was pasted and handled, don't do default paste
-        return;
-      }
-      // If no image was found, let the default paste behavior continue
-    };
-
-    textarea.addEventListener('paste', handlePaste);
-    return () => {
-      textarea.removeEventListener('paste', handlePaste);
-    };
-  }, [handlePasteImage]);
+  // CMEditor handles paste internally via onPasteImage
 
   // Debounced renumbering to avoid excessive calls
   const renumberTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -176,25 +158,13 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
     }
     
     // Only schedule renumbering if content contains numbered lists
-    if (/^\s*\d+\.\s/m.test(newContent)) {
+  if (/^\s*\d+\.\s/m.test(newContent)) {
       renumberTimeoutRef.current = setTimeout(() => {
-        const textarea = textareaRef.current;
-        const cursorPos = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : undefined;
-        
-        const result = renumberNumberedLists(newContent, cursorPos);
+    const result = renumberNumberedLists(newContent, undefined);
         
         // Only update if content actually changed
         if (result.content !== newContent) {
           setEditContent(result.content);
-          
-          // Restore cursor position with adjustment
-          if (textarea && cursorPos) {
-            setTimeout(() => {
-              const newStart = cursorPos.start + result.cursorAdjustment;
-              const newEnd = cursorPos.end + result.cursorAdjustment;
-              textarea.setSelectionRange(newStart, newEnd);
-            }, 0);
-          }
         }
       }, 300); // 300ms debounce for smooth experience
     }
@@ -209,144 +179,13 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
     };
   }, []);
 
-  // Ensure textarea is properly initialized for browser compatibility
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      // Ensure textarea is properly set up for editing
-      textarea.setAttribute('spellcheck', 'false');
-      textarea.setAttribute('autocomplete', 'off');
-      textarea.setAttribute('autocorrect', 'off');
-      textarea.setAttribute('autocapitalize', 'off');
-      
-      // Force focus to ensure it's editable
-      if (document.activeElement !== textarea) {
-        textarea.focus();
-      }
-    }
-  }, [editContent]);
+  // No-op: CMEditor manages focus
 
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const textarea = e.currentTarget;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const value = textarea.value;
-    
-    // Tab key for indentation
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const indent = ' '.repeat(tabSize);
-      setEditContent(value.slice(0, start) + indent + value.slice(end));
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + indent.length;
-      }, 0);
-      return;
-    }
-    
-    // Auto close brackets/quotes
-    const pairs: Record<string, string> = {
-      '(': ')',
-      '[': ']',
-      '{': '}',
-      '"': '"',
-      "'": "'",
-      '`': '`',
-    };
-    if (Object.keys(pairs).includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      const close = pairs[e.key];
-      setEditContent(value.slice(0, start) + e.key + close + value.slice(end));
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 1;
-      }, 0);
-      return;
-    }
-    
-    // Auto continue bullet/checkbox list
-    if (e.key === 'Enter') {
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-      const lineStart = before.lastIndexOf('\n') + 1;
-      const currentLine = before.slice(lineStart);
-      
-      // Continue checkbox: always insert '- [ ] '
-      const checkboxMatch = currentLine.match(/^(\s*)- \[[ xX]?\] /);
-      if (checkboxMatch) {
-        e.preventDefault();
-        const prefix = checkboxMatch[1] + '- [ ] ';
-        setEditContent(value.slice(0, start) + '\n' + prefix + value.slice(end));
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-        }, 0);
-        return;
-      }
-      
-      // Bullet: - , * , + , numbered list
-      const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
-      if (bulletMatch) {
-        e.preventDefault();
-        
-        // Check if this is a numbered list
-        const numberedMatch = bulletMatch[2].match(/(\d+)\./);
-        if (numberedMatch) {
-          // This is a numbered list - we need to renumber subsequent items
-          const currentNumber = parseInt(numberedMatch[1]);
-          const nextNumber = currentNumber + 1;
-          const prefix = bulletMatch[1] + nextNumber + '. ';
-          
-          // Insert the new line with the next number
-          const newContent = value.slice(0, start) + '\n' + prefix + value.slice(end);
-          
-          // Now renumber all subsequent numbered list items
-          const lines = newContent.split('\n');
-          const updatedLines = [...lines];
-          let numberToUse = nextNumber + 1;
-          
-          // Find the line we just inserted and start from the next line
-          const insertedLineIndex = before.split('\n').length; // Line index where we inserted
-          
-          for (let i = insertedLineIndex + 1; i < updatedLines.length; i++) {
-            const line = updatedLines[i];
-            const lineNumberMatch = line.match(/^(\s*)(\d+)\.\s/);
-            if (lineNumberMatch) {
-              // This line is a numbered list item - update its number
-              const indentation = lineNumberMatch[1];
-              const restOfLine = line.substring(lineNumberMatch[0].length);
-              updatedLines[i] = indentation + numberToUse + '. ' + restOfLine;
-              numberToUse++;
-            } else if (line.trim() !== '' && !line.match(/^(\s*)([-*+] |\d+\. )/)) {
-              // If we hit a non-list line that's not empty, stop renumbering
-              break;
-            }
-          }
-          
-          const finalContent = updatedLines.join('\n');
-          setEditContent(finalContent);
-          
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-          }, 0);
-        } else {
-          // Regular bullet list (-, *, +)
-          const prefix = bulletMatch[1] + bulletMatch[2];
-          setEditContent(
-            value.slice(0, start) + '\n' + prefix + value.slice(end)
-          );
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + prefix.length;
-          }, 0);
-        }
-        return;
-      }
-    }
-    
-    // For all other keys, ensure they work normally
-    // Don't prevent default for normal text input
-  };
+  // Key handling moved into CMEditor / CodeMirror behavior
   
   return (
-    <div className="flex flex-col h-full bg-secondary">
+    <div className="flex flex-col h-full min-h-0 bg-secondary">
       {renameModal?.open && (
         <RenameImageDialog
           isOpen={renameModal.open}
@@ -366,30 +205,28 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
       <EditorToolbar 
         editContent={editContent} 
         setEditContent={setEditContent}
-        textareaRef={textareaRef}
-        onPasteImage={() => {
-          // Trigger paste event on textarea
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            document.execCommand('paste');
-          }
+        textareaRef={undefined as any}
+        cmApiRef={cmRef as any}
+        onPasteImage={async () => {
+          // No direct programmatic paste; rely on OS paste. As a convenience, focus editor.
+          cmRef.current?.focus();
         }}
       />
-      <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-6 relative">
-        <textarea
-          ref={textareaRef}
+  <div className="flex-1 min-h-0 relative p-0">
+        <CMEditor
+          ref={cmRef as any}
           value={editContent}
-          onChange={(e) => handleContentChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={(e) => {
-            // Ensure proper focus handling for browser compatibility
-            e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length);
+          onChange={handleContentChange}
+          tabSize={tabSize}
+          fontSize={fontSize}
+      className="w-full h-full"
+          onReady={(api) => {
+            // ensure focus for immediate typing
+            api.focus();
           }}
-          className="w-full h-full resize-none bg-secondary text-gray-300 focus:outline-none font-mono text-sm"
-          placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
-          style={{ 
-            backgroundColor: '#31363F',
-            fontSize: fontSize
+          onPasteImage={async (file) => {
+            const result = await uploadPastedImage(file);
+            return result?.markdownLink ?? null;
           }}
         />
       </div>

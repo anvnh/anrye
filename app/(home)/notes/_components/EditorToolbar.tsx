@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+import type { CMEditorApi } from './CMEditor';
 import { 
   Bold, 
   Italic, 
@@ -26,13 +27,15 @@ interface EditorToolbarProps {
   setEditContent: (content: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onPasteImage?: () => void;
+  cmApiRef?: React.RefObject<CMEditorApi | undefined>;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editContent,
   setEditContent,
   textareaRef,
-  onPasteImage
+  onPasteImage,
+  cmApiRef
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,6 +63,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     };
   }, []);
   const updateSelection = useCallback(() => {
+    // Prefer CodeMirror selection if available
+    const api = cmApiRef?.current;
+    if (api) {
+      // We can't easily read selection text from API; fall back to no-op selection
+      return { start: 0, end: 0, selected: '' };
+    }
     if (textareaRef?.current) {
       const textarea = textareaRef.current;
       const start = textarea.selectionStart;
@@ -67,62 +76,51 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       return { start, end, selected: editContent.substring(start, end) };
     }
     return { start: 0, end: 0, selected: '' };
-  }, [editContent, textareaRef]);
+  }, [editContent, textareaRef, cmApiRef]);
 
   const wrapText = useCallback((prefix: string, suffix: string = prefix) => {
+    const api = cmApiRef?.current;
+    if (api) {
+      api.wrapSelection(prefix, suffix);
+      return;
+    }
     if (!textareaRef?.current) return;
-    
     const { start, end, selected } = updateSelection();
-    
     const before = editContent.substring(0, start);
     const after = editContent.substring(end);
-    
-    // Check if the selected text is already wrapped with the same prefix/suffix
     const isAlreadyWrapped = selected.startsWith(prefix) && selected.endsWith(suffix);
-    
-    let newContent: string;
-    if (isAlreadyWrapped) {
-      // Remove the formatting
-      const unwrappedText = selected.substring(prefix.length, selected.length - suffix.length);
-      newContent = before + unwrappedText + after;
-    } else {
-      // Add the formatting
-      newContent = before + prefix + selected + suffix + after;
-    }
-    
+    const newContent = isAlreadyWrapped
+      ? before + selected.substring(prefix.length, selected.length - suffix.length) + after
+      : before + prefix + selected + suffix + after;
     setEditContent(newContent);
-    
-    // Restore focus and selection
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
         if (isAlreadyWrapped) {
-          // Selection should be the unwrapped text
           const newStart = start;
           const newEnd = start + (selected.length - prefix.length - suffix.length);
           textareaRef.current.setSelectionRange(newStart, newEnd);
         } else {
-          // Selection should be the wrapped text
           const newStart = start + prefix.length;
           const newEnd = newStart + selected.length;
           textareaRef.current.setSelectionRange(newStart, newEnd);
         }
       }
     }, 0);
-  }, [editContent, setEditContent, textareaRef, updateSelection]);
+  }, [editContent, setEditContent, textareaRef, updateSelection, cmApiRef]);
 
   const insertAtCursor = useCallback((text: string) => {
+    const api = cmApiRef?.current;
+    if (api) {
+      api.insertTextAtSelection(text);
+      return;
+    }
     if (!textareaRef?.current) return;
-    
     const { start, end } = updateSelection();
-    
     const before = editContent.substring(0, start);
     const after = editContent.substring(end);
-    
     const newContent = before + text + after;
     setEditContent(newContent);
-    
-    // Restore focus and selection
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -130,38 +128,26 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         textareaRef.current.setSelectionRange(newPos, newPos);
       }
     }, 0);
-  }, [editContent, setEditContent, textareaRef, updateSelection]);
+  }, [editContent, setEditContent, textareaRef, updateSelection, cmApiRef]);
 
   const insertHeading = useCallback((level: number) => {
+    const api = cmApiRef?.current;
+    if (api) {
+      api.toggleHeadingAtLine(level);
+      return;
+    }
     if (!textareaRef?.current) return;
-    
     const { start } = updateSelection();
-    
-    // Find the start of the current line
     const before = editContent.substring(0, start);
     const after = editContent.substring(start);
     const lineStart = before.lastIndexOf('\n') + 1;
     const lineEnd = after.indexOf('\n');
     const currentLine = editContent.substring(lineStart, lineEnd !== -1 ? start + lineEnd : editContent.length);
-    
     const headingPrefix = '#'.repeat(level) + ' ';
-    
-    // Check if the line already has the same heading level
     const isAlreadyHeading = currentLine.startsWith(headingPrefix);
-    
-    let newLine: string;
-    if (isAlreadyHeading) {
-      // Remove the heading formatting
-      newLine = currentLine.substring(headingPrefix.length);
-    } else {
-      // Add the heading formatting
-      newLine = currentLine.startsWith('#') ? headingPrefix + currentLine.replace(/^#+\s*/, '') : headingPrefix + currentLine;
-    }
-    
+    const newLine = isAlreadyHeading ? currentLine.substring(headingPrefix.length) : (currentLine.startsWith('#') ? headingPrefix + currentLine.replace(/^#+\s*/, '') : headingPrefix + currentLine);
     const newContent = editContent.substring(0, lineStart) + newLine + editContent.substring(lineEnd !== -1 ? start + lineEnd : editContent.length);
     setEditContent(newContent);
-    
-    // Restore focus
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -169,21 +155,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         textareaRef.current.setSelectionRange(newPos, newPos);
       }
     }, 0);
-  }, [editContent, setEditContent, textareaRef, updateSelection]);
+  }, [editContent, setEditContent, textareaRef, updateSelection, cmApiRef]);
 
   const handleUndo = useCallback(() => {
+    const api = cmApiRef?.current;
+    if (api) { api.undo(); return; }
     if (textareaRef?.current) {
       textareaRef.current.focus();
       document.execCommand('undo');
     }
-  }, [textareaRef]);
+  }, [textareaRef, cmApiRef]);
 
   const handleRedo = useCallback(() => {
+    const api = cmApiRef?.current;
+    if (api) { api.redo(); return; }
     if (textareaRef?.current) {
       textareaRef.current.focus();
       document.execCommand('redo');
     }
-  }, [textareaRef]);
+  }, [textareaRef, cmApiRef]);
 
   return (
     <div

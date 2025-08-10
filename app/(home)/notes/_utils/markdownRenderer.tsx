@@ -516,9 +516,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           const { Alert, AlertTitle, AlertDescription } = require("@/components/ui/alert");
           const { CheckCircle2Icon } = require("lucide-react");
 
-          useEffect(() => {
-            Prism.highlightAll();
-          }, [children, className]);
+          // Highlight only this code element to avoid global flicker
+          const codeRef = React.useRef<HTMLElement | null>(null);
+          const language = match?.[1] || 'text';
+          const depsKey = `${language}`;
 
           // Copy button for code block
           if (isInline) {
@@ -539,12 +540,12 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             return '';
           }, [children]);
 
-          // Create stable key for this code block to prevent flashing
-          const stableKey = React.useMemo(() => {
-            const language = match?.[1] || 'text';
-            const contentHash = codeString.substring(0, 50).replace(/\s/g, '');
-            return `code-${language}-${contentHash}`;
-          }, [match, codeString]);
+          // Run Prism on mount and when content/language changes
+          useEffect(() => {
+            if (codeRef.current) {
+              try { Prism.highlightElement(codeRef.current); } catch {}
+            }
+          }, [codeString, depsKey]);
 
           const handleCopy = (e: React.MouseEvent) => {
             e.stopPropagation();
@@ -554,7 +555,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           };
 
           return (
-            <div key={stableKey} className="relative group/codeblock my-4 code-block-stable">
+            <div className="relative group/codeblock my-4 code-block-stable">
               {showAlert && (
                 <Alert variant="default" className="alert-custom fixed bottom-4 right-4 z-50 w-80">
                   <CheckCircle2Icon className="h-5 w-5" />
@@ -573,7 +574,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2" /><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2" /></svg>
               </button>
               <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 overflow-x-auto">
-                <code className={`text-sm font-mono text-gray-300 language-${match?.[1] || 'text'}`} {...props}>
+                <code ref={codeRef as any} className={`text-sm font-mono text-gray-300 language-${language}`} {...props}>
                   {codeString}
                 </code>
               </pre>

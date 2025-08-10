@@ -22,59 +22,87 @@ function isImageLine(line: string): boolean {
 export function splitMarkdownBlocksAST(content: string): { type: string; value: string; startLine: number; endLine: number; key: string }[] {
   const lines = content.split('\n');
   const blocks: { type: string; value: string; startLine: number; endLine: number; key: string }[] = [];
-  
+
   let currentBlock = '';
   let blockStartLine = 0;
-  let blockType = 'text';
-  
+  let blockType: 'text' | 'code' = 'text';
+
+  let insideFence = false;
+  let fenceChar: '```' | '~~~' | '' = '';
+  let codeStartLine = 0;
+  let codeLines: string[] = [];
+
   const flushCurrentBlock = (endLine: number) => {
     if (currentBlock.trim()) {
       const key = simpleHash(currentBlock);
-      blocks.push({
-        type: blockType,
-        value: currentBlock,
-        startLine: blockStartLine,
-        endLine: endLine,
-        key
-      });
+      blocks.push({ type: blockType, value: currentBlock, startLine: blockStartLine, endLine, key });
     }
     currentBlock = '';
     blockType = 'text';
   };
-  
-  lines.forEach((line, lineIndex) => {
-    if (isImageLine(line)) {
-      // Flush any accumulated content before the image
+
+  const flushCodeBlock = (endLine: number) => {
+    const codeValue = codeLines.join('\n');
+    const key = simpleHash(codeValue);
+    blocks.push({ type: 'code', value: codeValue, startLine: codeStartLine, endLine, key });
+    codeLines = [];
+    insideFence = false;
+    fenceChar = '';
+  };
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+
+    if (insideFence) {
+      codeLines.push(line);
+      const trimmed = line.trim();
+      // Close fence must match the opening fence type
+      if ((fenceChar === '```' && /^```\s*$/.test(trimmed)) || (fenceChar === '~~~' && /^~~~\s*$/.test(trimmed))) {
+        flushCodeBlock(lineIndex);
+      }
+      continue;
+    }
+
+    // Detect fenced code block start
+    const fenceMatch = line.match(/^(```|~~~)(\w+)?\s*$/);
+    if (fenceMatch) {
+      // Flush any pending text block before starting code
       if (currentBlock.trim()) {
         flushCurrentBlock(lineIndex - 1);
       }
-      
-      // Create a standalone image block
-      const imageKey = simpleHash(line);
-      blocks.push({
-        type: 'image',
-        value: line,
-        startLine: lineIndex,
-        endLine: lineIndex,
-        key: imageKey
-      });
-      
-      // Reset for next block
-      blockStartLine = lineIndex + 1;
-    } else {
-      // Accumulate non-image content
-      if (currentBlock === '') {
-        blockStartLine = lineIndex;
-      }
-      currentBlock += (currentBlock ? '\n' : '') + line;
+      insideFence = true;
+      fenceChar = (fenceMatch[1] as '```' | '~~~');
+      codeStartLine = lineIndex;
+      codeLines = [line];
+      continue;
     }
-  });
-  
-  // Flush any remaining content
+
+    // Image lines are standalone blocks
+    if (isImageLine(line)) {
+      if (currentBlock.trim()) {
+        flushCurrentBlock(lineIndex - 1);
+      }
+      const imageKey = simpleHash(line);
+      blocks.push({ type: 'image', value: line, startLine: lineIndex, endLine: lineIndex, key: imageKey });
+      blockStartLine = lineIndex + 1;
+      continue;
+    }
+
+    // Accumulate non-image, non-code content
+    if (currentBlock === '') {
+      blockStartLine = lineIndex;
+    }
+    currentBlock += (currentBlock ? '\n' : '') + line;
+  }
+
+  // Flush any remaining code or text blocks
+  if (insideFence && codeLines.length) {
+    flushCodeBlock(lines.length - 1);
+  }
   if (currentBlock.trim()) {
     flushCurrentBlock(lines.length - 1);
   }
-  
+
   return blocks;
 }
 
@@ -123,6 +151,10 @@ const MemoizedMarkdownBlock = React.memo(
     // For image blocks, only re-render if the image content actually changes
     if (prev.blockType === 'image' && next.blockType === 'image') {
       return prev.content === next.content && prev.isSignedIn === next.isSignedIn;
+    }
+    // For code blocks, only re-render when content or language fence changes
+    if (prev.blockType === 'code' && next.blockType === 'code') {
+      return prev.content === next.content;
     }
     
     // For other blocks, use standard comparison
