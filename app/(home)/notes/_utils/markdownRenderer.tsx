@@ -788,7 +788,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         ),
 
         img: ({ src, alt, ...props }) => {
-          // Stable key to prevent flashing during re-renders - use this as the component key
+          // Stable key to prevent flashing during re-renders
           const stableKey = React.useMemo(() => {
             if (src && typeof src === 'string') {
               return src.includes('drive.google.com') 
@@ -798,176 +798,14 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             return typeof src === 'string' ? src : 'img-' + Math.random().toString(36).substr(2, 9);
           }, [src]);
 
-          const [isLoading, setIsLoading] = React.useState(true);
-          const [hasError, setHasError] = React.useState(false);
-          const [imageUrl, setImageUrl] = React.useState<string | null>(null);
-          const [loadingProgress, setLoadingProgress] = React.useState(0);
-          const [isStable, setIsStable] = React.useState(false);
-
-          // Reset states when src changes, but preserve stable images
-          React.useEffect(() => {
-            // Only reset if the source actually changed (not just a re-render)
-            if (!isStable || !imageUrl) {
-              setIsLoading(true);
-              setHasError(false);
-              setImageUrl(null);
-              setLoadingProgress(0);
-              setIsStable(false);
-            }
-          }, [stableKey]); // Use stableKey instead of src to prevent unnecessary resets
-
-          // Lightbox + inline edit
+          // Lightbox + inline edit state
           const [isLightboxOpen, setIsLightboxOpen] = React.useState(false);
           const [isEditorOpen, setIsEditorOpen] = React.useState(false);
+          const [loadedImageUrl, setLoadedImageUrl] = React.useState<string | null>(null);
+          const [editedImageUrl, setEditedImageUrl] = React.useState<string | null>(null);
+          const [imageKey, setImageKey] = React.useState(0); // Force re-render when image updates
 
-          // Handle Google Drive URLs with optimized loading
-          if (src && typeof src === 'string' && src.includes('drive.google.com')) {
-            // Extract file ID from Google Drive URL
-            const fileId = src.match(/id=([^&]+)/)?.[1];
-            if (fileId) {
-              // Load image with optimized caching and queue management
-              React.useEffect(() => {
-                let isCancelled = false;
-                
-                const loadImageFromDrive = async () => {
-                  try {
-                    setLoadingProgress(20);
-                    
-                    // Use the optimized image loading manager
-                    const { imageLoadingManager } = await import('./imageLoadingManager');
-                    if (isCancelled) return;
-                    
-                    setLoadingProgress(50);
-                    
-                    // Load image with priority (higher priority for images near viewport)
-                    const priority = 1; // Could be adjusted based on viewport position
-                    const url = await imageLoadingManager.loadImage(fileId, priority);
-                    
-                    if (!isCancelled) {
-                      setImageUrl(url);
-                      setLoadingProgress(100);
-                      setIsLoading(false);
-                      setHasError(false);
-                      setIsStable(true); // Mark as stable to prevent flashing
-                    }
-                  } catch (error) {
-                    if (!isCancelled) {
-                      console.error('Failed to load image from Drive:', error);
-                      // Fallback to direct high-quality thumbnail
-                      try {
-                        const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`;
-                        setImageUrl(thumbnailUrl);
-                        setIsLoading(false);
-                        setHasError(false);
-                      } catch {
-                        setHasError(true);
-                        setIsLoading(false);
-                      }
-                    }
-                  }
-                };
-
-                // Small delay to prevent overwhelming on initial page load
-                const timeoutId = setTimeout(loadImageFromDrive, Math.random() * 200 + 50);
-                
-                return () => {
-                  isCancelled = true;
-                  clearTimeout(timeoutId);
-                };
-              }, [fileId]);
-
-              // Try to parse width/height hints from alt for layout reservation
-              let hintedWidth: number | undefined;
-              let hintedHeight: number | undefined;
-              if (typeof alt === 'string') {
-                const sizeMatch = alt.match(/\|(\d+)x(\d+)/);
-                if (sizeMatch) {
-                  hintedWidth = Number(sizeMatch[1]);
-                  hintedHeight = Number(sizeMatch[2]);
-                }
-              }
-
-              return (
-                <div className="relative my-4 md-img-wrapper">
-                  {isLoading && (
-                    <div className="flex flex-col space-y-3">
-                      <Skeleton className="h-[200px] w-full rounded-xl" />
-                      {loadingProgress > 0 && (
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div 
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${loadingProgress}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {imageUrl && !isLoading && (
-                    <>
-                      <div className="group relative">
-                        <img
-                          src={imageUrl}
-                          alt={alt || 'Image'}
-                          className="md-img cursor-zoom-in"
-                          width={hintedWidth}
-                          height={hintedHeight}
-                          onClick={() => setIsLightboxOpen(true)}
-                          {...props}
-                        />
-                         {/* Action overlay removed per request */}
-                      </div>
-                      {isEditorOpen && (
-                        // @ts-ignore dynamic import path
-                        React.createElement(require('../_components/ImageEditor').default, { 
-                          src: imageUrl, 
-                          driveFileId: (src as string).match(/id=([^&]+)/)?.[1], 
-                          onClose: () => setIsEditorOpen(false),
-                          onSaved: (newUrl: string) => {
-                            try { if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl); } catch {}
-                            setImageUrl(newUrl);
-                            setIsEditorOpen(false);
-                          }
-                        })
-                      )}
-                      {isLightboxOpen && (
-                        // @ts-ignore dynamic import path
-                        React.createElement(require('../_components/ImageLightbox').default, { 
-                          src: imageUrl, 
-                          alt, 
-                          onClose: () => setIsLightboxOpen(false),
-                          onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
-                        })
-                      )}
-                    </>
-                  )}
-                  {hasError && (
-                    <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
-                      <div className="text-sm mb-2">📷</div>
-                      <div className="text-xs mb-1">[Image: {alt || 'Uploaded image'}]</div>
-                      <div className="text-xs text-gray-400">
-                        Authentication required for Google Drive images
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-          }
-          
-          // Default image handling
-          const handleLoad = () => {
-            console.log('Regular image loaded successfully');
-            setIsLoading(false);
-            setHasError(false);
-          };
-
-          const handleError = () => {
-            console.log('Regular image failed to load');
-            setIsLoading(false);
-            setHasError(true);
-          };
-
-          // Try to parse width/height hints from markdown alt text like alt="desc|800x400"
+          // Try to parse width/height hints from alt for layout reservation
           let hintedWidth: number | undefined;
           let hintedHeight: number | undefined;
           if (typeof alt === 'string') {
@@ -978,75 +816,64 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             }
           }
 
+          // Use the optimized image component
+          const OptimizedImage = React.useMemo(() => {
+            return React.lazy(() => import('../_components/OptimizedImage').then(module => ({ default: module.default })));
+          }, []);
+
           return (
             <div key={stableKey} className="relative my-4 md-img-wrapper">
-              {isLoading && (
-                <div className="flex flex-col space-y-3">
-                  <Skeleton className="h-[200px] w-full rounded-xl" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-[200px]" />
-                    <Skeleton className="h-4 w-[150px]" />
-                  </div>
-                </div>
-              )}
-              <>
-                {(() => {
-                  // Local state to allow live refresh after editing
-                  const [inlineUrl, setInlineUrl] = React.useState<string | null>(typeof src === 'string' ? (src as string) : null);
-                  React.useEffect(() => {
-                    if (typeof src === 'string') setInlineUrl(src as string);
-                  }, [src]);
-                  // Render image and modals using inlineUrl
-                  return (
-                    <>
+              <React.Suspense fallback={null}>
                 <div className="group relative">
-                  <img
-                    key={stableKey}
-                    src={inlineUrl || (src as string)}
+                  <OptimizedImage
+                    key={`${stableKey}-${imageKey}`}
+                    src={editedImageUrl || (src as string)}
                     alt={alt || 'Image'}
-                    className={`md-img ${isLoading ? 'hidden' : ''} cursor-zoom-in`}
+                    className="md-img cursor-zoom-in"
                     width={hintedWidth}
                     height={hintedHeight}
-                    onLoad={handleLoad}
-                    onError={handleError}
                     onClick={() => setIsLightboxOpen(true)}
-                    {...props}
+                    priority={1}
+                    onUrlLoaded={setLoadedImageUrl}
                   />
-                 {/* Action overlay removed per request */}
                 </div>
-                {isEditorOpen && (inlineUrl || src) && (
-                  // @ts-ignore dynamic import path
-                  React.createElement(require('../_components/ImageEditor').default, { 
-                    src: (inlineUrl || (src as string)) as string, 
-                    onClose: () => setIsEditorOpen(false),
-                    onSaved: (newUrl: string) => {
-                      try { if (inlineUrl?.startsWith('blob:')) URL.revokeObjectURL(inlineUrl); } catch {}
-                      setInlineUrl(newUrl);
-                      setIsEditorOpen(false);
+              </React.Suspense>
+              
+              {/* Modals for editing and lightbox */}
+              {isEditorOpen && (
+                // @ts-ignore dynamic import path
+                React.createElement(require('../_components/ImageEditor').default, { 
+                  src: loadedImageUrl || (src as string), 
+                  driveFileId: (src as string).match(/id=([^&]+)/)?.[1], 
+                  onClose: () => setIsEditorOpen(false),
+                  onSaved: async (newUrl: string) => {
+                    console.log('Image saved, new URL:', newUrl);
+                    
+                    // Clear the cache for this file ID so it loads the new version
+                    const fileId = (src as string).match(/id=([^&]+)/)?.[1];
+                    if (fileId) {
+                      const { imageLoadingManager } = await import('./imageLoadingManager');
+                      imageLoadingManager.clearCacheForFile(fileId);
                     }
-                  })
-                )}
-                {isLightboxOpen && (inlineUrl || src) && (
-                  // @ts-ignore dynamic import path
-                  React.createElement(require('../_components/ImageLightbox').default, { 
-                    src: (inlineUrl || (src as string)) as string, 
-                    alt, 
-                    onClose: () => setIsLightboxOpen(false),
-                    onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
-                  })
-                )}
-                    </>
-                  );
-                })()}
-              </>
-              {hasError && (
-                <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center border border-gray-600">
-                  <div className="text-sm mb-2">📷</div>
-                  <div className="text-xs mb-1">[Image: {alt || 'Image'}]</div>
-                  <div className="text-xs text-gray-400">
-                    Authentication required for Google Drive images
-                  </div>
-                </div>
+                    
+                    // Update the edited image URL
+                    setEditedImageUrl(newUrl);
+                    // Force the OptimizedImage to reload by updating the key
+                    setImageKey(prev => prev + 1);
+                    // Update the loaded URL to the new edited image
+                    setLoadedImageUrl(newUrl);
+                    setIsEditorOpen(false);
+                  }
+                })
+              )}
+              {isLightboxOpen && (
+                // @ts-ignore dynamic import path
+                React.createElement(require('../_components/ImageLightbox').default, { 
+                  src: editedImageUrl || loadedImageUrl || (src as string), 
+                  alt, 
+                  onClose: () => setIsLightboxOpen(false),
+                  onEdit: () => { setIsEditorOpen(true); setIsLightboxOpen(false); }
+                })
               )}
             </div>
           );

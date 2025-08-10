@@ -24,6 +24,7 @@ import { Note } from './types';
 import { driveService } from '@/app/lib/googleDrive';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import dynamic from 'next/dynamic';
+import { OptimizedImage } from './OptimizedImage';
 
 const ImageEditor = dynamic(() => import('./ImageEditor'), { ssr: false });
 
@@ -31,6 +32,8 @@ interface ImageManagerProps {
   notes: Note[];
   selectedNote: Note | null;
   setEditContent: (content: string) => void;
+  setNotes?: React.Dispatch<React.SetStateAction<Note[]>>;
+  setSelectedNote?: React.Dispatch<React.SetStateAction<Note | null>>;
   isSignedIn: boolean;
   onClose: () => void;
 }
@@ -39,10 +42,13 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
   notes,
   selectedNote,
   setEditContent,
+  setNotes,
+  setSelectedNote,
   isSignedIn,
   onClose
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingImages, setDeletingImages] = useState<Set<string>>(new Set());
   const [cleanupProgress, setCleanupProgress] = useState<{
     isRunning: boolean;
     deleted: string[];
@@ -115,21 +121,26 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
   const handleRemoveImage = async (image: ImageInfo) => {
     if (!selectedNote) return;
 
-    try {
-      setIsLoading(true);
-      
-      // Remove from markdown content
-      const newContent = removeImageFromMarkdown(selectedNote.content, image.markdown);
-      setEditContent(newContent);
+    const imageKey = image.driveFileId || image.url;
+    setDeletingImages(prev => new Set(prev).add(imageKey));
 
-      // Delete from Drive if signed in and has drive file ID
+    try {
+      // Only delete from Drive, keep the markdown link
       if (isSignedIn && image.driveFileId) {
         await deleteImageFromDrive(image.driveFileId);
+        
+        // Clear the cache for this file ID since it's been deleted
+        const { imageLoadingManager } = await import('../_utils/imageLoadingManager');
+        imageLoadingManager.clearCacheForFile(image.driveFileId);
       }
     } catch (error) {
       console.error('Failed to remove image:', error);
     } finally {
-      setIsLoading(false);
+      setDeletingImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(imageKey);
+        return newSet;
+      });
     }
   };
 
@@ -140,15 +151,15 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
     try {
       setIsLoading(true);
       
-      // Remove all images from markdown content
-      const newContent = removeAllImagesFromMarkdown(selectedNote.content);
-      setEditContent(newContent);
-
-      // Delete all images from Drive if signed in
+      // Only delete from Drive, keep all markdown links
       if (isSignedIn) {
         for (const image of selectedNoteImages) {
           if (image.driveFileId) {
             await deleteImageFromDrive(image.driveFileId);
+            
+            // Clear the cache for this file ID since it's been deleted
+            const { imageLoadingManager } = await import('../_utils/imageLoadingManager');
+            imageLoadingManager.clearCacheForFile(image.driveFileId);
           }
         }
       }
@@ -231,9 +242,14 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
           {selectedNote && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">
-                  Images in "{selectedNote.title}"
-                </h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    Images in "{selectedNote.title}"
+                  </h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Deleting removes the file from Drive but keeps the link in your note
+                  </p>
+                </div>
                 {selectedNoteImages.length > 0 && (
                   <button
                     onClick={handleRemoveAllImages}
@@ -241,7 +257,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                     className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Trash2 size={16} />
-                    Remove All
+                    Delete All from Drive
                   </button>
                 )}
               </div>
@@ -258,18 +274,16 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                             <div className="flex items-center gap-3 min-w-0 cursor-help">
                               <div className="w-12 h-12 rounded bg-gray-700 flex-shrink-0 overflow-hidden grid place-items-center cursor-pointer" onClick={() => setEditorState({ open: true, src: previewUrls[(image.driveFileId || image.url)] || getPreviewUrl(image), driveFileId: image.driveFileId })}>
                                 {/* Thumbnail preview */}
-                                <img
+                                <OptimizedImage
                                   src={previewUrls[(image.driveFileId || image.url)] || getPreviewUrl(image)}
                                   alt={image.filename || 'image'}
                                   className="w-full h-full object-cover"
-                                  loading="lazy"
-                                  onError={async (e) => {
+                                  priority={2}
+                                  onError={async () => {
                                     const key = image.driveFileId || image.url;
                                     if (image.driveFileId && !fallbackTried.has(key)) {
                                       setFallbackTried(prev => new Set(prev).add(key));
                                       await loadBlobPreview(image, key);
-                                    } else {
-                                      (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
                                     }
                                   }}
                                 />
@@ -294,11 +308,16 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                             <Edit3 size={16} />
                           </button>
                           <button
-                          onClick={() => handleRemoveImage(image)}
-                          disabled={isLoading}
-                          className="p-1 hover:bg-red-600 text-red-400 hover:text-white rounded transition-colors ml-2"
-                        >
-                          <Trash2 size={16} />
+                            onClick={() => handleRemoveImage(image)}
+                            disabled={isLoading || deletingImages.has(image.driveFileId || image.url)}
+                            className="p-1 hover:bg-red-600 text-red-400 hover:text-white rounded transition-colors ml-2 disabled:opacity-50"
+                            title="Delete image from Drive (keeps link in note)"
+                          >
+                            {deletingImages.has(image.driveFileId || image.url) ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
                           </button>
                         </div>
                       </div>

@@ -1,6 +1,7 @@
 /**
  * Global image loading manager to optimize Google Drive image loading
  * Handles caching, concurrent request limiting, and batching
+ * Enhanced for HackMD-like image handling
  */
 
 interface LoadingRequest {
@@ -14,6 +15,8 @@ interface CacheEntry {
   url: string;
   timestamp: number;
   fullResolution: boolean;
+  loading: boolean;
+  error: boolean;
 }
 
 class ImageLoadingManager {
@@ -21,10 +24,11 @@ class ImageLoadingManager {
   private loadingQueue: LoadingRequest[] = [];
   private activeRequests = new Set<string>();
   private maxConcurrentRequests = 3;
-  private cacheExpiryTime = 5 * 60 * 1000; // 5 minutes
+  private cacheExpiryTime = 10 * 60 * 1000; // 10 minutes
   private driveService: any = null;
   private isAuthenticated = false;
   private lastAuthCheck = 0;
+  private loadingCallbacks = new Map<string, Set<(loading: boolean) => void>>();
 
   // Initialize drive service lazily
   private async initDriveService() {
@@ -58,11 +62,42 @@ class ImageLoadingManager {
     }
   }
 
+  // Subscribe to loading state changes
+  subscribeToLoading(fileId: string, callback: (loading: boolean) => void) {
+    if (!this.loadingCallbacks.has(fileId)) {
+      this.loadingCallbacks.set(fileId, new Set());
+    }
+    this.loadingCallbacks.get(fileId)!.add(callback);
+    
+    // Immediately notify current loading state
+    const currentState = this.getLoadingState(fileId);
+    callback(currentState);
+    
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.loadingCallbacks.get(fileId);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.loadingCallbacks.delete(fileId);
+        }
+      }
+    };
+  }
+
+  // Notify loading state changes
+  private notifyLoadingState(fileId: string, loading: boolean) {
+    const callbacks = this.loadingCallbacks.get(fileId);
+    if (callbacks) {
+      callbacks.forEach(callback => callback(loading));
+    }
+  }
+
   // Get cached image or add to loading queue
   async loadImage(fileId: string, priority: number = 0): Promise<string> {
     // Check cache first
     const cached = this.cache.get(fileId);
-    if (cached && Date.now() - cached.timestamp < this.cacheExpiryTime) {
+    if (cached && !cached.loading && !cached.error && Date.now() - cached.timestamp < this.cacheExpiryTime) {
       return cached.url;
     }
 
@@ -76,9 +111,31 @@ class ImageLoadingManager {
     return this.processImageLoad(fileId, priority);
   }
 
+  // Get loading state for an image
+  getLoadingState(fileId: string): boolean {
+    const cached = this.cache.get(fileId);
+    return cached?.loading || this.activeRequests.has(fileId) || false;
+  }
+
+  // Get error state for an image
+  getErrorState(fileId: string): boolean {
+    const cached = this.cache.get(fileId);
+    return cached?.error || false;
+  }
+
   private async processImageLoad(fileId: string, priority: number): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
+        // Mark as loading
+        this.cache.set(fileId, {
+          url: '',
+          timestamp: Date.now(),
+          fullResolution: false,
+          loading: true,
+          error: false
+        });
+        this.notifyLoadingState(fileId, true);
+
         // Check if we're authenticated first
         const isAuth = await this.checkAuthentication();
         
@@ -88,8 +145,11 @@ class ImageLoadingManager {
           this.cache.set(fileId, {
             url: thumbnailUrl,
             timestamp: Date.now(),
-            fullResolution: false
+            fullResolution: false,
+            loading: false,
+            error: false
           });
+          this.notifyLoadingState(fileId, false);
           resolve(thumbnailUrl);
           return;
         }
@@ -102,6 +162,14 @@ class ImageLoadingManager {
           this.loadingQueue.sort((a, b) => b.priority - a.priority);
         }
       } catch (error) {
+        this.cache.set(fileId, {
+          url: '',
+          timestamp: Date.now(),
+          fullResolution: false,
+          loading: false,
+          error: true
+        });
+        this.notifyLoadingState(fileId, false);
         reject(error instanceof Error ? error : new Error('Failed to load image'));
       }
     });
@@ -121,10 +189,19 @@ class ImageLoadingManager {
       if (!accessToken) {
         // Return existing thumbnail or high-quality fallback
         const cached = this.cache.get(fileId);
-        if (cached) {
+        if (cached && !cached.loading) {
           resolve(cached.url);
         } else {
-          resolve(`https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`);
+          const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`;
+          this.cache.set(fileId, {
+            url: thumbnailUrl,
+            timestamp: Date.now(),
+            fullResolution: false,
+            loading: false,
+            error: false
+          });
+          this.notifyLoadingState(fileId, false);
+          resolve(thumbnailUrl);
         }
         return;
       }
@@ -141,19 +218,38 @@ class ImageLoadingManager {
         this.cache.set(fileId, {
           url,
           timestamp: Date.now(),
-          fullResolution: true
+          fullResolution: true,
+          loading: false,
+          error: false
         });
 
+        this.notifyLoadingState(fileId, false);
         resolve(url);
       } else {
         // Fallback to high-quality thumbnail on error
         const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`;
+        this.cache.set(fileId, {
+          url: thumbnailUrl,
+          timestamp: Date.now(),
+          fullResolution: false,
+          loading: false,
+          error: false
+        });
+        this.notifyLoadingState(fileId, false);
         resolve(thumbnailUrl);
       }
     } catch (error) {
       console.error('Failed to load full resolution image:', error);
       // Fallback to high-quality thumbnail
       const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1024`;
+      this.cache.set(fileId, {
+        url: thumbnailUrl,
+        timestamp: Date.now(),
+        fullResolution: false,
+        loading: false,
+        error: false
+      });
+      this.notifyLoadingState(fileId, false);
       resolve(thumbnailUrl);
     } finally {
       this.activeRequests.delete(fileId);
@@ -177,6 +273,7 @@ class ImageLoadingManager {
           URL.revokeObjectURL(entry.url);
         }
         this.cache.delete(fileId);
+        this.loadingCallbacks.delete(fileId);
       }
     }
   }
@@ -194,8 +291,19 @@ class ImageLoadingManager {
       }
     }
     this.cache.clear();
+    this.loadingCallbacks.clear();
     this.isAuthenticated = false;
     this.lastAuthCheck = 0;
+  }
+
+  // Clear cache for specific file ID (useful after editing)
+  clearCacheForFile(fileId: string) {
+    const entry = this.cache.get(fileId);
+    if (entry && entry.url.startsWith('blob:')) {
+      URL.revokeObjectURL(entry.url);
+    }
+    this.cache.delete(fileId);
+    this.loadingCallbacks.delete(fileId);
   }
 
   // Force refresh authentication status (useful after page refresh)

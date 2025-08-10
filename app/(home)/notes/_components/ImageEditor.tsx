@@ -6,6 +6,23 @@ import { X, RotateCw, RotateCcw, Save } from 'lucide-react';
 import ColorPicker from './ColorPicker';
 import { driveService } from '@/app/lib/googleDrive';
 
+/**
+ * Image Editor Component
+ * 
+ * Features:
+ * - Drawing and erasing tools
+ * - Text overlay
+ * - Rotation and scaling
+ * - Optional cropping (only when crop tool is active)
+ * - Save to Google Drive
+ * 
+ * Crop Behavior:
+ * - No automatic cropping by default
+ * - Crop only applied when user explicitly selects crop tool and drags
+ * - Clear crop button to remove crop selection
+ * - Visual crop overlay shows selected area
+ */
+
 interface ImageEditorProps {
   src: string; // original image URL (can be blob or web URL)
   driveFileId?: string; // if provided, allow saving back to Drive
@@ -38,6 +55,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const [activeText, setActiveText] = useState<{ x: number; y: number } | null>(null);
   const textDragOffsetRef = useRef<{ dx: number; dy: number } | null>(null);
   const [isDraggingText, setIsDraggingText] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const isTypingTarget = (el: EventTarget | null) => {
@@ -89,12 +107,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
     };
   }, [onClose, tool]);
 
-  // Initialize default crop once image loads
+  // Initialize canvas once image loads
   const onImageLoad = () => {
     const img = imgRef.current;
     if (!img) return;
-    const size = Math.min(img.naturalWidth, img.naturalHeight);
-    setCrop({ x: Math.floor((img.naturalWidth - size) / 2), y: Math.floor((img.naturalHeight - size) / 2), w: size, h: size });
+    // Don't set default crop - only crop when user explicitly chooses to
     if (overlayRef.current) {
       overlayRef.current.width = img.naturalWidth;
       overlayRef.current.height = img.naturalHeight;
@@ -107,7 +124,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No 2d context');
 
-    const c = crop || { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
+    // Only apply crop if user has explicitly set one
+    const shouldCrop = crop && tool === 'crop';
+    const c = shouldCrop ? crop! : { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
 
     // Determine output canvas size considering rotation (90/270 swaps width/height)
     const rot = ((rotation % 360) + 360) % 360;
@@ -122,13 +141,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
     // Move to center, apply rotation
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate((rotation * Math.PI) / 180);
-    // Draw the cropped region centered
+    // Draw the image (cropped or full)
     ctx.drawImage(
       img,
       c.x, c.y, c.w, c.h,
       -c.w / 2, -c.h / 2, c.w, c.h
     );
-    // Composite overlay annotations
+    // Composite overlay annotations (only the cropped region if cropping)
     if (overlayRef.current) {
       ctx.drawImage(
         overlayRef.current,
@@ -142,21 +161,31 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   };
 
   const save = async () => {
-    if (!imgRef.current) return;
-    const blob = await drawToCanvas();
+    if (!imgRef.current || isSaving) return;
+    
+    setIsSaving(true);
+    
+    try {
+      const blob = await drawToCanvas();
 
-    // Update Drive if driveFileId present
-    if (driveFileId) {
-      try {
-        await driveService.updateImageFile(driveFileId, blob, 'image/png');
-      } catch (e) {
-        console.error('Failed updating Drive image', e);
+      // Update Drive if driveFileId present
+      if (driveFileId) {
+        try {
+          await driveService.updateImageFile(driveFileId, blob, 'image/png');
+        } catch (e) {
+          console.error('Failed updating Drive image', e);
+        }
       }
-    }
 
-    const url = URL.createObjectURL(blob);
-    onSaved?.(url);
-    onClose();
+      const url = URL.createObjectURL(blob);
+      onSaved?.(url);
+      onClose();
+    } catch (error) {
+      console.error('Failed to save image:', error);
+      // You could add a toast notification here
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toNatural = (clientX: number, clientY: number, container: HTMLDivElement) => {
@@ -244,9 +273,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       setIsDragging(true);
       return;
     }
-    const rect = container.getBoundingClientRect();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    // Handle crop tool
+    if (tool === 'crop') {
+      const rect = container.getBoundingClientRect();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      return;
+    }
   };
 
   const moveCrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -292,14 +325,29 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       return;
     }
     if (!isDragging || !dragStart) return;
+    
+    // Only handle crop tool
+    if (tool !== 'crop') return;
+    
     const rect = container.getBoundingClientRect();
     const x = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
     const y = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
-    const left = Math.max(0, Math.min(x - 50, rect.width - 100));
-    const top = Math.max(0, Math.min(y - 50, rect.height - 100));
+    
+    // Calculate crop area based on drag start and current position
+    const startX = Math.min(dragStart.x, x);
+    const startY = Math.min(dragStart.y, y);
+    const endX = Math.max(dragStart.x, x);
+    const endY = Math.max(dragStart.y, y);
+    
     const scaleX = imgRef.current.naturalWidth / rect.width;
     const scaleY = imgRef.current.naturalHeight / rect.height;
-    setCrop({ x: Math.floor(left * scaleX), y: Math.floor(top * scaleY), w: Math.floor(100 * scaleX), h: Math.floor(100 * scaleY) });
+    
+    setCrop({ 
+      x: Math.floor(startX * scaleX), 
+      y: Math.floor(startY * scaleY), 
+      w: Math.floor((endX - startX) * scaleX), 
+      h: Math.floor((endY - startY) * scaleY) 
+    });
   };
 
   return createPortal(
@@ -329,6 +377,18 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
                 {textValue || 'Text'}
               </div>
             )}
+            {/* Crop overlay */}
+            {tool === 'crop' && crop && (
+              <div
+                className="absolute border-2 border-blue-500 bg-blue-500/20 pointer-events-none"
+                style={{
+                  left: crop.x,
+                  top: crop.y,
+                  width: crop.w,
+                  height: crop.h
+                }}
+              />
+            )}
             <div className="absolute inset-0" onMouseDown={startCrop} onMouseMove={moveCrop} onMouseUp={() => { setIsDragging(false); setIsDraggingText(false); }} />
           </div>
           {/* Eraser cursor overlay (scaled with zoom) */}
@@ -348,6 +408,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
         {/* Bottom toolbar overlay */}
         <div className="absolute bottom-4 left-4 right-4 flex justify-center pointer-events-none">
           <div className="pointer-events-auto flex gap-2 items-center flex-wrap justify-center bg-black/60 backdrop-blur px-3 py-2 rounded-lg shadow-lg">
+            {tool === 'crop' && (
+              <div className="text-xs text-white/80 bg-blue-600/50 px-2 py-1 rounded">
+                Drag to select crop area
+              </div>
+            )}
           <label className="text-xs text-white/80">Tool:</label>
           <select value={tool} onChange={(e)=>setTool(e.target.value as any)} className="px-2 py-1 rounded bg-gray-800/70 text-white">
             <option value="move">Move</option>
@@ -373,8 +438,26 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
           <button onClick={() => setRotation((r) => (r + 90) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
             <RotateCw size={16} /> Right
           </button>
-          <button onClick={save} className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-            <Save size={16} /> Save
+          {tool === 'crop' && crop && (
+            <button onClick={() => setCrop(null)} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
+              Clear Crop
+            </button>
+          )}
+          <button 
+            onClick={save} 
+            disabled={isSaving}
+            className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={16} /> Save
+              </>
+            )}
           </button>
           <button onClick={onClose} className="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white flex items-center gap-2">
             <X size={16} /> Cancel

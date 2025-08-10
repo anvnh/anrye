@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Image as ImageIcon, Download, X } from 'lucide-react';
 import { MilestoneImage } from './types';
 import { driveService } from '@/app/lib/googleDrive';
-import { LazyImage, imagePreloader } from '@/app/lib/components/LazyLoad';
+import { OptimizedImage } from '@/app/(home)/notes/_components/OptimizedImage';
 import { VirtualGrid } from '@/app/lib/components/VirtualScroll';
 import { debounce } from '@/app/lib/optimizations';
 
@@ -138,13 +138,11 @@ export const MilestoneImageViewer: React.FC<MilestoneImageViewerProps> = ({
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
           </div>
         ) : imageUrls[image.id] ? (
-          <LazyImage
+          <OptimizedImage
             src={imageUrls[image.id]}
             alt={image.name}
             className="w-full h-full object-cover"
-            loading="lazy"
-            threshold={0.1}
-            rootMargin="50px"
+            priority={1}
             onError={() => {
               console.error(`Failed to load image: ${image.name}`);
             }}

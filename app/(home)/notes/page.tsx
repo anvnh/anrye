@@ -550,6 +550,8 @@ export default function NotesPage() {
           notes={notes}
           selectedNote={selectedNote}
           setEditContent={setEditContent}
+          setNotes={setNotes}
+          setSelectedNote={setSelectedNote}
           isSignedIn={isSignedIn}
           onClose={() => setIsImageManagerOpen(false)}
         />
