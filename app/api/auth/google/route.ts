@@ -50,12 +50,11 @@ export async function GET(request: NextRequest) {
       authUrl.searchParams.set('prompt', 'consent'); // Force consent to ensure refresh token
       authUrl.searchParams.set('state', state);
 
-      // Decide response mode based on navigation vs programmatic fetch
-      const fetchMode = request.headers.get('sec-fetch-mode');
-      const wantsRedirect = url.searchParams.get('mode') === 'redirect' || fetchMode === 'navigate';
-
+      // Support redirect mode for consistent behavior
+      const wantsRedirect = url.searchParams.get('mode') === 'redirect';
+      
       if (wantsRedirect) {
-        // Redirect directly to Google OAuth for top-level navigation
+        // Redirect directly to Google OAuth for same-window flow
         return NextResponse.redirect(authUrl.toString());
       }
 

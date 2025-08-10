@@ -1,14 +1,4 @@
-interface GoogleAuth {
-  access_token: string;
-  refresh_token?: string;
-  error?: string;
-  expires_in?: number;
-}
 
-interface GoogleTokenClient {
-  callback?: (response: GoogleAuth) => void;
-  requestAccessToken: () => void;
-}
 
 interface GoogleClient {
   init: (config: { discoveryDocs: string[] }) => Promise<void>;
@@ -45,19 +35,7 @@ declare global {
       load: (api: string, callback: () => void) => void;
       client: GoogleClient;
     };
-    google: {
-      accounts: {
-        oauth2: {
-          initTokenClient: (config: {
-            client_id: string;
-            scope: string;
-            access_type?: string;
-            callback: (response: GoogleAuth) => void;
-          }) => GoogleTokenClient;
-          revoke: (token: string) => void;
-        };
-      };
-    };
+
   }
 }
 

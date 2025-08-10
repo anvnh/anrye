@@ -7,9 +7,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
 import { usePasteImage } from '../_hooks/usePasteImage';
-import { useWikilinkAutocomplete } from '../_hooks/useWikilinkAutocomplete';
 import RenameImageDialog from './RenameImageDialog';
-import WikilinkAutocomplete from './WikilinkAutocomplete';
 
 
 interface NoteSplitEditorProps {
@@ -61,15 +59,11 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     }
   };
 
-  // Wikilink autocomplete
-  const { autocompleteState, insertSuggestion, closeAutocomplete } = useWikilinkAutocomplete({
-    notes,
-    textareaRef: textareaRef as React.RefObject<HTMLTextAreaElement>,
-    editContent,
-    setEditContent
-  });
+
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
+
+
 
   // Initialize paste image functionality
   const { handlePasteImage } = usePasteImage({
@@ -321,9 +315,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       previewAnchors.push(previewAnchorsCore[i]);
     }
 
-    // Add bottom anchor
-    const rawEnd = (totalLines - 1) * pixelsPerLine;
-    const previewEnd = Math.max(0, container.scrollHeight - container.clientHeight);
+    // Add bottom anchor - use actual scrollable heights
+    const rawEnd = rawElement.scrollHeight - rawElement.clientHeight;
+    const previewEnd = container.scrollHeight - container.clientHeight;
     rawAnchors.push(rawEnd);
     previewAnchors.push(previewEnd);
 
@@ -369,6 +363,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
     const totalLines = Math.max(1, editContent.split('\n').length);
     const ratio = Math.max(0, Math.min(1, currentScrollTop / maxScroll));
+    // Use actual scroll heights for better accuracy
     const approxLine = Math.max(0, Math.min(totalLines - 1, Math.round(ratio * (totalLines - 1))));
     const found = findHeadingForApproxLine(approxLine);
 
@@ -417,20 +412,32 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           const idx = Math.max(0, Math.min(domHeadings.length - 1, found.index));
           scrollPreviewToElement(domHeadings[idx]);
         } else {
-          // No headings parsed from source; map by ratio to DOM headings
-          const idx = Math.max(0, Math.min(domHeadings.length - 1, Math.round(ratio * (domHeadings.length - 1))));
-          scrollPreviewToElement(domHeadings[idx]);
+          // No headings parsed from source; map by ratio to DOM headings using actual scroll heights
+          if (container) {
+            const maxSource = rawElement.scrollHeight - rawElement.clientHeight;
+            const maxTarget = container.scrollHeight - container.clientHeight;
+            if (maxSource > 0 && maxTarget > 0) {
+              const targetRatio = currentScrollTop / maxSource;
+              const idx = Math.max(0, Math.min(domHeadings.length - 1, Math.round(targetRatio * (domHeadings.length - 1))));
+              scrollPreviewToElement(domHeadings[idx]);
+            }
+          }
         }
       } else if (found) {
         // Fallback to ID-based if DOM heading list is empty
         scrollPreviewToHeadingId(found.heading.id);
       } else {
-        // Final fallback: ratio-based scroll
+        // Final fallback: ratio-based scroll using actual scroll heights
         const container2 = previewRef.current;
         if (container2) {
           const maxTarget2 = container2.scrollHeight - container2.clientHeight;
-          const t2 = Math.round(ratio * maxTarget2);
-          if (maxTarget2 > 0 && Math.abs(container2.scrollTop - t2) > HYSTERESIS_PX) container2.scrollTo({ top: t2, behavior: 'auto' });
+          const maxSource2 = rawElement.scrollHeight - rawElement.clientHeight;
+          if (maxTarget2 > 0 && maxSource2 > 0) {
+            const t2 = Math.round((currentScrollTop / maxSource2) * maxTarget2);
+            if (Math.abs(container2.scrollTop - t2) > HYSTERESIS_PX) {
+              container2.scrollTo({ top: t2, behavior: 'auto' });
+            }
+          }
         }
       }
       // Release soon to allow opposite side after the scroll settles
@@ -445,13 +452,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastRawScrollTime = now;
-    
-    // Add browser compatibility check to prevent interference with text input
     const textarea = e.currentTarget;
-    if (textarea !== document.activeElement) {
-      // Only sync scroll if textarea is not focused to prevent interference with typing
-      syncPreviewFromRaw(textarea);
-    }
+    // Always sync preview when editor scrolls
+    syncPreviewFromRaw(textarea);
   }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -954,17 +957,6 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
-          />
-          
-          {/* Wikilink Autocomplete */}
-          <WikilinkAutocomplete
-            isOpen={autocompleteState.isOpen}
-            suggestions={autocompleteState.suggestions}
-            selectedIndex={autocompleteState.selectedIndex}
-            position={autocompleteState.position}
-            query={autocompleteState.query}
-            onSelect={insertSuggestion}
-            onClose={closeAutocomplete}
           />
         </div>
       </div>

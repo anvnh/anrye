@@ -88,16 +88,20 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const checkSignInStatus = async () => {
     setIsLoading(true);
     try {
-      // Avoid loading Drive if no token exists
+      // Check for both regular tokens and temporary tokens
       const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
-      if (!tokenRaw) {
+      const tempTokens = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_tokens_temp') : null;
+      
+      if (!tokenRaw && !tempTokens) {
         setIsSignedIn(false);
         return;
       }
+      
       const mod = await loadDriveModule();
       const signedIn = await mod.driveService.isSignedIn();
       setIsSignedIn(!!signedIn);
-    } catch {
+    } catch (error) {
+      console.error('Error checking sign-in status:', error);
       setIsSignedIn(false);
     } finally {
       setIsLoading(false);

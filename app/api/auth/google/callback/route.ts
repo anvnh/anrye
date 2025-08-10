@@ -147,6 +147,7 @@ export async function GET(request: NextRequest) {
         // Send tokens to parent window and close popup
         const tokens = ${JSON.stringify(tokens)};
         
+        // Support both popup and redirect flows
         if (window.opener) {
             // We're in a popup window
             window.opener.postMessage({
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
             }, '${stateData.origin}');
             window.close();
         } else {
-            // We're in the same window, store tokens and redirect
+            // We're in the same window (redirect flow)
             localStorage.setItem('google_drive_tokens_temp', JSON.stringify(tokens));
             window.location.href = '/notes?auth_success=true';
         }

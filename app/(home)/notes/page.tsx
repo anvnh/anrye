@@ -126,19 +126,15 @@ export default function NotesPage() {
       // Process temporary tokens if they exist
       const processTokens = async () => {
         try {
-          const { driveService } = await import('../../lib/googleDrive');
-          const success = await driveService.signIn();
-          if (success) {
-            // Google Drive authentication successful
-            // Trigger a re-check of sign-in status
-            if (checkSignInStatus) {
-              checkSignInStatus();
-            }
-          } else {
-            // Failed to process OAuth tokens
+          // Small delay to ensure tokens are properly stored
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Force a fresh check of sign-in status after authentication
+          if (checkSignInStatus) {
+            await checkSignInStatus();
           }
         } catch (error) {
-          // Error processing OAuth tokens
+          console.error('Error processing authentication:', error);
         }
       };
       
@@ -287,8 +283,8 @@ export default function NotesPage() {
           onToggleSidebar={toggleSidebar}
           onForceSync={forceSync}
           onSignIn={() => {
-            // Use the new server-side OAuth flow
-            window.location.href = '/api/auth/google?action=login&mode=redirect';
+            // Use the popup OAuth flow that returns refresh tokens
+            driveService.signIn();
           }}
           onSignOut={signOut}
         />

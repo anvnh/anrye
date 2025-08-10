@@ -3,10 +3,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage } from '../_hooks/usePasteImage';
-import { useWikilinkAutocomplete } from '../_hooks/useWikilinkAutocomplete';
 import { Note, Folder } from './types';
 import RenameImageDialog from './RenameImageDialog';
-import WikilinkAutocomplete from './WikilinkAutocomplete';
 
 interface NoteRegularEditorProps {
   editContent: string;
@@ -31,20 +29,12 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   setIsLoading,
   setSyncProgress
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
 
-  // Initialize wikilink autocomplete functionality
-  const { 
-    autocompleteState, 
-    insertSuggestion, 
-    closeAutocomplete 
-  } = useWikilinkAutocomplete({
-    notes,
-    textareaRef,
-    editContent,
-    setEditContent
-  });
+
+
+ 
 
   // Initialize paste image functionality
   const { handlePasteImage } = usePasteImage({
@@ -401,17 +391,6 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
             backgroundColor: '#31363F',
             fontSize: fontSize
           }}
-        />
-        
-        {/* Wikilink Autocomplete */}
-        <WikilinkAutocomplete
-          isOpen={autocompleteState.isOpen}
-          suggestions={autocompleteState.suggestions}
-          selectedIndex={autocompleteState.selectedIndex}
-          position={autocompleteState.position}
-          onSelect={insertSuggestion}
-          onClose={closeAutocomplete}
-          query={autocompleteState.query}
         />
       </div>
     </div>

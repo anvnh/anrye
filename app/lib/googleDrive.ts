@@ -17,29 +17,12 @@ interface TokenData {
   refresh_expires_at?: number; // Refresh token expiry (much longer)
 }
 
-interface GoogleAuth {
-  access_token: string;
-  refresh_token?: string;
-  error?: string;
-  expires_in?: number;
-}
 
-interface GoogleTokenClient {
-  callback?: (response: GoogleAuth) => void;
-  requestAccessToken: (options?: { prompt?: string }) => void;
-}
-
-interface TokenClientConfig {
-  client_id: string;
-  scope: string;
-  access_type?: string;
-  callback: (response: GoogleAuth) => void;
-}
 
 class GoogleDriveService {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
-  private tokenClient: GoogleTokenClient | null = null;
+
   private readonly TOKEN_KEY = 'google_drive_token';
   private isRefreshing = false;
   private refreshPromise: Promise<boolean> | null = null;
@@ -305,13 +288,7 @@ class GoogleDriveService {
     }
   }
 
-  // Silent refresh method - no longer needed with server-side OAuth
-  private async silentRefresh(): Promise<boolean> {
-    // With server-side OAuth flow, we don't need silent refresh
-    // All token management is handled via the refresh token endpoint
-    // Silent refresh not available with server-side OAuth flow
-    return false;
-  }
+
 
   async loadGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -366,11 +343,7 @@ class GoogleDriveService {
     });
   }
 
-  // Legacy method - no longer needed with server-side OAuth
-  private setupTokenClient(): void {
-    // This method is kept for compatibility but no longer used
-    // We now use server-side OAuth flow instead
-  }
+
 
   async signIn(): Promise<boolean> {
     try {
@@ -421,75 +394,12 @@ class GoogleDriveService {
 
   private async startOAuthFlow(): Promise<boolean> {
     try {
-      // Get OAuth URL from server
-      const response = await fetch('/api/auth/google?action=login');
+      // Use same-window redirect for consistent behavior
+      // This will redirect the current tab to Google OAuth
+      window.location.href = '/api/auth/google?action=login&mode=redirect';
       
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        // Failed to get OAuth URL
-        return false;
-      }
-
-      const { authUrl } = await response.json();
-      
-      return new Promise((resolve) => {
-        // Open popup for OAuth
-        const popup = window.open(
-          authUrl,
-          'google-oauth',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
-        );
-
-        if (!popup) {
-          alert('Popup blocked. Please enable popups for this site and try again.');
-          resolve(false);
-          return;
-        }
-
-        // Listen for messages from popup
-        const messageHandler = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) {
-            return;
-          }
-
-          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-            window.removeEventListener('message', messageHandler);
-            
-            const tokens = event.data.tokens;
-            if (tokens.access_token) {
-              this.accessToken = tokens.access_token;
-              this.refreshToken = tokens.refresh_token;
-              this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
-              // OAuth completed successfully
-              resolve(true);
-            } else {
-              // No access token received
-              resolve(false);
-            }
-          }
-        };
-
-        window.addEventListener('message', messageHandler);
-
-        // Check if popup was closed manually
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
-            resolve(false);
-          }
-        }, 1000);
-
-        // Timeout after 5 minutes
-        setTimeout(() => {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageHandler);
-          if (!popup.closed) {
-            popup.close();
-          }
-          resolve(false);
-        }, 5 * 60 * 1000);
-      });
+      // This line will only execute if the redirect fails
+      return false;
     } catch (error) {
       // Error starting OAuth flow
       return false;
@@ -497,9 +407,6 @@ class GoogleDriveService {
   }
 
   async signOut(): Promise<void> {
-    if (this.accessToken && window.google?.accounts?.oauth2) {
-      window.google.accounts.oauth2.revoke(this.accessToken);
-    }
     this.accessToken = null;
     this.refreshToken = null;
     this.clearSavedToken();
@@ -507,30 +414,11 @@ class GoogleDriveService {
 
   // Force clear all tokens and restart authentication
   public async forceReAuthenticate(): Promise<boolean> {
-
     // Clear everything
-    if (this.accessToken && window.google?.accounts?.oauth2) {
-      try {
-        window.google.accounts.oauth2.revoke(this.accessToken);
-      } catch (e) {
-        // Silent fail
-      }
-    }
-    
     this.accessToken = null;
     this.refreshToken = null;
     this.clearSavedToken();
     this.tokenClient = null;
-    
-    // Also clear GAPI client to force reload
-    if (window.gapi?.client) {
-      try {
-        // Clear the token from GAPI client
-        window.gapi.client.setToken({ access_token: '' });
-      } catch (e) {
-        // Silent fail
-      }
-    }
     
     // Force fresh sign in
     return await this.signIn();
@@ -571,15 +459,8 @@ class GoogleDriveService {
         }
       }
       
-      // Fallback to silent refresh
-      const success = await this.silentRefresh();
-      if (success) {
-
-        return true;
-      } else {
-
-        return await this.forceReAuthenticate();
-      }
+      // No fallback needed - force re-authentication
+      return await this.forceReAuthenticate();
     } catch (error) {
       // Token refresh error
       return await this.forceReAuthenticate();
@@ -688,14 +569,7 @@ class GoogleDriveService {
       this.clearSavedToken();
       this.accessToken = null;
       
-      // Also revoke the token if possible
-      if (window.google?.accounts?.oauth2 && this.accessToken) {
-        try {
-          window.google.accounts.oauth2.revoke(this.accessToken);
-        } catch (e) {
-          // Silent fail
-        }
-      }
+
       
       return true; // Indicates token needs refresh
     }

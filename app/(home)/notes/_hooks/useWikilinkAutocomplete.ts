@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '../_components/types';
 import { suggestNoteLinks } from '../_utils/backlinkUtils';
 
@@ -31,9 +31,13 @@ export const useWikilinkAutocomplete = ({
     selectedIndex: 0
   });
 
-  // Check if cursor is inside a wikilink pattern
+  const lastInputTimeRef = useRef<number>(0);
+  const isProcessingRef = useRef<boolean>(false);
+
+  // Improved wikilink context detection
   const checkWikilinkContext = useCallback((text: string, cursorPos: number) => {
-    // Look for [[ before cursor and ]] after cursor or at end
+    if (cursorPos === 0) return null;
+
     const beforeCursor = text.slice(0, cursorPos);
     const afterCursor = text.slice(cursorPos);
     
@@ -41,64 +45,143 @@ export const useWikilinkAutocomplete = ({
     const lastOpenBrackets = beforeCursor.lastIndexOf('[[');
     if (lastOpenBrackets === -1) return null;
     
-    // Check if there's a ]] between the [[ and cursor
+    // Check if there's already a ]] between [[ and cursor
     const textBetween = beforeCursor.slice(lastOpenBrackets + 2);
     if (textBetween.includes(']]')) return null;
     
-    // Check if there's a ]] in the text after cursor (optional, for incomplete links)
+    // Ensure cursor is actually inside the brackets (not just after [[)
+    if (cursorPos <= lastOpenBrackets + 2) return null;
+    
+    // Get the query text (what's between [[ and cursor)
+    const query = textBetween;
+    
+    // Sanity checks
+    if (query.length > 50) return null; // Don't show for very long queries
+    if (query.includes('\n')) return null; // Don't show if query spans multiple lines
+    
+    // Check if there's a ]] after cursor (optional)
     const nextCloseBrackets = afterCursor.indexOf(']]');
     
     return {
       start: lastOpenBrackets,
       end: nextCloseBrackets !== -1 ? cursorPos + nextCloseBrackets + 2 : cursorPos,
-      query: textBetween,
+      query: query,
       isComplete: nextCloseBrackets !== -1
     };
   }, []);
 
-  // Handle input changes and cursor movement
-  const handleInputChange = useCallback((newContent: string, cursorPos?: number) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const actualCursorPos = cursorPos ?? textarea.selectionStart ?? 0;
-    const wikilinkContext = checkWikilinkContext(newContent, actualCursorPos);
-
-    if (wikilinkContext) {
-      // Show autocomplete
-      const suggestions = suggestNoteLinks(wikilinkContext.query, notes, 8);
+  // Calculate dropdown position based on cursor
+  const calculatePosition = useCallback((textarea: HTMLTextAreaElement, cursorPos: number) => {
+    try {
+      // Create a temporary element to measure text dimensions
+      const temp = document.createElement('div');
+      temp.style.cssText = `
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        width: auto;
+        height: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: ${getComputedStyle(textarea).fontFamily};
+        font-size: ${getComputedStyle(textarea).fontSize};
+        line-height: ${getComputedStyle(textarea).lineHeight};
+        padding: ${getComputedStyle(textarea).padding};
+        border: ${getComputedStyle(textarea).border};
+        box-sizing: border-box;
+      `;
       
-      // Calculate position for autocomplete dropdown
-      const textBeforeCursor = newContent.slice(0, actualCursorPos);
+      // Get text before cursor
+      const textBeforeCursor = textarea.value.slice(0, cursorPos);
+      temp.textContent = textBeforeCursor;
+      document.body.appendChild(temp);
+      
+      // Calculate position
+      const rect = textarea.getBoundingClientRect();
+      const tempRect = temp.getBoundingClientRect();
+      
+      // Clean up
+      document.body.removeChild(temp);
+      
+      // Calculate line and character position
       const lines = textBeforeCursor.split('\n');
       const currentLine = lines.length - 1;
       const charInLine = lines[lines.length - 1].length;
       
-      // Rough estimation of position (would need more precise calculation in real implementation)
-      const lineHeight = 20; // Approximate line height
+      // Estimate position (fallback if measurement fails)
+      const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
       const charWidth = 8; // Approximate character width
       
-      setAutocompleteState({
-        isOpen: true,
-        suggestions,
-        query: wikilinkContext.query,
-        position: {
-          top: currentLine * lineHeight + 100,
-          left: charInLine * charWidth
-        },
-        selectedIndex: 0
-      });
+      const top = rect.top + (currentLine * lineHeight) + lineHeight + 5;
+      const left = rect.left + (charInLine * charWidth) + 10;
+      
+      return { top, left };
+    } catch (error) {
+      // Fallback to simple calculation
+      const rect = textarea.getBoundingClientRect();
+      const textBeforeCursor = textarea.value.slice(0, cursorPos);
+      const lines = textBeforeCursor.split('\n');
+      const currentLine = lines.length - 1;
+      const charInLine = lines[lines.length - 1].length;
+      
+      const lineHeight = 20;
+      const charWidth = 8;
+      
+      return {
+        top: rect.top + (currentLine * lineHeight) + lineHeight + 5,
+        left: rect.left + (charInLine * charWidth) + 10
+      };
+    }
+  }, []);
+
+  // Handle input changes with debouncing
+  const handleInputChange = useCallback((newContent: string, cursorPos?: number) => {
+    if (isProcessingRef.current) return;
+    
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const actualCursorPos = cursorPos ?? textarea.selectionStart ?? 0;
+    const now = Date.now();
+    
+    // Debounce rapid input changes
+    if (now - lastInputTimeRef.current < 50) {
+      return;
+    }
+    lastInputTimeRef.current = now;
+
+    const wikilinkContext = checkWikilinkContext(newContent, actualCursorPos);
+
+    if (wikilinkContext && wikilinkContext.query.trim()) {
+      // Show autocomplete
+      const suggestions = suggestNoteLinks(wikilinkContext.query, notes, 8);
+      
+      if (suggestions.length > 0) {
+        const position = calculatePosition(textarea, actualCursorPos);
+        
+        setAutocompleteState({
+          isOpen: true,
+          suggestions,
+          query: wikilinkContext.query,
+          position,
+          selectedIndex: 0
+        });
+      } else {
+        setAutocompleteState(prev => ({ ...prev, isOpen: false }));
+      }
     } else {
       // Hide autocomplete
       setAutocompleteState(prev => ({ ...prev, isOpen: false }));
     }
-  }, [notes, textareaRef, checkWikilinkContext]);
+  }, [notes, textareaRef, checkWikilinkContext, calculatePosition]);
 
   // Insert selected suggestion
   const insertSuggestion = useCallback((note: Note) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    isProcessingRef.current = true;
+    
     const cursorPos = textarea.selectionStart ?? 0;
     const wikilinkContext = checkWikilinkContext(editContent, cursorPos);
     
@@ -115,11 +198,14 @@ export const useWikilinkAutocomplete = ({
         const newCursorPos = wikilinkContext.start + `[[${note.title}]]`.length;
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         textarea.focus();
+        isProcessingRef.current = false;
       }, 0);
+    } else {
+      isProcessingRef.current = false;
     }
   }, [editContent, setEditContent, textareaRef, checkWikilinkContext]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation (only when autocomplete is open)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!autocompleteState.isOpen) return false;
 
@@ -169,26 +255,63 @@ export const useWikilinkAutocomplete = ({
     };
 
     const handleTextareaKeyDown = (e: KeyboardEvent) => {
-      const handled = handleKeyDown(e);
-      if (handled) {
-        e.stopPropagation();
+      // Only handle autocomplete keys if autocomplete is open
+      if (autocompleteState.isOpen) {
+        const handled = handleKeyDown(e);
+        if (handled) {
+          e.stopPropagation();
+          return;
+        }
       }
+      // For all other keys, let them pass through normally
     };
 
     const handleTextareaClick = () => {
-      handleInputChange(editContent);
+      // Update autocomplete position on click
+      if (autocompleteState.isOpen) {
+        handleInputChange(editContent);
+      }
+    };
+
+    const handleTextareaScroll = () => {
+      // Update autocomplete position on scroll
+      if (autocompleteState.isOpen) {
+        handleInputChange(editContent);
+      }
     };
 
     textarea.addEventListener('input', handleTextareaInput);
     textarea.addEventListener('keydown', handleTextareaKeyDown);
     textarea.addEventListener('click', handleTextareaClick);
+    textarea.addEventListener('scroll', handleTextareaScroll);
 
     return () => {
       textarea.removeEventListener('input', handleTextareaInput);
       textarea.removeEventListener('keydown', handleTextareaKeyDown);
       textarea.removeEventListener('click', handleTextareaClick);
+      textarea.removeEventListener('scroll', handleTextareaScroll);
     };
-  }, [textareaRef, handleInputChange, handleKeyDown, editContent]);
+  }, [textareaRef, handleInputChange, handleKeyDown, editContent, autocompleteState.isOpen]);
+
+  // Close autocomplete when clicking outside
+  useEffect(() => {
+    if (!autocompleteState.isOpen) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const textarea = textareaRef.current;
+      
+      // Don't close if clicking on the textarea or autocomplete dropdown
+      if (textarea?.contains(target) || target.closest('[data-wikilink-autocomplete]')) {
+        return;
+      }
+      
+      setAutocompleteState(prev => ({ ...prev, isOpen: false }));
+    };
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, [autocompleteState.isOpen, textareaRef]);
 
   return {
     autocompleteState,
