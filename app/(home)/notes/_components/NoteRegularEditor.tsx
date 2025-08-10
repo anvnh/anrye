@@ -219,12 +219,30 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
     };
   }, []);
 
+  // Ensure textarea is properly initialized for browser compatibility
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Ensure textarea is properly set up for editing
+      textarea.setAttribute('spellcheck', 'false');
+      textarea.setAttribute('autocomplete', 'off');
+      textarea.setAttribute('autocorrect', 'off');
+      textarea.setAttribute('autocapitalize', 'off');
+      
+      // Force focus to ensure it's editable
+      if (document.activeElement !== textarea) {
+        textarea.focus();
+      }
+    }
+  }, [editContent]);
+
   // Handle Tab key, auto bracket/quote, auto bullet, etc.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const value = textarea.value;
+    
     // Tab key for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -235,6 +253,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
       }, 0);
       return;
     }
+    
     // Auto close brackets/quotes
     const pairs: Record<string, string> = {
       '(': ')',
@@ -253,12 +272,14 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
       }, 0);
       return;
     }
+    
     // Auto continue bullet/checkbox list
     if (e.key === 'Enter') {
       const before = value.slice(0, start);
       const after = value.slice(end);
       const lineStart = before.lastIndexOf('\n') + 1;
       const currentLine = before.slice(lineStart);
+      
       // Continue checkbox: always insert '- [ ] '
       const checkboxMatch = currentLine.match(/^(\s*)- \[[ xX]?\] /);
       if (checkboxMatch) {
@@ -270,6 +291,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
         }, 0);
         return;
       }
+      
       // Bullet: - , * , + , numbered list
       const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
       if (bulletMatch) {
@@ -328,6 +350,9 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
         return;
       }
     }
+    
+    // For all other keys, ensure they work normally
+    // Don't prevent default for normal text input
   };
   
   return (
@@ -366,10 +391,14 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           value={editContent}
           onChange={(e) => handleContentChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={(e) => {
+            // Ensure proper focus handling for browser compatibility
+            e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length);
+          }}
           className="w-full h-full resize-none bg-secondary text-gray-300 focus:outline-none font-mono text-sm"
           placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
           style={{ 
-            backgroundColor: '#111111',
+            backgroundColor: '#31363F',
             fontSize: fontSize
           }}
         />

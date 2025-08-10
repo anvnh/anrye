@@ -445,7 +445,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastRawScrollTime = now;
-    syncPreviewFromRaw(e.currentTarget);
+    
+    // Add browser compatibility check to prevent interference with text input
+    const textarea = e.currentTarget;
+    if (textarea !== document.activeElement) {
+      // Only sync scroll if textarea is not focused to prevent interference with typing
+      syncPreviewFromRaw(textarea);
+    }
   }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -502,6 +508,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const value = textarea.value;
+    
     // Tab key for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -512,6 +519,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       }, 0);
       return;
     }
+    
     // Auto close brackets/quotes
     const pairs: Record<string, string> = {
       '(': ')',
@@ -530,12 +538,14 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       }, 0);
       return;
     }
+    
     // Auto continue bullet/checkbox list
     if (e.key === 'Enter') {
       const before = value.slice(0, start);
       const after = value.slice(end);
       const lineStart = before.lastIndexOf('\n') + 1;
       const currentLine = before.slice(lineStart);
+      
       // Continue checkbox: always insert '- [ ] '
       const checkboxMatch = currentLine.match(/^(\s*)- \[[ xX]?\] /);
       if (checkboxMatch) {
@@ -547,6 +557,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         }, 0);
         return;
       }
+      
       // Bullet: - , * , + , numbered list
       const bulletMatch = currentLine.match(/^(\s*)([-*+] |\d+\. )/);
       if (bulletMatch) {
@@ -605,6 +616,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
         return;
       }
     }
+    
+    // For all other keys, ensure they work normally
+    // Don't prevent default for normal text input
   }, [setEditContent, tabSize]);
 
   // Debounced renumbering to avoid excessive calls
@@ -754,6 +768,23 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
       }
     };
   }, []);
+
+  // Ensure textarea is properly initialized for browser compatibility
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Ensure textarea is properly set up for editing
+      textarea.setAttribute('spellcheck', 'false');
+      textarea.setAttribute('autocomplete', 'off');
+      textarea.setAttribute('autocorrect', 'off');
+      textarea.setAttribute('autocapitalize', 'off');
+      
+      // Force focus to ensure it's editable
+      if (document.activeElement !== textarea) {
+        textarea.focus();
+      }
+    }
+  }, [editContent]);
 
   // Optimized real-time preview with enhanced debounced content and performance monitoring
   const realtimePreview = useMemo(() => {
@@ -906,15 +937,18 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
             onScroll={handleRawScroll}
             onSelect={handleRawSelect}
             onKeyDown={handleKeyDown}
+            onFocus={(e) => {
+              // Ensure proper focus handling for browser compatibility
+              e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length);
+            }}
             className="raw-content w-full h-full resize-none bg-transparent text-gray-200 focus:outline-none font-mono text-sm leading-relaxed"
             placeholder="Write your note in Markdown... (Paste images with Ctrl+V)"
             style={{
-              scrollBehavior: 'auto',
               backgroundColor: '#31363F',
               fontSize: fontSize,
-              // Performance optimizations
-              willChange: 'scroll-position',
-              containIntrinsicSize: '1px 1000px'
+              // Remove problematic performance optimizations that cause browser compatibility issues
+              // willChange: 'scroll-position',
+              // containIntrinsicSize: '1px 1000px'
             }}
             spellCheck={false}
             autoComplete="off"

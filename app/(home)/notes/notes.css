@@ -1,6 +1,34 @@
 /* Route-level styles for Notes pages to avoid render-blocking global CSS */
 @import 'katex/dist/katex.min.css';
 
+/* Browser compatibility fixes for textarea */
+textarea {
+  /* Ensure textarea is editable in all browsers */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  
+  /* Prevent interference with text input */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Ensure proper text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* Prevent zoom on iOS */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Ensure textarea focus works properly */
+textarea:focus {
+  outline: none;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
 /* Prose and KaTeX tweaks that were inlined in components */
 .prose { overflow-x: hidden; }
 .prose * { max-width: 100%; box-sizing: border-box; }
