@@ -1,0 +1,10 @@
+[33m5a600c8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m refactor: update type definitions and improve code consistency across note editors and hooks, enhancing type safety and readability
+[33m58b8505[m feat: improve Markdown rendering by adding stable keys for image and block components, enhancing rendering consistency and performance
+[33m8aabd15[m feat: enhance numbered list functionality in note editors with automatic renumbering and improved cursor handling
+[33m4ac7e01[m feat: implement wikilink functionality with autocomplete and backlinks panel, enhancing note navigation and user experience
+[33m9f4d43b[m refactor: simplify ImageLightbox component structure by merging backdrop and image container, and prevent closing on image click
+[33mde592ae[m feat: optimize image loading in ImageLightbox by calculating fit scale based on viewport dimensions and adding window resize handling for dynamic scaling
+[33m6c9b5fd[m feat: improve image loading and authentication handling in MilestoneImageViewer and ImageManager, optimize image rendering in Markdown, and enhance Drive sync logic for better user experience
+[33meb5dfff[m feat: enhance Markdown rendering to handle images in paragraphs, ensuring proper hydration and layout
+[33mf779db7[m feat: enhance Google Drive OAuth flow to support redirect mode and process tokens from local storage
+[33m1d8a419[m feat: enhance service worker registration and caching logic to avoid caching in development environments
