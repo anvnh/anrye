@@ -304,14 +304,12 @@ export const tableOperations = {
     const lineStart = api.getLineStartOffset(currentLine);
     const relativePos = Math.max(0, cursorPos - lineStart);
     
-    // Find column index
+    // Find column index (count pipes before caret)
     let columnIndex = 0;
-    let pos = 0;
     for (let i = 0; i < currentLineText.length; i++) {
       if (currentLineText[i] === '|') {
-        if (pos >= relativePos) break;
+        if (i >= relativePos) break;
         columnIndex++;
-        pos = i + 1;
       }
     }
     
@@ -349,66 +347,76 @@ export const tableOperations = {
     const getLine = (ln: number) => api.getLineText(ln) || '';
     const lines: string[] = [];
     for (let i = 0; i < totalLines; i++) lines.push(getLine(i));
-    
+
     // Find table boundaries
     let tableStart = currentLine;
     let tableEnd = currentLine;
-    
-    while (tableStart > 0 && lines[tableStart].includes('|')) {
-      tableStart--;
-    }
+    while (tableStart > 0 && lines[tableStart].includes('|')) tableStart--;
     if (!lines[tableStart].includes('|')) tableStart++;
-    
-    while (tableEnd < lines.length - 1 && lines[tableEnd].includes('|')) {
-      tableEnd++;
-    }
+    while (tableEnd < lines.length - 1 && lines[tableEnd].includes('|')) tableEnd++;
     if (!lines[tableEnd].includes('|')) tableEnd--;
-    
-    // Find current column position
+
+    // Determine caret position relative to the current line
     const currentLineText = lines[currentLine];
     const { from: cursorPos } = api.getSelectionOffsets();
     const lineStart = api.getLineStartOffset(currentLine);
     const relativePos = Math.max(0, cursorPos - lineStart);
-    
-    // Find column index
-    let columnIndex = 0;
-    let pos = 0;
-    for (let i = 0; i < currentLineText.length; i++) {
-      if (currentLineText[i] === '|') {
-        if (pos >= relativePos) break;
-        columnIndex++;
-        pos = i + 1;
+
+    // Utilities to map caret to content column and to rebuild lines
+    const getSegmentIndexAtPos = (text: string, pos: number) => {
+      const pipes: number[] = [];
+      for (let i = 0; i < text.length; i++) if (text[i] === '|') pipes.push(i);
+      const onPipe = pipes.includes(pos);
+      if (pipes.length === 0) return 0;
+      if (pos < pipes[0]) return 0;
+      for (let k = 0; k < pipes.length - 1; k++) {
+        const start = pipes[k] + 1;
+        const end = pipes[k + 1] - 1;
+        if (pos >= start && pos <= end) return k + 1;
       }
-    }
-    
-    // Apply alignment to the separator line (usually line 2 in a table)
+      if (pos > pipes[pipes.length - 1] || onPipe) return pipes.length;
+      return pipes.length - 1;
+    };
+
+    const getContentRange = (line: string) => {
+      const parts = line.split('|');
+      const hasLeading = /^\s*\|/.test(line);
+      const hasTrailing = /\|\s*$/.test(line);
+      const start = hasLeading ? 1 : 0;
+      const endExclusive = parts.length - (hasTrailing ? 1 : 0);
+      return { parts, start, endExclusive, hasLeading, hasTrailing };
+    };
+
+    // Apply alignment to the delimiter (separator) line directly
     const separatorLineIndex = tableStart + 1;
-    if (separatorLineIndex <= tableEnd && lines[separatorLineIndex].includes('|')) {
-      const separatorParts = lines[separatorLineIndex].split('|');
-      if (columnIndex > 0 && columnIndex < separatorParts.length) {
-        const currentSeparator = separatorParts[columnIndex].trim();
-        let newSeparator = '---';
-        
-        switch (alignment) {
-          case 'left':
-            newSeparator = ':---';
-            break;
-          case 'center':
-            newSeparator = ':---:';
-            break;
-          case 'right':
-            newSeparator = '---:';
-            break;
-          case 'none':
-            newSeparator = '---';
-            break;
+    if (separatorLineIndex <= tableEnd) {
+      const sepLine = lines[separatorLineIndex] || '';
+      if (sepLine.includes('|')) {
+        const { parts, start, endExclusive, hasLeading, hasTrailing } = getContentRange(sepLine);
+        const contents = parts.slice(start, endExclusive);
+        if (contents.length > 0) {
+          // Map caret position to content column index in the current line
+          const segIndex = getSegmentIndexAtPos(currentLineText, relativePos);
+          const curLineRange = getContentRange(currentLineText);
+          const curStart = curLineRange.start;
+          const targetIdx = Math.max(0, Math.min(segIndex - curStart, contents.length - 1));
+
+          // Build alignment token
+          let token = '---';
+          switch (alignment) {
+            case 'left': token = ':---'; break;
+            case 'center': token = ':---:'; break;
+            case 'right': token = '---:'; break;
+            case 'none': token = '---'; break;
+          }
+
+          contents[targetIdx] = token;
+          const rebuilt = (hasLeading ? '|' : '') + contents.join('|') + (hasTrailing ? '|' : '');
+          lines[separatorLineIndex] = rebuilt;
         }
-        
-        separatorParts[columnIndex] = newSeparator;
-        lines[separatorLineIndex] = separatorParts.join('|');
       }
     }
-    
+
     const newDoc = lines.join('\n');
     const newLineStart = newDoc.split('\n').slice(0, currentLine).join('\n').length + (currentLine > 0 ? 1 : 0);
     api.setDocText(newDoc);
