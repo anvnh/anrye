@@ -6,7 +6,6 @@ import { tableOperations } from '../_utils/tableOperations';
 export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefined>) => {
   const [isInTable, setIsInTable] = useState(false);
   
-  console.log('useTableToolbar hook called, isInTable:', isInTable);
   
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -124,7 +123,6 @@ export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefin
     // Set a small delay to avoid flickering
     timeoutRef.current = setTimeout(() => {
       const inTable = isCursorInTable();
-      console.log('Setting isInTable to:', inTable);
       setIsInTable(inTable);
     }, 100);
   }, [isCursorInTable]);

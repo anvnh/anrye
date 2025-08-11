@@ -18,7 +18,7 @@ if (typeof window !== 'undefined') {
         const names = await caches.keys();
         await Promise.all(names.map(n => caches.delete(n)));
       }
-      console.log('[anrye] SW and caches cleared');
+      
     } catch (e) {
       console.error('[anrye] Failed to clear SW/caches', e);
     }
@@ -35,7 +35,7 @@ if (isLocalhost && 'serviceWorker' in navigator) {
         const names = await caches.keys();
         await Promise.all(names.map(n => caches.delete(n)));
       }
-      console.log('[anrye] Dev mode: unregistered SW and cleared caches');
+      
     } catch (e) {
       console.error('[anrye] Dev cleanup failed', e);
     }
@@ -46,7 +46,7 @@ if (!isLocalhost && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then((registration) => {
-        console.log('Service Worker registered successfully:', registration);
+        
 
         // Check for updates
         registration.addEventListener('updatefound', () => {
@@ -54,7 +54,7 @@ if (!isLocalhost && 'serviceWorker' in navigator) {
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('New service worker available');
+                
               }
             });
           }
@@ -67,8 +67,8 @@ if (!isLocalhost && 'serviceWorker' in navigator) {
 
   // Handle service worker updates
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('Service Worker controller changed');
+    
   });
 } else {
-  console.log('Service Worker not registered in development/local');
+  
 }

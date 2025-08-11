@@ -19,6 +19,3 @@ swContent = swContent.replace(
 
 // Write the updated content back
 fs.writeFileSync(swPath, swContent);
-
-console.log(`✅ Updated service worker cache version to: ${version}`);
-console.log('Users will now receive the latest version when they refresh their PWA'); 

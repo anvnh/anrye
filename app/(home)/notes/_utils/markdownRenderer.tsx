@@ -612,14 +612,14 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 lineIndex = node.position.start.line - 1;
               }
 
-              // console.log('Rendering checkbox:', { isChecked, lineIndex, isEditing });
+              
 
               return (
                 <li className="text-gray-300 flex items-baseline gap-2 list-none" {...props}>
                   <Checkbox
                     checked={isChecked}
                     onCheckedChange={(newChecked: boolean) => {
-                      // console.log('Checkbox clicked:', { newChecked, lineIndex, isEditing });
+                      
                       
                       // Ensure we have valid lineIndex
                       if (lineIndex === -1) {
@@ -631,7 +631,6 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                         if (isEditing && setEditContent) {
                           const updatedContent = updateCheckboxContent(editContent, lineIndex, newChecked);
                           setEditContent(updatedContent);
-                          console.log('Updated edit content for checkbox');
                         } else if (selectedNote && setNotes && setSelectedNote) {
                           const updatedContent = updateCheckboxContent(selectedNote.content, lineIndex, newChecked);
                           const updatedNote = {
@@ -649,7 +648,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                             driveService.updateFile(selectedNote.driveFileId, updatedContent)
                               .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
                           }
-                          // console.log('Updated note content for checkbox');
+                          
                         } else {
                           // console.warn('Missing required props for checkbox update:', { 
                           //   isEditing, 
@@ -848,7 +847,6 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   driveFileId: (src as string).match(/id=([^&]+)/)?.[1], 
                   onClose: () => setIsEditorOpen(false),
                   onSaved: async (newUrl: string) => {
-                    console.log('Image saved, new URL:', newUrl);
                     
                     // Clear the cache for this file ID so it loads the new version
                     const fileId = (src as string).match(/id=([^&]+)/)?.[1];

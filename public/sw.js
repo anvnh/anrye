@@ -27,7 +27,6 @@ self.addEventListener('install', (event) => {
       ? Promise.resolve()
       : caches.open(STATIC_CACHE)
           .then((cache) => {
-            console.log('Opened static cache');
             return cache.addAll(STATIC_ASSETS);
           })
   );
@@ -97,7 +96,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })

@@ -21,8 +21,7 @@ export const startEdit = (
     }
   });
   
-  console.log('Captured scroll position:', scrollPosition, 'from container:', sourceContainer);
-  console.log('All containers found:', containers.length);
+  
   
   // Also store the scroll position in sessionStorage as backup
   sessionStorage.setItem('note-scroll-position', scrollPosition.toString());
@@ -38,7 +37,7 @@ export const startEdit = (
   
   // Restore scroll position using a more robust approach
   const restoreScrollPosition = () => {
-    console.log('Attempting to restore scroll position:', scrollPosition);
+    
     
     // Try to find the appropriate container based on the mode
     let targetContainer: HTMLElement | null = null;
@@ -47,22 +46,19 @@ export const startEdit = (
     const splitPreviewContainer = document.querySelector('.preview-content') as HTMLElement;
     if (splitPreviewContainer) {
       targetContainer = splitPreviewContainer;
-      console.log('Found split preview container');
     } else {
       // For regular edit mode, target the overflow container
       // Try to find the most specific container first
       const mainContentContainer = document.querySelector('.flex-1.overflow-y-auto') as HTMLElement;
       if (mainContentContainer) {
         targetContainer = mainContentContainer;
-        console.log('Found main content container');
       } else {
         targetContainer = document.querySelector('.overflow-y-auto') as HTMLElement;
-        console.log('Found regular overflow container');
       }
     }
     
     if (targetContainer) {
-      console.log('Setting scrollTop to:', scrollPosition, 'on container:', targetContainer);
+      
       targetContainer.scrollTop = scrollPosition;
       
       // For split mode, also set the textarea scroll position to trigger sync
@@ -74,26 +70,26 @@ export const startEdit = (
             const scrollRatio = scrollPosition / (sourceContainer?.scrollHeight || 1);
             const targetScrollTop = scrollRatio * maxScroll;
             textarea.scrollTop = targetScrollTop;
-            console.log('Set textarea scroll position to trigger sync:', targetScrollTop);
+            
           }
         }
       }
       
       // Verify the scroll position was set correctly
-      setTimeout(() => {
-        console.log('Verified scroll position:', targetContainer?.scrollTop, 'expected:', scrollPosition);
+        setTimeout(() => {
+        
       }, 50);
       
       return true;
     } else {
-      console.log('No target container found, trying fallback');
+      
       // Fallback: try to restore from sessionStorage
       const storedPosition = sessionStorage.getItem('note-scroll-position');
       if (storedPosition) {
         const fallbackContainer = document.querySelector('.overflow-y-auto, .preview-content') as HTMLElement;
         if (fallbackContainer) {
           fallbackContainer.scrollTop = parseInt(storedPosition, 10);
-          console.log('Used fallback container, set scrollTop to:', storedPosition);
+          
           return true;
         }
       }
@@ -107,17 +103,17 @@ export const startEdit = (
   
   const attemptRestore = () => {
     attempts++;
-    console.log(`Restore attempt ${attempts}/${maxAttempts}`);
+    
     
     if (restoreScrollPosition()) {
-      console.log('Scroll position restored successfully');
+      
       return;
     }
     
     if (attempts < maxAttempts) {
       setTimeout(attemptRestore, 100);
     } else {
-      console.log('Failed to restore scroll position after all attempts');
+      
     }
   };
   
@@ -129,7 +125,7 @@ export const startEdit = (
     if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
       const splitPreviewContainer = document.querySelector('.preview-content') as HTMLElement;
       if (splitPreviewContainer && Math.abs(splitPreviewContainer.scrollTop - scrollPosition) > 10) {
-        console.log('Final split mode scroll correction');
+        
         splitPreviewContainer.scrollTop = scrollPosition;
       }
     }

@@ -159,7 +159,7 @@ export default function MilestonesPage() {
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
-        console.log('Attempting to reset Google API and re-authenticate...');
+        
         try {
           await forceReAuthenticate();
           // Retry sync once after re-authentication

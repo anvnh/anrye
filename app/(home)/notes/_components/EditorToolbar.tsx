@@ -28,7 +28,11 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  X
+  X,
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
+  ArrowUpFromLine,
+  ArrowDownFromLine
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -52,7 +56,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   
-  console.log('EditorToolbar rendered, isInTable:', isInTable);
 
   // Translate vertical wheel to horizontal scroll for the toolbar
   useEffect(() => {
@@ -497,19 +500,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <MessageCircle size={16} />
         </button>
-        
-        {/* Test Table Toolbar Button */}
-        <button
-          onClick={() => {
-            // Test table toolbar
-            const testTable = '\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n';
-            insertAtCursor(testTable);
-          }}
-          className="p-2 hover:bg-gray-700 rounded transition-colors"
-          title="Test Table Toolbar"
-        >
-          <Table size={16} />
-        </button>
       </div>
       
       {/* Table Toolbar Section - Only show when in table */}
@@ -526,8 +516,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Add column left"
             >
               <span className="inline-flex items-center gap-0.5">
-                <Plus size={14} />
-                <ChevronLeft size={14} />
+                <ArrowLeftFromLine size={14} />
               </span>
             </button>
             <button
@@ -536,8 +525,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Add column right"
             >
               <span className="inline-flex items-center gap-0.5">
-                <Plus size={14} />
-                <ChevronRight size={14} />
+                <ArrowRightFromLine size={14} />
               </span>
             </button>
             <button
@@ -574,8 +562,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Add row above"
             >
               <span className="inline-flex items-center gap-0.5">
-                <Plus size={14} />
-                <ChevronUp size={14} />
+                <ArrowUpFromLine size={14} />
               </span>
             </button>
             <button
@@ -584,8 +571,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Add row below"
             >
               <span className="inline-flex items-center gap-0.5">
-                <Plus size={14} />
-                <ChevronDown size={14} />
+                <ArrowDownFromLine size={14} />
               </span>
             </button>
             <button

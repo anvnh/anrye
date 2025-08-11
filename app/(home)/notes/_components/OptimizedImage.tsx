@@ -14,31 +14,7 @@ interface OptimizedImageProps {
   onUrlLoaded?: (url: string) => void;
 }
 
-/**
- * HackMD-like optimized image component
- * 
- * Key Features:
- * - No placeholders during loading (clean, minimal UI)
- * - Only shows when fully loaded (prevents layout shifts)
- * - Prevents frequent re-rendering with stable keys
- * - Efficient caching and loading state management
- * - Supports Google Drive images with optimized loading
- * 
- * Behavior:
- * - Returns null while loading (no placeholder)
- * - Returns null on error (no error UI)
- * - Only renders the actual image when ready
- * - Smooth opacity transition when loaded
- * 
- * Usage:
- * <OptimizedImage
- *   src="https://drive.google.com/file/d/FILE_ID/view"
- *   alt="Description"
- *   className="w-full h-64 object-cover"
- *   priority={1}
- *   onUrlLoaded={(url) => console.log('Image loaded:', url)}
- * />
- */
+
 export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   src,
   alt = 'Image',
@@ -134,7 +110,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   // Handle direct URL changes (for edited images)
   useEffect(() => {
     if (!fileId && src) {
-      console.log('OptimizedImage: Direct URL change, src:', src);
+      
       // For non-Drive images or when src changes directly
       setImageUrl(src);
       setIsLoading(false);

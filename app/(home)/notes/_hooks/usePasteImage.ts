@@ -69,7 +69,7 @@ export const usePasteImage = ({
       // If root folder doesn't have drive folder ID, try to get it from Drive
       if (parentFolder.id === 'root' && !parentFolder.driveFolderId) {
         try {
-          console.log('Root folder missing drive folder ID, attempting to get it...');
+          
           const notesFolderId = await driveService.findOrCreateNotesFolder();
           
           // Update the root folder with the drive folder ID

@@ -12,7 +12,6 @@ function Checkbox({
   ...props
 }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
   const handleCheckedChange = (checked: boolean) => {
-    // console.log('Checkbox primitive clicked:', checked);
     if (onCheckedChange) {
       onCheckedChange(checked);
     }
