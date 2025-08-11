@@ -33,6 +33,18 @@ textarea:focus {
 .prose { overflow-x: hidden; }
 .prose * { max-width: 100%; box-sizing: border-box; }
 
+/* Nested list marker styles in preview (override Tailwind list-* classes) */
+.prose ul { list-style-type: disc !important; }
+.prose ul ul { list-style-type: circle !important; }
+
+/* Explicit marker glyphs to guarantee appearance across browsers */
+.prose ul > li::marker { content: '\2022\00a0'; }
+.prose ul ul > li::marker { content: '\25E6\00a0'; }
+
+/* Keep ordered lists decimal at all levels */
+.prose ol { list-style-type: decimal !important; }
+.prose ol ol { list-style-type: decimal !important; }
+
 /* Wikilink styles for beautiful, Obsidian-like appearance */
 .wikilink {
   position: relative;

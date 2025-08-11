@@ -3,8 +3,8 @@
 import React, { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { EditorState, Extension, Compartment } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore } from '@codemirror/commands';
+import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { indentWithTab } from '@codemirror/commands';
 import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
@@ -42,12 +42,67 @@ type CMEditorProps = {
 
 const baseExtensions: Extension[] = [
   history(),
+  // Keymap order matters; we will prepend our custom list keymap and markdownKeymap at state creation
   keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...completionKeymap]),
   autocompletion(),
   markdown(),
   oneDark,
   EditorView.lineWrapping
 ];
+
+function createListKeymap(tabSize: number) {
+  const indentSpaces = ' '.repeat(Math.max(1, tabSize));
+  const listRegex = /^(\s*)(>[> ]*|[*+-]\s|(\d+)([.)]))/;
+  return [
+    {
+      key: 'Tab',
+      run: (view: EditorView) => {
+        const { state } = view;
+        const ranges = state.selection.ranges;
+        const multiple = ranges.length > 1 || ranges.some(r => !r.empty);
+        if (multiple) return indentMore(view);
+        const pos = state.selection.main.head;
+        const line = state.doc.lineAt(pos);
+        const text = state.doc.sliceString(line.from, line.to);
+        const match = listRegex.exec(text);
+        if (match) {
+          const currentIndentStr = match[1];
+          const currentIndent = currentIndentStr.replace(/\t/g, ' '.repeat(tabSize)).length;
+          const delta = tabSize;
+          const insertPos = line.from + currentIndentStr.length;
+          view.dispatch({ changes: { from: insertPos, to: insertPos, insert: ' '.repeat(delta) } });
+          return true;
+        }
+        return indentMore(view);
+      }
+    },
+    {
+      key: 'Shift-Tab',
+      run: (view: EditorView) => {
+        const { state } = view;
+        const ranges = state.selection.ranges;
+        const multiple = ranges.length > 1 || ranges.some(r => !r.empty);
+        if (multiple) return indentLess(view);
+        const pos = state.selection.main.head;
+        const line = state.doc.lineAt(pos);
+        const text = state.doc.sliceString(line.from, line.to);
+        // Remove one tab or up to tabSize spaces from start, but only within indentation
+        let removeCount = 0;
+        const leading = text.match(/^(\s*)/);
+        const leadingStr = leading ? leading[1] : '';
+        const currentIndent = leadingStr.replace(/\t/g, ' '.repeat(tabSize)).length;
+        if (currentIndent > 0) {
+          removeCount = Math.min(tabSize, currentIndent);
+        }
+        if (removeCount > 0) {
+          view.dispatch({ changes: { from: line.from, to: line.from + removeCount } });
+          return true;
+        }
+        return indentLess(view);
+      }
+    }
+  ];
+}
 
 export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>(function CMEditor(
   { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange, onCursorMove },
@@ -94,6 +149,9 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
     const state = EditorState.create({
       doc: value,
       extensions: [
+        // Ensure markdown Enter behavior and our list Tab handlers come first
+        keymap.of(createListKeymap(tabSize)),
+        keymap.of(markdownKeymap),
         ...baseExtensions,
         themeCompartmentRef.current.of(styleExt),
         tabCompartmentRef.current.of(tabExt),
