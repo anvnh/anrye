@@ -107,7 +107,7 @@ const FoldableHeading: React.FC<FoldableHeadingProps> = ({
     const props = {
       ref: headingRef,
       id,
-      className: `relative group cursor-pointer hover:bg-gray-800 hover:bg-opacity-20 rounded px-1 -mx-1 transition-all duration-200 ${className}`,
+      className: `relative group cursor-pointer hover:bg-gray-900/40 hover:bg-opacity-20 rounded px-1 -mx-1 transition-all duration-200 ${className}`,
       onClick: handleToggle
     };
 
