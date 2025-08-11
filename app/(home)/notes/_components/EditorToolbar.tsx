@@ -193,20 +193,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex items-center gap-1 px-4 py-2 bg-main border-b border-gray-700 text-gray-300 overflow-x-auto overflow-y-hidden whitespace-nowrap w-full"
+      className="flex items-center gap-1 px-4 py-2 bg-main border-b border-gray-700 text-gray-300 overflow-x-auto overflow-y-hidden whitespace-nowrap w-full h-14 leading-none"
     >
       {/* Undo/Redo Group */}
       <div className="flex items-center gap-1">
         <button
           onClick={handleUndo}
-          className="p-2 hover:bg-gray-700 rounded transition-colors"
+          className="p-2 leading-none hover:bg-gray-700 rounded transition-colors"
           title="Undo (Ctrl+Z)"
         >
           <Undo size={16} />
         </button>
         <button
           onClick={handleRedo}
-          className="p-2 hover:bg-gray-700 rounded transition-colors"
+          className="p-2 leading-none hover:bg-gray-700 rounded transition-colors"
           title="Redo (Ctrl+Y)"
         >
           <Redo size={16} />
@@ -519,7 +519,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           
           {/* Column Section */}
           <div className="flex items-center gap-1">
-            <span className="text-sm font-medium mr-2">Column</span>
+            <span className="text-sm font-medium mr-2 leading-none">Column</span>
             <button
               onClick={() => onTableAction && onTableAction('insertColumn', 'left')}
               className="p-2 hover:bg-gray-700 rounded transition-colors"
@@ -567,7 +567,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           
           {/* Row Section */}
           <div className="flex items-center gap-1">
-            <span className="text-sm font-medium mr-2">Row</span>
+            <span className="text-sm font-medium mr-2 leading-none">Row</span>
             <button
               onClick={() => onTableAction && onTableAction('insertRow', 'above')}
               className="p-2 hover:bg-gray-700 rounded transition-colors"
@@ -601,7 +601,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           
           {/* Alignment Section */}
           <div className="flex items-center gap-1">
-            <span className="text-sm font-medium mr-2">Alignment</span>
+            <span className="text-sm font-medium mr-2 leading-none">Alignment</span>
             <button
               onClick={() => onTableAction && onTableAction('align', 'left')}
               className="p-2 hover:bg-gray-700 rounded transition-colors"
