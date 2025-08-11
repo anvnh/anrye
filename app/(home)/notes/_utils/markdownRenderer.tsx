@@ -750,13 +750,13 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         ),
         table: ({ children, ...props }) => (
           <div className="overflow-x-auto my-4">
-            <table className="min-w-full rounded-2xl border-collapse border border-gray-600" {...props}>
+            <table className="min-w-full rounded-2xl border-collapse border border-white/30" {...props}>
               {children}
             </table>
           </div>
         ),
         thead: ({ children, ...props }) => (
-          <thead className="bg-gray-700" {...props}>
+          <thead className="bg-gray-900/40" {...props}>
             {children}
           </thead>
         ),
@@ -766,22 +766,22 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           </tbody>
         ),
         tr: ({ children, ...props }) => (
-          <tr className="border-b border-gray-600 last:border-b-0" {...props}>
+          <tr className="border-b border-white/30 last:border-b-0" {...props}>
             {children}
           </tr>
         ),
         th: ({ children, ...props }) => (
-          <th className="px-4 py-2 text-left text-white font-semibold border-r border-gray-600 last:border-r-0" {...props}>
+          <th className="px-4 py-2 text-left text-white font-semibold border-r border-white/50" {...props}>
             {children}
           </th>
         ),
         td: ({ children, ...props }) => (
-          <td className="px-4 py-2 text-gray-300 border-r border-gray-600 last:border-r-0" {...props}>
+          <td className="px-4 py-2 text-gray-300 border-r border-white/30" {...props}>
             {children}
           </td>
         ),
         hr: ({ ...props }) => (
-          <hr className="border-gray-600 my-8" {...props} />
+          <hr className="border-white/50 my-8" {...props} />
         ),
         del: ({ children, ...props }) => (
           <del className="line-through text-gray-300" {...props}>{children}</del>
