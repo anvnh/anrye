@@ -142,6 +142,11 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
+    }) + ' ' + date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
     });
   };
 
@@ -328,7 +333,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
                         handleDelete(image);
                       }}
                       className="p-1 bg-red-600/80 hover:bg-red-500/80 rounded text-white"
-                      title="Xóa ảnh"
+                      title="Delete"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -351,22 +356,6 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
           <DialogHeader className="p-4 border-b border-gray-600/50">
             <DialogTitle className="text-white flex items-center justify-between">
               <span>{selectedImage?.name}</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => selectedImage && handleDownload(selectedImage)}
-                  className="p-2 bg-green-600/80 hover:bg-green-500/80 rounded text-white transition-colors"
-                  title="Download"
-                >
-                  <Download size={16} />
-                </button>
-                <button
-                  onClick={() => selectedImage && handleDelete(selectedImage)}
-                  className="p-2 bg-red-600/80 hover:bg-red-500/80 rounded text-white transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
             </DialogTitle>
           </DialogHeader>
           
