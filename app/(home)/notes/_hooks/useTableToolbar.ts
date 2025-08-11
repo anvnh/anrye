@@ -22,8 +22,8 @@ export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefin
       const getLine = (ln: number) => api.getLineText(ln) || '';
       const lineText = getLine(currentLine);
 
-      // Fast fail: must contain at least two pipes
-      if ((lineText.match(/\|/g) || []).length < 2) return false;
+  // Fast fail: must contain at least one pipe
+  if ((lineText.match(/\|/g) || []).length < 1) return false;
 
       // Walk upwards to find start of contiguous table block
       let start = currentLine;
@@ -41,7 +41,8 @@ export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefin
 
       // Validate the separator line (usually second line in the block)
       const separator = getLine(start + 1);
-      const isSeparator = /\|?\s*:?\-+:?\s*(\|\s*:?\-+:?\s*)+\|?/.test(separator);
+  // Accept 1 or more columns; leading/trailing pipes optional
+  const isSeparator = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(separator);
       if (!isSeparator) return false;
 
       return true;

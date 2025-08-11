@@ -26,7 +26,7 @@ export const tableOperations = {
     // Validate separator (delimiter) line at tableStart + 1 when possible
     const delimiterIndex = tableStart + 1;
     const delimiter = lines[delimiterIndex] || '';
-    const isDelimiter = /\|?\s*:?\-+:?\s*(\|\s*:?\-+:?\s*)+\|?/.test(delimiter);
+  const isDelimiter = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(delimiter);
     if (!isDelimiter) return; // Not a valid markdown table block
 
     // Determine the insertion target within the body (after delimiter)
@@ -96,7 +96,7 @@ export const tableOperations = {
     // Validate separator line
     const delimiterIndex = tableStart + 1;
     const delimiter = lines[delimiterIndex] || '';
-    const isDelimiter = /\|?\s*:?\-+:?\s*(\|\s*:?\-+:?\s*)+\|?/.test(delimiter);
+  const isDelimiter = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(delimiter);
     if (!isDelimiter) return;
 
     const bodyStart = delimiterIndex + 1;
