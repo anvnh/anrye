@@ -12,12 +12,18 @@ import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
 export interface CMEditorApi {
   focus: () => void;
   insertTextAtSelection: (text: string) => void;
+  setDocText: (text: string) => void;
   wrapSelection: (prefix: string, suffix?: string) => void;
   toggleHeadingAtLine: (level: number) => void;
   undo: () => void;
   redo: () => void;
   getSelectionLine: () => number;
+  getSelectionOffsets: () => { from: number; to: number };
   getDocLineCount: () => number;
+  getLineText: (lineNumberZeroBased: number) => string;
+  getDocText: () => string;
+  getLineStartOffset: (lineNumberZeroBased: number) => number;
+  setSelection: (anchor: number, head?: number) => void;
   scrollDOM: HTMLElement | null;
   contentDOM: HTMLElement | null;
 }
@@ -31,6 +37,7 @@ type CMEditorProps = {
   onReady?: (api: CMEditorApi) => void;
   onPasteImage?: (file: File) => Promise<string | null>;
   onSelectionChange?: (line: number) => void;
+  onCursorMove?: () => void;
 };
 
 const baseExtensions: Extension[] = [
@@ -43,7 +50,7 @@ const baseExtensions: Extension[] = [
 ];
 
 export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>(function CMEditor(
-  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange },
+  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange, onCursorMove },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -98,6 +105,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
             try {
               const line = update.state.doc.lineAt(update.state.selection.main.from).number - 1;
               onSelectionChange?.(line);
+              onCursorMove?.();
             } catch {}
           }
         }),
@@ -143,6 +151,11 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
         view.focus();
       },
+      setDocText: (text: string) => {
+        const current = view.state.doc.toString();
+        view.dispatch({ changes: { from: 0, to: current.length, insert: text } });
+        view.focus();
+      },
       wrapSelection: (prefix: string, suffix: string = prefix) => {
         const sel = view.state.selection.main;
         const selected = view.state.doc.sliceString(sel.from, sel.to);
@@ -174,7 +187,30 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         const line = state.doc.lineAt(state.selection.main.from);
         return line.number - 1; // zero-based like textarea
       },
+      getSelectionOffsets: () => {
+        const { state } = view;
+        return { from: state.selection.main.from, to: state.selection.main.to };
+      },
       getDocLineCount: () => view.state.doc.lines,
+      getLineText: (lineNumberZeroBased: number) => {
+        const { state } = view;
+        // CM uses 1-based line numbering
+        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const line = state.doc.line(ln);
+        return state.doc.sliceString(line.from, line.to);
+      },
+      getDocText: () => view.state.doc.toString(),
+      getLineStartOffset: (lineNumberZeroBased: number) => {
+        const { state } = view;
+        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const line = state.doc.line(ln);
+        return line.from;
+      },
+      setSelection: (anchor: number, head?: number) => {
+        const sel = { anchor, head: head ?? anchor } as any;
+        view.dispatch({ selection: sel });
+        view.focus();
+      },
       scrollDOM: (view as any).scrollDOM as HTMLElement,
       contentDOM: (view as any).contentDOM as HTMLElement,
     };
@@ -224,6 +260,11 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
         view.focus();
       },
+      setDocText: (text: string) => {
+        const current = view.state.doc.toString();
+        view.dispatch({ changes: { from: 0, to: current.length, insert: text } });
+        view.focus();
+      },
       wrapSelection: (prefix: string, suffix?: string) => {
         const sel = view.state.selection.main;
         const selected = view.state.doc.sliceString(sel.from, sel.to);
@@ -256,7 +297,29 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         const line = state.doc.lineAt(state.selection.main.from);
         return line.number - 1;
       },
+      getSelectionOffsets: () => {
+        const { state } = view;
+        return { from: state.selection.main.from, to: state.selection.main.to };
+      },
       getDocLineCount: () => view.state.doc.lines,
+      getLineText: (lineNumberZeroBased: number) => {
+        const { state } = view;
+        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const line = state.doc.line(ln);
+        return state.doc.sliceString(line.from, line.to);
+      },
+      getDocText: () => view.state.doc.toString(),
+      getLineStartOffset: (lineNumberZeroBased: number) => {
+        const { state } = view;
+        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const line = state.doc.line(ln);
+        return line.from;
+      },
+      setSelection: (anchor: number, head?: number) => {
+        const sel = { anchor, head: head ?? anchor } as any;
+        view.dispatch({ selection: sel });
+        view.focus();
+      },
       scrollDOM: (view as any).scrollDOM as HTMLElement,
       contentDOM: (view as any).contentDOM as HTMLElement,
     } as CMEditorApi;

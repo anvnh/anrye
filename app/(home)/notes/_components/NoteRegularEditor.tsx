@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
-import { usePasteImage } from '../_hooks/usePasteImage';
+import { usePasteImage, useTableToolbar } from '../_hooks';
 import { Note, Folder } from './types';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
@@ -32,6 +32,9 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
 }) => {
   const cmRef = useRef<CMEditorApi | undefined>(undefined);
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
+
+  // Initialize table toolbar
+  const { isInTable, handleTableAction, handleCursorMove } = useTableToolbar(cmRef);
 
 
 
@@ -211,15 +214,17 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
           // No direct programmatic paste; rely on OS paste. As a convenience, focus editor.
           cmRef.current?.focus();
         }}
+        isInTable={isInTable}
+        onTableAction={handleTableAction}
       />
-  <div className="flex-1 min-h-0 relative p-0">
+      <div className="flex-1 min-h-0 relative p-0">
         <CMEditor
           ref={cmRef as any}
           value={editContent}
           onChange={handleContentChange}
           tabSize={tabSize}
           fontSize={fontSize}
-      className="w-full h-full"
+          className="w-full h-full"
           onReady={(api) => {
             // ensure focus for immediate typing
             api.focus();
@@ -228,6 +233,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
             const result = await uploadPastedImage(file);
             return result?.markdownLink ?? null;
           }}
+          onCursorMove={handleCursorMove}
         />
       </div>
     </div>

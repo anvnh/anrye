@@ -19,7 +19,16 @@ import {
   MessageCircle,
   Undo,
   Redo,
-  Clipboard
+  Clipboard,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  X
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -28,6 +37,8 @@ interface EditorToolbarProps {
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onPasteImage?: () => void;
   cmApiRef?: React.RefObject<CMEditorApi | undefined>;
+  isInTable?: boolean;
+  onTableAction?: (action: string, direction?: string) => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -35,9 +46,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   setEditContent,
   textareaRef,
   onPasteImage,
-  cmApiRef
+  cmApiRef,
+  isInTable = false,
+  onTableAction
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  
+  console.log('EditorToolbar rendered, isInTable:', isInTable);
 
   // Translate vertical wheel to horizontal scroll for the toolbar
   useEffect(() => {
@@ -482,7 +497,142 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <MessageCircle size={16} />
         </button>
+        
+        {/* Test Table Toolbar Button */}
+        <button
+          onClick={() => {
+            // Test table toolbar
+            const testTable = '\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n';
+            insertAtCursor(testTable);
+          }}
+          className="p-2 hover:bg-gray-700 rounded transition-colors"
+          title="Test Table Toolbar"
+        >
+          <Table size={16} />
+        </button>
       </div>
+      
+      {/* Table Toolbar Section - Only show when in table */}
+      {Boolean(isInTable) && (
+        <>
+          <div className="w-px h-6 bg-gray-600 mx-2"></div>
+          
+          {/* Column Section */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium mr-2">Column</span>
+            <button
+              onClick={() => onTableAction && onTableAction('insertColumn', 'left')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Add column left"
+            >
+              <span className="inline-flex items-center gap-0.5">
+                <Plus size={14} />
+                <ChevronLeft size={14} />
+              </span>
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('insertColumn', 'right')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Add column right"
+            >
+              <span className="inline-flex items-center gap-0.5">
+                <Plus size={14} />
+                <ChevronRight size={14} />
+              </span>
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('deleteColumn')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Delete column"
+            >
+              <Minus size={16} />
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('moveColumn', 'left')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Move column left"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('moveColumn', 'right')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Move column right"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          
+          <div className="w-px h-6 bg-gray-600 mx-2"></div>
+          
+          {/* Row Section */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium mr-2">Row</span>
+            <button
+              onClick={() => onTableAction && onTableAction('insertRow', 'above')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Add row above"
+            >
+              <span className="inline-flex items-center gap-0.5">
+                <Plus size={14} />
+                <ChevronUp size={14} />
+              </span>
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('insertRow', 'below')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Add row below"
+            >
+              <span className="inline-flex items-center gap-0.5">
+                <Plus size={14} />
+                <ChevronDown size={14} />
+              </span>
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('deleteRow')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Delete row"
+            >
+              <Minus size={16} />
+            </button>
+          </div>
+          
+          <div className="w-px h-6 bg-gray-600 mx-2"></div>
+          
+          {/* Alignment Section */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium mr-2">Alignment</span>
+            <button
+              onClick={() => onTableAction && onTableAction('align', 'left')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Align left"
+            >
+              <AlignLeft size={16} />
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('align', 'center')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Align center"
+            >
+              <AlignCenter size={16} />
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('align', 'right')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Align right"
+            >
+              <AlignRight size={16} />
+            </button>
+            <button
+              onClick={() => onTableAction && onTableAction('align', 'none')}
+              className="p-2 hover:bg-gray-700 rounded transition-colors"
+              title="Clear alignment"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }; 

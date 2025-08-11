@@ -6,7 +6,7 @@ import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
 import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
-import { usePasteImage } from '../_hooks/usePasteImage';
+import { usePasteImage, useTableToolbar } from '../_hooks';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
 
@@ -64,6 +64,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
 
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
+
+  // Initialize table toolbar
+  const { isInTable, handleTableAction, handleCursorMove } = useTableToolbar(cmRef);
 
 
 
@@ -790,6 +793,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           textareaRef={undefined as any}
           cmApiRef={cmRef as any}
           onPasteImage={() => cmRef.current?.focus()}
+          isInTable={isInTable}
+          onTableAction={handleTableAction}
         />
         <div className="flex-1 min-h-0 overflow-hidden relative p-0">
           <CMEditor
@@ -810,6 +815,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
                 lastCaretChangeRef.current = Date.now();
               } catch { }
             }}
+            onCursorMove={handleCursorMove}
           />
         </div>
       </div>
