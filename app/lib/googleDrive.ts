@@ -160,12 +160,8 @@ class GoogleDriveService {
   }
 
   private async validateAndRefreshToken(): Promise<boolean> {
-    if (!this.accessToken || this.isRefreshing) {
-      return false;
-    }
-
     // Check if refresh is already in progress
-    if (this.refreshPromise) {
+    if (this.isRefreshing && this.refreshPromise) {
       return await this.refreshPromise;
     }
 
@@ -180,42 +176,38 @@ class GoogleDriveService {
 
       // If token is still valid for more than 10 minutes, no refresh needed
       if (timeUntilExpiry > 10 * 60 * 1000) {
+        this.accessToken = tokenData.access_token;
+        this.refreshToken = tokenData.refresh_token || null;
         return true;
       }
       
-      // If token expires within 10 minutes but still valid, try to refresh
-      if (timeUntilExpiry > 0) {
-
+      // Token expires soon or expired, try to refresh
+      if (this.refreshToken) {
+        // Set refresh in progress
+        this.isRefreshing = true;
+        this.refreshPromise = this.refreshWithRefreshToken();
+        
         try {
-          const refreshSuccess = await this.refreshWithRefreshToken();
-          if (refreshSuccess) {
-            return true;
-          }
+          const refreshSuccess = await this.refreshPromise;
+          this.isRefreshing = false;
+          this.refreshPromise = null;
+          return refreshSuccess;
         } catch (error) {
-  
+          console.error('Token refresh failed:', error);
+          this.isRefreshing = false;
+          this.refreshPromise = null;
+          return false;
         }
       }
       
-      // Token expired, try refresh token if available
-      if (!this.accessToken && this.refreshToken) {
-
-        try {
-          const refreshSuccess = await this.refreshWithRefreshToken();
-          if (refreshSuccess) {
-            return true;
-          }
-        } catch (error) {
-  
-        }
-      }
-      
-      // Token expired or refresh failed, clear everything
+      // No refresh token available, clear everything
       this.clearSavedToken();
       this.accessToken = null;
       this.refreshToken = null;
       
       return false;
     } catch (error) {
+      console.error('Token validation error:', error);
       return false;
     }
   }
@@ -277,12 +269,12 @@ class GoogleDriveService {
   // Refresh access token using refresh token via server endpoint
   private async refreshWithRefreshToken(): Promise<boolean> {
     if (!this.refreshToken) {
-      // No refresh token available
+      console.log('No refresh token available');
       return false;
     }
 
     try {
-      // Refreshing access token using refresh token
+      console.log('Attempting to refresh access token...');
       
       // Use our server endpoint to refresh the token securely
       const response = await fetch('/api/auth/google/token', {
@@ -297,11 +289,11 @@ class GoogleDriveService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // Refresh token request failed
+        console.error('Token refresh failed:', response.status, errorData);
         
         // If refresh token is invalid, clear it and force re-authentication
         if (response.status === 401 && errorData.code === 'INVALID_REFRESH_TOKEN') {
-          // Refresh token is invalid, clearing stored tokens
+          console.log('Refresh token is invalid, clearing stored tokens');
           this.clearSavedToken();
           return false;
         }
@@ -311,18 +303,18 @@ class GoogleDriveService {
       const data = await response.json();
       
       if (data.access_token) {
+        console.log('Access token refreshed successfully');
         this.accessToken = data.access_token;
         // Keep existing refresh token if new one not provided
         const refreshToken = data.refresh_token || this.refreshToken;
         this.saveToken(data.access_token, data.expires_in, refreshToken);
-        // Access token refreshed successfully
         return true;
       } else {
-        // No access token in refresh response
+        console.error('No access token in refresh response');
         return false;
       }
     } catch (error) {
-      // Error refreshing token
+      console.error('Error refreshing token:', error);
       return false;
     }
   }
@@ -457,7 +449,6 @@ class GoogleDriveService {
     this.accessToken = null;
     this.refreshToken = null;
     this.clearSavedToken();
-    this.tokenClient = null;
     
     // Force fresh sign in
     return await this.signIn();
@@ -469,7 +460,6 @@ class GoogleDriveService {
     this.accessToken = null;
     this.refreshToken = null;
     this.clearSavedToken();
-    this.tokenClient = null;
     
     // Clear GAPI client
     if (window.gapi?.client) {
