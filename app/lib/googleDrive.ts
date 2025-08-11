@@ -24,6 +24,7 @@ class GoogleDriveService {
   private refreshToken: string | null = null;
 
   private readonly TOKEN_KEY = 'google_drive_token';
+  private readonly BACKUP_TOKEN_KEY = 'google_drive_token_backup';
   private isRefreshing = false;
   private refreshPromise: Promise<boolean> | null = null;
   private readonly CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -44,7 +45,7 @@ class GoogleDriveService {
     const expiresAt = Date.now() + expiryDuration;
     
     // Refresh token typically expires in 6 months, but we'll be conservative
-    const refreshExpiresAt = refreshToken ? Date.now() + (30 * 24 * 60 * 60 * 1000) : undefined; // 30 days
+    const refreshExpiresAt = refreshToken ? Date.now() + (180 * 24 * 60 * 60 * 1000) : undefined; // 180 days (6 months)
     
     const tokenData: TokenData = {
       access_token: accessToken,
@@ -72,15 +73,44 @@ class GoogleDriveService {
     }
     
     localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
+    // Backup token to sessionStorage for better persistence
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      sessionStorage.setItem(this.BACKUP_TOKEN_KEY, JSON.stringify(tokenData));
+    }
   }
 
   private loadSavedToken(): void {
     if (typeof window === 'undefined') return;
     
     try {
-      const savedToken = localStorage.getItem(this.TOKEN_KEY);
+      // Try localStorage first
+      let savedToken = localStorage.getItem(this.TOKEN_KEY);
+      let tokenData: TokenData | null = null;
+      
       if (savedToken) {
-        const tokenData: TokenData = JSON.parse(savedToken);
+        try {
+          tokenData = JSON.parse(savedToken);
+        } catch (e) {
+          // Invalid JSON in localStorage, try backup
+          savedToken = null;
+        }
+      }
+      
+      // If no valid token in localStorage, try sessionStorage backup
+      if (!tokenData && typeof window !== 'undefined' && window.sessionStorage) {
+        const backupToken = sessionStorage.getItem(this.BACKUP_TOKEN_KEY);
+        if (backupToken) {
+          try {
+            tokenData = JSON.parse(backupToken);
+            // Restore to localStorage if backup is valid
+            localStorage.setItem(this.TOKEN_KEY, backupToken);
+          } catch (e) {
+            // Invalid backup too
+          }
+        }
+      }
+      
+      if (tokenData) {
         const timeUntilExpiry = tokenData.expires_at - Date.now();
         
         if (timeUntilExpiry > 10 * 60 * 1000) { // At least 10 minutes left
@@ -102,12 +132,18 @@ class GoogleDriveService {
             } else {
               // Both tokens expired
               localStorage.removeItem(this.TOKEN_KEY);
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                sessionStorage.removeItem(this.BACKUP_TOKEN_KEY);
+              }
               this.accessToken = null;
               this.refreshToken = null;
             }
           } else {
             // No refresh token, clear everything
             localStorage.removeItem(this.TOKEN_KEY);
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+              sessionStorage.removeItem(this.BACKUP_TOKEN_KEY);
+            }
             this.accessToken = null;
             this.refreshToken = null;
           }
@@ -116,6 +152,9 @@ class GoogleDriveService {
     } catch (error) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem(this.TOKEN_KEY);
+        if (window.sessionStorage) {
+          sessionStorage.removeItem(this.BACKUP_TOKEN_KEY);
+        }
       }
     }
   }
