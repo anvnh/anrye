@@ -310,6 +310,71 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </button>
         <button
           onClick={() => {
+            const api = cmApiRef?.current;
+            if (api) {
+              // For CodeMirror, we need to implement bullet list logic manually
+              const { from, to } = api.getSelectionOffsets();
+              const docText = api.getDocText();
+              const before = docText.substring(0, from);
+              const after = docText.substring(to);
+              
+              // Find the start of the first line containing selection
+              const lineStart = before.lastIndexOf('\n') + 1;
+              
+              // Find the end of the last line containing selection
+              const lineEnd = after.indexOf('\n');
+              const actualLineEnd = lineEnd !== -1 ? to + lineEnd : docText.length;
+              
+              // Get the complete lines that contain the selection
+              const completeLines = docText.substring(lineStart, actualLineEnd);
+              const lines = completeLines.split('\n');
+              
+              // Check if all lines are already bullet points
+              const bulletPattern = /^(\s*)[-*+]\s/;
+              const allAreBullets = lines.every(line => {
+                // Skip empty lines when checking
+                if (line.trim() === '') return true;
+                return bulletPattern.test(line);
+              });
+              
+              // Debug: log the lines and bullet check
+              console.log('Bullet list debug:', {
+                lines,
+                allAreBullets,
+                lineChecks: lines.map(line => ({
+                  line: line.trim(),
+                  isEmpty: line.trim() === '',
+                  hasBullet: bulletPattern.test(line)
+                }))
+              });
+              
+              let newLines: string[];
+              if (allAreBullets) {
+                // Remove bullet points from all lines
+                newLines = lines.map(line => {
+                  const match = line.match(bulletPattern);
+                  if (match) {
+                    return line.substring(match[0].length);
+                  }
+                  return line;
+                });
+              } else {
+                // Add bullet points to all lines
+                newLines = lines.map(line => {
+                  if (line.trim() === '') return line; // Skip empty lines
+                  return '- ' + line;
+                });
+              }
+              
+              const newContent = docText.substring(0, lineStart) + newLines.join('\n') + docText.substring(actualLineEnd);
+              api.setDocText(newContent);
+              
+              // Set selection to the modified lines
+              const newEnd = lineStart + newLines.join('\n').length;
+              api.setSelection(lineStart, newEnd);
+              return;
+            }
+            
             if (!textareaRef?.current) return;
             
             const { start, end, selected } = updateSelection();
@@ -337,7 +402,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             
             // Check if all lines are already bullet points
             const bulletPattern = /^(\s*)[-*+]\s/;
-            const allAreBullets = lines.every(line => bulletPattern.test(line));
+            const allAreBullets = lines.every(line => {
+              // Skip empty lines when checking
+              if (line.trim() === '') return true;
+              return bulletPattern.test(line);
+            });
             
             let newLines: string[];
             if (allAreBullets) {
@@ -376,6 +445,65 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </button>
         <button
           onClick={() => {
+            const api = cmApiRef?.current;
+            if (api) {
+              // For CodeMirror, we need to implement numbered list logic manually
+              const { from, to } = api.getSelectionOffsets();
+              const docText = api.getDocText();
+              const before = docText.substring(0, from);
+              const after = docText.substring(to);
+              
+              // Find the start of the first line containing selection
+              const lineStart = before.lastIndexOf('\n') + 1;
+              
+              // Find the end of the last line containing selection
+              const lineEnd = after.indexOf('\n');
+              const actualLineEnd = lineEnd !== -1 ? to + lineEnd : docText.length;
+              
+              // Get the complete lines that contain the selection
+              const completeLines = docText.substring(lineStart, actualLineEnd);
+              const lines = completeLines.split('\n');
+              
+              // Check if all lines are already numbered lists
+              const numberedPattern = /^(\s*)\d+\.\s/;
+              const allAreNumbered = lines.every(line => {
+                // Skip empty lines when checking
+                if (line.trim() === '') return true;
+                return numberedPattern.test(line);
+              });
+              
+              let newLines: string[];
+              if (allAreNumbered) {
+                // Remove numbered list formatting from all lines
+                newLines = lines.map(line => {
+                  const match = line.match(numberedPattern);
+                  if (match) {
+                    return line.substring(match[0].length);
+                  }
+                  return line;
+                });
+              } else {
+                // Add numbered list formatting to all lines
+                let counter = 1;
+                newLines = lines.map(line => {
+                  if (line.trim() === '') return line; // Skip empty lines
+                  // Preserve leading whitespace for indentation, but ensure clean numbering
+                  const match = line.match(/^(\s*)(.*)/);
+                  const leadingWhitespace = match ? match[1] : '';
+                  const content = match ? match[2] : line;
+                  return `${leadingWhitespace}${counter++}. ${content}`;
+                });
+              }
+              
+              const newContent = docText.substring(0, lineStart) + newLines.join('\n') + docText.substring(actualLineEnd);
+              api.setDocText(newContent);
+              
+              // Set selection to the modified lines
+              const newEnd = lineStart + newLines.join('\n').length;
+              api.setSelection(lineStart, newEnd);
+              return;
+            }
+            
             if (!textareaRef?.current) return;
             
             const { start, end, selected } = updateSelection();
@@ -403,7 +531,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             
             // Check if all lines are already numbered lists
             const numberedPattern = /^(\s*)\d+\.\s/;
-            const allAreNumbered = lines.every(line => line.trim() === '' || numberedPattern.test(line));
+            const allAreNumbered = lines.every(line => {
+              // Skip empty lines when checking
+              if (line.trim() === '') return true;
+              return numberedPattern.test(line);
+            });
             
             let newLines: string[];
             if (allAreNumbered) {

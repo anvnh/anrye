@@ -87,16 +87,16 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
     if (!hostRef.current) return;
     if (viewRef.current) return; // already initialized
 
-  // Initialize compartments for dynamic reconfiguration
-  themeCompartmentRef.current = new Compartment();
-  tabCompartmentRef.current = new Compartment();
+    // Initialize compartments for dynamic reconfiguration
+    themeCompartmentRef.current = new Compartment();
+    tabCompartmentRef.current = new Compartment();
 
     const state = EditorState.create({
       doc: value,
       extensions: [
         ...baseExtensions,
-    themeCompartmentRef.current.of(styleExt),
-    tabCompartmentRef.current.of(tabExt),
+        themeCompartmentRef.current.of(styleExt),
+        tabCompartmentRef.current.of(tabExt),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());
@@ -106,7 +106,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
               const line = update.state.doc.lineAt(update.state.selection.main.from).number - 1;
               onSelectionChange?.(line);
               onCursorMove?.();
-            } catch {}
+            } catch { }
           }
         }),
       ]
@@ -137,7 +137,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
                 changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: `\n${link}\n` }
               });
             }
-          } catch (_) {}
+          } catch (_) { }
           break;
         }
       }
@@ -222,7 +222,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       view.destroy();
       viewRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Keep external value in sync when it changes from outside
@@ -231,8 +231,37 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
     if (!view) return;
     const current = view.state.doc.toString();
     if (current !== value) {
+      // Preserve caret/selection by mapping old line/column to the new content
+      const sel = view.state.selection.main;
+      const currentDoc = view.state.doc;
+      const anchorLine = currentDoc.lineAt(sel.anchor);
+      const headLine = currentDoc.lineAt(sel.head);
+      const anchorCol = sel.anchor - anchorLine.from;
+      const headCol = sel.head - headLine.from;
+
+      const lines = value.split('\n');
+      const clampLineIndex = (lineNumberOneBased: number) => {
+        return Math.max(1, Math.min(lines.length, lineNumberOneBased)) - 1; // zero-based index
+      };
+      const lineStartOffset = (zeroBasedLineIndex: number) => {
+        if (zeroBasedLineIndex <= 0) return 0;
+        let sum = 0;
+        for (let i = 0; i < zeroBasedLineIndex; i++) sum += lines[i].length + 1;
+        return sum;
+      };
+      const computeOffset = (lineNumberOneBased: number, col: number) => {
+        const li = clampLineIndex(lineNumberOneBased);
+        const lineText = lines[li] ?? '';
+        const newCol = Math.max(0, Math.min(col, lineText.length));
+        return lineStartOffset(li) + newCol;
+      };
+
+      const newAnchor = computeOffset(anchorLine.number, anchorCol);
+      const newHead = computeOffset(headLine.number, headCol);
+
       view.dispatch({
-        changes: { from: 0, to: current.length, insert: value }
+        changes: { from: 0, to: current.length, insert: value },
+        selection: { anchor: newAnchor, head: newHead }
       });
     }
   }, [value]);
