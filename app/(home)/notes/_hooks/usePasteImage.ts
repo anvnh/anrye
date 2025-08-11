@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
-import { Note, Folder } from '../_components/types';
+import { Note } from '../_components/types';
 
 interface UsePasteImageProps {
   notes: Note[];
-  folders: Folder[];
   selectedNote: Note | null;
   setEditContent: (content: string) => void;
   setIsLoading: (loading: boolean) => void;
@@ -16,7 +15,6 @@ interface UsePasteImageProps {
 
 export const usePasteImage = ({
   notes,
-  folders,
   selectedNote,
   setEditContent,
   setIsLoading,
@@ -40,55 +38,8 @@ export const usePasteImage = ({
       setIsLoading(true);
       setSyncProgress(10);
 
-      // Find the parent folder of the current note
-      // Handle both root folder (empty path) and nested folders
-      let parentFolder: Folder | undefined;
-      
-      if (selectedNote.path === '') {
-        // Note is in root folder - look for root folder or create one
-        parentFolder = folders.find(f => f.id === 'root' || f.path === '');
-      } else {
-        // Note is in a nested folder - find the folder with matching path
-        parentFolder = folders.find(f => f.path === selectedNote.path);
-      }
-
-      // If no parent folder found, try to find any folder that could be used as fallback
-      if (!parentFolder) {
-        console.warn('No parent folder found for note path:', selectedNote.path);
-        
-        // Try to find the root folder or any available folder
-        parentFolder = folders.find(f => f.id === 'root' || f.path === '') || 
-                     folders.find(f => f.driveFolderId);
-        
-        if (!parentFolder) {
-          console.error('No suitable folder found for image upload');
-          return null;
-        }
-      }
-
-      // If root folder doesn't have drive folder ID, try to get it from Drive
-      if (parentFolder.id === 'root' && !parentFolder.driveFolderId) {
-        try {
-          
-          const notesFolderId = await driveService.findOrCreateNotesFolder();
-          
-          // Update the root folder with the drive folder ID
-          parentFolder = { ...parentFolder, driveFolderId: notesFolderId };
-          
-          // Note: We can't update the folders state here since this is a callback
-          // The folder will be updated on next sync
-        } catch (error) {
-          console.error('Failed to get Notes folder ID:', error);
-          return null;
-        }
-      }
-
-      const parentDriveId = parentFolder.driveFolderId;
-
-      if (!parentDriveId) {
-        console.warn('Parent folder has no drive folder ID');
-        return null;
-      }
+      // Get the Images folder ID - this will create the folder if it doesn't exist
+      const imagesFolderId = await driveService.findOrCreateImagesFolder();
 
       setSyncProgress(30);
 
@@ -118,8 +69,8 @@ export const usePasteImage = ({
 
       setSyncProgress(50);
 
-      // Upload image to Google Drive in the same folder as the note
-      const imageFileId = await driveService.uploadImage(finalFilename, imageFile, parentDriveId);
+      // Upload image to Google Drive in the Images folder
+      const imageFileId = await driveService.uploadImage(finalFilename, imageFile, imagesFolderId);
 
       setSyncProgress(80);
 
@@ -133,6 +84,9 @@ export const usePasteImage = ({
       setTimeout(() => {
         setSyncProgress(0);
       }, 500);
+
+      // Dispatch event to notify that image was uploaded
+      window.dispatchEvent(new CustomEvent('imageUploaded'));
 
       return {
         filename: finalFilename,
@@ -148,7 +102,7 @@ export const usePasteImage = ({
         setIsLoading(false);
       }, 700);
     }
-  }, [selectedNote, folders, isSignedIn, setIsLoading, setSyncProgress]);
+  }, [selectedNote, isSignedIn, setIsLoading, setSyncProgress]);
 
   const handlePasteImage = useCallback(async (event: ClipboardEvent): Promise<boolean> => {
     const items = event.clipboardData?.items;

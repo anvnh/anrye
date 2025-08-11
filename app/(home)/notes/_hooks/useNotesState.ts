@@ -51,6 +51,7 @@ export const useNotesState = () => {
 
   // Image manager state
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
+  const [isImagesSectionExpanded, setIsImagesSectionExpanded] = useState(false);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -213,5 +214,7 @@ export const useNotesState = () => {
     // Image Manager
     isImageManagerOpen,
     setIsImageManagerOpen,
+    isImagesSectionExpanded,
+    setIsImagesSectionExpanded,
   };
 }; 

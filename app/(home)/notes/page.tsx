@@ -59,6 +59,7 @@ export default function NotesPage() {
     isRenameDialogOpen, setIsRenameDialogOpen,
     renameItem, setRenameItem,
     isImageManagerOpen, setIsImageManagerOpen,
+    isImagesSectionExpanded, setIsImagesSectionExpanded,
   } = useNotesState();
 
   const {
@@ -279,6 +280,7 @@ export default function NotesPage() {
           isResizing={isResizing}
           isMobileSidebarOpen={isMobileSidebarOpen}
           isSidebarHidden={isSidebarHidden}
+          isImagesSectionExpanded={isImagesSectionExpanded}
           onToggleFolder={toggleFolder}
           onSelectNote={setSelectedNote}
           onSetSelectedPath={setSelectedPath}
@@ -296,6 +298,7 @@ export default function NotesPage() {
           onSetIsResizing={setIsResizing}
           onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
           onToggleSidebar={toggleSidebar}
+          onToggleImagesSection={() => setIsImagesSectionExpanded(!isImagesSectionExpanded)}
           onForceSync={forceSync}
           onSignIn={() => {
             // Use the popup OAuth flow that returns refresh tokens

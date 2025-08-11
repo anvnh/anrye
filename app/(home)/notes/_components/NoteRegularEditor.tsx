@@ -43,7 +43,6 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   // Initialize paste image functionality
   const { handlePasteImage, uploadPastedImage } = usePasteImage({
     notes,
-    folders,
     selectedNote,
     setEditContent,
     setIsLoading,

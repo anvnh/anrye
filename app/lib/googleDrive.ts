@@ -10,6 +10,17 @@ interface DriveFile {
   modifiedTime: string;
 }
 
+interface DriveImage {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdTime: string;
+  modifiedTime: string;
+  thumbnailLink?: string;
+  webContentLink?: string;
+}
+
 interface TokenData {
   access_token: string;
   refresh_token?: string;
@@ -897,6 +908,127 @@ class GoogleDriveService {
       }
       
       throw error;
+    }
+  }
+
+  async findOrCreateImagesFolder(): Promise<string> {
+    try {
+      await this.ensureApiLoaded();
+      await this.setAccessToken();
+      
+      // First, get the Notes folder ID
+      const notesFolderId = await this.findOrCreateNotesFolder();
+      
+      // Look for existing "Images" folder inside Notes folder
+      const response = await window.gapi.client.drive.files.list({
+        q: `name='Images' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${notesFolderId}' in parents`,
+        fields: 'files(id,name,parents)'
+      });
+
+      if (response.result.files && response.result.files.length > 0) {
+        return response.result.files[0].id;
+      }
+
+      // Create Images folder inside Notes folder if it doesn't exist
+      return await this.createFolder('Images', notesFolderId);
+    } catch (error: any) {
+      // Check if it's a 401 error and handle it
+      if (error.status === 401) {
+        await this.handleApiError(error);
+        
+        // Try once more with fresh authentication
+        try {
+          const signInSuccess = await this.signIn();
+          if (signInSuccess) {
+            await this.setAccessToken();
+            
+            const notesFolderId = await this.findOrCreateNotesFolder();
+            
+            const retryResponse = await window.gapi.client.drive.files.list({
+              q: `name='Images' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${notesFolderId}' in parents`,
+              fields: 'files(id,name,parents)'
+            });
+            
+            if (retryResponse.result.files && retryResponse.result.files.length > 0) {
+              return retryResponse.result.files[0].id;
+            }
+            
+            return await this.createFolder('Images', notesFolderId);
+          }
+        } catch (retryError) {
+          throw retryError;
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  async getImagesFromImagesFolder(): Promise<DriveImage[]> {
+    try {
+      await this.ensureApiLoaded();
+      await this.setAccessToken();
+      
+      const imagesFolderId = await this.findOrCreateImagesFolder();
+      
+      const response = await window.gapi.client.drive.files.list({
+        q: `'${imagesFolderId}' in parents and trashed=false and (mimeType contains 'image/' or mimeType contains 'image')`,
+        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webContentLink)',
+        orderBy: 'modifiedTime desc'
+      });
+
+      if (response.result.files) {
+        // Process each image to ensure it's publicly accessible
+        const processedImages = await Promise.all(
+          response.result.files.map(async (file: any) => {
+            try {
+              // Make sure the image is publicly accessible
+              await this.makeImagePublic(file.id);
+              
+              return {
+                id: file.id,
+                name: file.name,
+                mimeType: file.mimeType,
+                size: parseInt(file.size || '0'),
+                createdTime: file.createdTime,
+                modifiedTime: file.modifiedTime,
+                thumbnailLink: file.thumbnailLink,
+                webContentLink: file.webContentLink
+              };
+            } catch (error) {
+              console.error(`Failed to process image ${file.name}:`, error);
+              return null;
+            }
+          })
+        );
+
+        return processedImages.filter(img => img !== null) as DriveImage[];
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('Failed to get images from Images folder:', error);
+      return [];
+    }
+  }
+
+  private async makeImagePublic(fileId: string): Promise<void> {
+    try {
+      // Make the image publicly accessible
+      await window.gapi.client.request({
+        path: `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'anyone',
+          role: 'reader'
+        })
+      });
+    } catch (error) {
+      console.error('Failed to make image public:', error);
+      // Don't throw error, just log it
     }
   }
 

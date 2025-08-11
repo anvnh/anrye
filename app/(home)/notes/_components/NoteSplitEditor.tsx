@@ -73,7 +73,6 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   // Initialize paste image functionality
   const { handlePasteImage, uploadPastedImage } = usePasteImage({
     notes,
-    folders,
     selectedNote,
     setEditContent,
     setIsLoading,

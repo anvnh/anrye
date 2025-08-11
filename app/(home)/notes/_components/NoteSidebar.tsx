@@ -12,6 +12,7 @@ import {
 import { NoteSidebarProps, Note, Folder } from './types';
 import { MobileItemMenu } from './MobileFileOperations';
 import MobileMoveDialog from './MobileMoveDialog';
+import { ImagesSection } from './ImagesSection';
 
 export default function NoteSidebar({
   notes,
@@ -24,6 +25,7 @@ export default function NoteSidebar({
   dragOver,
   isMobileSidebarOpen,
   isSidebarHidden,
+  isImagesSectionExpanded,
   // isResizing, // Currently unused but kept for future feature
   onToggleFolder,
   onSelectNote,
@@ -42,6 +44,7 @@ export default function NoteSidebar({
   onSetIsResizing,
   onSetIsMobileSidebarOpen,
   onToggleSidebar,
+  onToggleImagesSection,
   onForceSync,
   onSignIn,
   onSignOut
@@ -481,6 +484,14 @@ export default function NoteSidebar({
                 }
               }}
             >
+              {/* Images Section */}
+              <ImagesSection
+                isSignedIn={isSignedIn}
+                isExpanded={isImagesSectionExpanded}
+                onToggleExpanded={onToggleImagesSection}
+              />
+              
+              {/* File Tree */}
               {renderFileTree()}
             </div>
           </div>

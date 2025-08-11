@@ -17,6 +17,17 @@ export interface Folder {
   expanded: boolean;
 }
 
+export interface DriveImage {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdTime: string;
+  modifiedTime: string;
+  thumbnailLink?: string;
+  webContentLink?: string;
+}
+
 export type DraggedItem = {
   type: 'note' | 'folder';
   id: string;
@@ -34,6 +45,7 @@ export interface NoteSidebarProps {
   isResizing: boolean;
   isMobileSidebarOpen: boolean;
   isSidebarHidden: boolean;
+  isImagesSectionExpanded: boolean;
   onToggleFolder: (folderId: string) => void;
   onSelectNote: (note: Note) => void;
   onSetSelectedPath: (path: string) => void;
@@ -51,6 +63,7 @@ export interface NoteSidebarProps {
   onSetIsResizing: (isResizing: boolean) => void;
   onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
   onToggleSidebar: () => void;
+  onToggleImagesSection: () => void;
   onForceSync?: () => void;
   onSignIn?: () => void;
   onSignOut?: () => void;
