@@ -5,7 +5,7 @@ export const useThemeSettings = () => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || 'latte';
     }
-    return 'latte';
+    return 'mocha';
   });
 
   const [tabSize, setTabSize] = useState(2);

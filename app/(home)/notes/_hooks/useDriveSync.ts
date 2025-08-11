@@ -54,8 +54,19 @@ export const useDriveSync = (
               return prevFolders.map(f => 
                 f === existingByPath ? { ...f, driveFolderId: file.id } : f
               );
+            } else if (existingFolder && existingFolder.name !== file.name) {
+              // Folder exists but name changed, update the name
+              return prevFolders.map(f => 
+                f.driveFolderId === file.id 
+                  ? { 
+                      ...f, 
+                      name: file.name,
+                      path: folderPath // Update path too since name changed
+                    } 
+                  : f
+              );
             }
-            return prevFolders; // No change if folder already exists
+            return prevFolders; // No change if folder already exists and name is the same
           });
 
           // Recursively load subfolders
@@ -103,23 +114,27 @@ export const useDriveSync = (
                 n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
               );
             } else if (existingNote) {
-              // Note exists, check if content actually changed before updating
+              // Note exists, check if content or title changed before updating
               driveService.getFile(file.id).then((content: string) => {
                 setNotes(currentNotes => {
                   const currentNote = currentNotes.find(n => n.driveFileId === file.id);
-                  if (currentNote && currentNote.content !== content) {
-                    // Only update if content actually changed
-                    return currentNotes.map(n => 
-                      n.driveFileId === file.id 
-                        ? { 
-                            ...n, 
-                            content: content,
-                            updatedAt: file.modifiedTime 
-                          } 
-                        : n
-                    );
+                  if (currentNote) {
+                    const needsUpdate = currentNote.content !== content || currentNote.title !== noteTitle;
+                    if (needsUpdate) {
+                      // Update if content or title changed
+                      return currentNotes.map(n => 
+                        n.driveFileId === file.id 
+                          ? { 
+                              ...n, 
+                              title: noteTitle, // Update title if changed
+                              content: content,
+                              updatedAt: file.modifiedTime 
+                            } 
+                          : n
+                      );
+                    }
                   }
-                  return currentNotes; // No change if content is the same
+                  return currentNotes; // No change if content and title are the same
                 });
               }).catch((error: any) => {
                 console.error('Failed to update note content for', noteTitle, ':', error);
@@ -198,6 +213,13 @@ export const useDriveSync = (
       setIsLoading(true);
       setSyncProgress(10);
       
+      // Clear any cached data to ensure fresh sync
+      if (typeof window !== 'undefined') {
+        // Clear any cached folder/note data
+        localStorage.removeItem('folders-cache');
+        localStorage.removeItem('notes-cache');
+      }
+      
       const driveModule = await loadDriveService();
       if (!driveModule) return;
       
@@ -273,6 +295,9 @@ export const useDriveSync = (
 
       setSyncProgress(70);
 
+      // Reset sync state to force fresh load
+      setHasSyncedWithDrive(false);
+      
       // Load/update from Drive (this will add new files and update existing ones)
       await loadFromDrive(notesFolderId, '', driveModule.driveService);
       
