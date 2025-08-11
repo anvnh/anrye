@@ -750,7 +750,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
         ),
         table: ({ children, ...props }) => (
           <div className="overflow-x-auto my-4">
-            <table className="min-w-full border border-gray-600 rounded-lg" {...props}>
+            <table className="min-w-full rounded-2xl border-collapse border border-gray-600" {...props}>
               {children}
             </table>
           </div>
@@ -761,12 +761,12 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           </thead>
         ),
         tbody: ({ children, ...props }) => (
-          <tbody className="bg-gray-800" {...props}>
+          <tbody className="bg-none" {...props}>
             {children}
           </tbody>
         ),
         tr: ({ children, ...props }) => (
-          <tr className="border-b border-gray-600" {...props}>
+          <tr className="border-b border-gray-600 last:border-b-0" {...props}>
             {children}
           </tr>
         ),
