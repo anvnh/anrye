@@ -234,6 +234,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       // Clear image cache when signing out
       const { imageLoadingManager } = await import('../(home)/notes/_utils/imageLoadingManager');
       imageLoadingManager.clearCache();
+      // Clear any temporary tokens from previous auth attempts
+      try {
+        localStorage.removeItem('google_drive_tokens_temp');
+      } catch {}
     } catch {}
     setIsSignedIn(false);
   };

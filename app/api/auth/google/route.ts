@@ -46,8 +46,9 @@ export async function GET(request: NextRequest) {
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.file');
-      authUrl.searchParams.set('access_type', 'offline'); // This is crucial for refresh tokens
-      authUrl.searchParams.set('prompt', 'consent'); // Force consent to ensure refresh token
+  authUrl.searchParams.set('access_type', 'offline'); // This is crucial for refresh tokens
+  // Force account selection and consent so switching accounts works reliably
+  authUrl.searchParams.set('prompt', 'select_account consent');
       authUrl.searchParams.set('state', state);
 
       // Support redirect mode for consistent behavior

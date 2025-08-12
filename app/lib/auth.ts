@@ -30,10 +30,20 @@ export const useAuth = (): AuthContextType => {
       } else {
         setIsAuthenticated(false);
         setUser(null);
+        // Also clear Google Drive auth when app auth is not valid
+        try {
+          const mod = await import('../lib/googleDrive');
+          await mod.driveService.signOut();
+        } catch {}
       }
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+      // Network/auth error: ensure Drive is signed out to avoid stale tokens
+      try {
+        const mod = await import('../lib/googleDrive');
+        await mod.driveService.signOut();
+      } catch {}
     }
   };
 
@@ -43,6 +53,11 @@ export const useAuth = (): AuthContextType => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Proactively sign out of Google Drive when app logs out
+      try {
+        const mod = await import('../lib/googleDrive');
+        await mod.driveService.signOut();
+      } catch {}
       setIsAuthenticated(false);
       setUser(null);
       router.push('/login');

@@ -223,6 +223,9 @@ export const useDriveSync = (
         // Clear folder and note cache
         localStorage.removeItem('folders-cache');
         localStorage.removeItem('notes-cache');
+  // Clear persisted UI data so we reload from Drive cleanly
+  localStorage.removeItem('notes-new');
+  localStorage.removeItem('folders-new');
         
         // Clear image cache
         localStorage.removeItem('image-thumbnail-cache');
@@ -230,6 +233,7 @@ export const useDriveSync = (
         // Clear sync status flags
         localStorage.removeItem('has-synced-with-drive');
         localStorage.removeItem('has-synced-love-drive');
+  localStorage.removeItem('has-synced-drive');
         
         // Clear other data cache items (but preserve auth tokens)
         const keysToRemove = [];
@@ -403,6 +407,8 @@ export const useDriveSync = (
         // Clear any cached folder/note data
         localStorage.removeItem('folders-cache');
         localStorage.removeItem('notes-cache');
+  // Reset sync indicator so init logic doesn't skip
+  localStorage.removeItem('has-synced-drive');
       }
       
       const driveModule = await loadDriveService();

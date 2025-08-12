@@ -13,6 +13,13 @@ import { NoteSidebarProps, Note, Folder } from './types';
 import { MobileItemMenu } from './MobileFileOperations';
 import MobileMoveDialog from './MobileMoveDialog';
 import { ImagesSection } from './ImagesSection';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 export default function NoteSidebar({
   notes,
@@ -81,7 +88,7 @@ export default function NoteSidebar({
               <ContextMenuTrigger asChild>
                 <div
                   className={`
-                    flex items-center py-1 rounded-lg cursor-pointer group 
+                    flex items-center py-2.5 rounded-lg cursor-pointer group 
                     transition-all duration-200 ease-in-out
                     hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
                     ${dragOver === folder.id ? 'bg-blue-600/40 shadow-lg ring-2 ring-blue-500/50' : ''}
@@ -287,6 +294,25 @@ export default function NoteSidebar({
     setIsMoveDialogOpen(false);
   };
 
+  const handleSwitchDriveAccount = async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('has-synced-drive');
+        localStorage.removeItem('has-synced-with-drive');
+        localStorage.removeItem('folders-cache');
+        localStorage.removeItem('notes-cache');
+        localStorage.removeItem('notes-new');
+        localStorage.removeItem('folders-new');
+      }
+      if (onSignOut) {
+        await onSignOut();
+      }
+      if (onSignIn) {
+        await onSignIn();
+      }
+    } catch { }
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -363,16 +389,43 @@ export default function NoteSidebar({
                 </div>
 
                 <div className="flex items-center gap-2 rounded-2xl">
-                  {/* Drive Button */}
+                  {/* Drive Button (Dropdown) */}
                   {isSignedIn ? (
-                    <button
-                      onClick={onSignOut}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-green-400 hover:text-green-300 hover:bg-gray-700/60 rounded-2xl"
-                      title="Signed in to Google Drive - Click to sign out"
-                    >
-                      <Cloud size={12} />
-                      <span>Drive</span>
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-green-400 hover:text-green-300 hover:bg-gray-700/60 rounded-2xl"
+                          title="Google Drive connected"
+                        >
+                          <Cloud size={12} />
+                          <span>Drive</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className='bg-main border-gray-700 text-white'>
+                        <DropdownMenuItem onClick={handleSwitchDriveAccount}>
+                          Switch Drive account
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator className='bg-gray-600' />
+
+                        {onForceSync && (
+                          <DropdownMenuItem onClick={onForceSync}>
+                            Sync now
+                          </DropdownMenuItem>
+                        )}
+                        {onClearCacheAndSync && (
+                          <DropdownMenuItem onClick={onClearCacheAndSync}>
+                            Clear cache and sync
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator className='bg-gray-600' />
+
+                        <DropdownMenuItem onClick={onSignOut}>
+                          Disconnect
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : (
                     <button
                       onClick={onSignIn}
@@ -387,48 +440,6 @@ export default function NoteSidebar({
                     </button>
                   )}
 
-                  {/* Sync Buttons */}
-                  {isSignedIn && onForceSync && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={onForceSync}
-                        disabled={isLoading}
-                        className={`
-                      flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
-                      ${isLoading
-                            ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
-                          }
-                    `}
-                        title="Sync with Google Drive"
-                      >
-                        <RefreshCw
-                          size={12}
-                          className={`${isLoading ? 'animate-spin' : ''}`}
-                        />
-                      </button>
-
-                      {onClearCacheAndSync && (
-                        <button
-                          onClick={onClearCacheAndSync}
-                          disabled={isLoading}
-                          className={`
-                        flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
-                        ${isLoading
-                              ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
-                              : 'bg-orange-600 hover:bg-orange-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
-                            }
-                      `}
-                          title="Clear cache and sync from scratch"
-                        >
-                          <Trash2
-                            size={12}
-                            className={`${isLoading ? 'animate-spin' : ''}`}
-                          />
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -483,7 +494,9 @@ export default function NoteSidebar({
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Home size={16} className="text-blue-400" />
-                    <span>Home</span>
+                    <span>
+                      Home
+                    </span>
                   </a>
                   <button
                     onClick={() => {
@@ -512,10 +525,12 @@ export default function NoteSidebar({
               <div className="hidden lg:block mt-4">
                 <a
                   href="/"
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center gap-2 px-1 py-0.5 hover:shadow-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <Home size={16} className="text-blue-400" />
-                  <span>Home</span>
+                  <div className='gap-2 flex py-2 items-center ml-3'>
+                    <Home size={16} className="text-blue-400" />
+                    <span>Home</span>
+                  </div>
                 </a>
               </div>
             </div>

@@ -213,7 +213,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
           className="flex items-center px-3 py-0.5 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
           onClick={onToggleExpanded}
         >
-          <div className='flex py-2'>
+          <div className='flex py-2 ml-3'>
             <ImageIcon size={16} className="text-green-400 mr-3" />
             <span className="text-gray-300 text-sm font-medium flex-1">Images</span>
             {images.length > 0 && (

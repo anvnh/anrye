@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { User, LogOut, Cloud, CloudOff, Menu, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { useDrive } from '../lib/driveContext';
 import { useAuth } from '../lib/auth';
 
@@ -17,6 +24,22 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleSwitchDriveAccount = async () => {
+    try {
+      // Clear sync flags and local caches so we load Drive data fresh for the new account
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('has-synced-drive');
+        localStorage.removeItem('has-synced-with-drive');
+        localStorage.removeItem('folders-cache');
+        localStorage.removeItem('notes-cache');
+        localStorage.removeItem('notes-new');
+        localStorage.removeItem('folders-new');
+      }
+      await signOut();
+      await signIn();
+    } catch {}
   };
 
   return (
@@ -71,14 +94,26 @@ export default function Navbar() {
             {/* Google Drive Status */}
             <div className="flex items-center">
               {isSignedIn ? (
-                <button
-                  onClick={signOut}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-green-400 hover:text-green-300 hover:bg-gray-700 transition-colors"
-                  title="Signed in to Google Drive - Click to sign out"
-                >
-                  <Cloud size={16} />
-                  <span>Drive</span>
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-green-400 hover:text-green-300 hover:bg-gray-700 transition-colors"
+                      title="Google Drive connected"
+                    >
+                      <Cloud size={16} />
+                      <span>Drive</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleSwitchDriveAccount}>
+                      Switch Drive account
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      Disconnect
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <button
                   onClick={signIn}
@@ -177,7 +212,7 @@ export default function Navbar() {
               </Link>
 
               {/* Mobile Google Drive Status */}
-              <div className="px-3 py-2">
+              <div className="px-3 py-2 space-y-2">
                 {isSignedIn ? (
                   <button
                     onClick={() => {
@@ -200,6 +235,18 @@ export default function Navbar() {
                   >
                     <CloudOff size={16} />
                     <span>{isLoading ? 'Connecting...' : 'Connect Drive'}</span>
+                  </button>
+                )}
+                {isSignedIn && (
+                  <button
+                    onClick={() => {
+                      handleSwitchDriveAccount();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 w-full text-left text-blue-300 hover:text-blue-200"
+                  >
+                    <Cloud size={16} />
+                    <span>Switch Drive account</span>
                   </button>
                 )}
               </div>

@@ -61,27 +61,11 @@ class GoogleDriveService {
     const tokenData: TokenData = {
       access_token: accessToken,
       expires_at: expiresAt,
-      ...(refreshToken && { 
+  ...(refreshToken && {
         refresh_token: refreshToken,
         refresh_expires_at: refreshExpiresAt 
       })
     };
-    
-    // If we have existing refresh token and no new one provided, keep the old one
-    if (!refreshToken && this.refreshToken) {
-      const existingToken = localStorage.getItem(this.TOKEN_KEY);
-      if (existingToken) {
-        try {
-          const existing = JSON.parse(existingToken);
-          if (existing.refresh_token) {
-            tokenData.refresh_token = existing.refresh_token;
-            tokenData.refresh_expires_at = existing.refresh_expires_at;
-          }
-        } catch (e) {
-          // Ignore parsing errors
-        }
-      }
-    }
     
     localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
     // Backup token to sessionStorage for better persistence
@@ -291,6 +275,12 @@ class GoogleDriveService {
   private clearSavedToken(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.TOKEN_KEY);
+      // Also clear any session backup to avoid resurrecting old tokens
+      try {
+        if (window.sessionStorage) {
+          sessionStorage.removeItem(this.BACKUP_TOKEN_KEY);
+        }
+      } catch {}
     }
     this.accessToken = null;
     this.refreshToken = null;
@@ -424,6 +414,8 @@ class GoogleDriveService {
           const tokens = JSON.parse(tempTokens);
           
           if (tokens.access_token) {
+            // Ensure we don't carry over any previous refresh token when processing new login
+            this.clearSavedToken();
             this.accessToken = tokens.access_token;
             this.refreshToken = tokens.refresh_token;
             this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
@@ -473,6 +465,12 @@ class GoogleDriveService {
     this.accessToken = null;
     this.refreshToken = null;
     this.clearSavedToken();
+    // Also clear any temporary tokens that might be lingering
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('google_drive_tokens_temp');
+      }
+    } catch {}
   }
 
   // Force clear all tokens and restart authentication
