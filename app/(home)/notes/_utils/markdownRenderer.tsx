@@ -890,7 +890,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     </ReactMarkdown>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison to prevent unnecessary re-renders during Drive sync
+  // Custom comparison to prevent unnecessary re-renders during Drive sync and folder operations
+  // Only re-render when content actually changes, not when unrelated state changes
   return (
     prevProps.content === nextProps.content &&
     prevProps.isEditing === nextProps.isEditing &&
@@ -898,7 +899,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     prevProps.isSignedIn === nextProps.isSignedIn &&
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
     prevProps.selectedNote?.updatedAt === nextProps.selectedNote?.updatedAt &&
-    prevProps.notes?.length === nextProps.notes?.length &&
+    prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
     prevProps.onNavigateToNote === nextProps.onNavigateToNote
   );
 });

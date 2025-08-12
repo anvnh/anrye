@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
-import { Note, Folder } from './types';
+import { Note } from './types';
 import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
 import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
@@ -15,7 +15,6 @@ interface NoteSplitEditorProps {
   editContent: string;
   setEditContent: (content: string) => void;
   notes: Note[];
-  folders: Folder[];
   selectedNote: Note | null;
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
   setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
@@ -34,7 +33,6 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
   editContent,
   setEditContent,
   notes,
-  folders,
   selectedNote,
   setNotes,
   setSelectedNote,
@@ -686,7 +684,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     });
 
     return preview;
-  }, [debouncedContent, isPending, notes, selectedNote, setEditContent, setNotes, setSelectedNote, isSignedIn, driveService]);
+  }, [debouncedContent, isPending, selectedNote?.id, selectedNote?.content, isSignedIn]);
 
   // Cleanup animation frame
   useEffect(() => {

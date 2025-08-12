@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { usePasteImage, useTableToolbar } from '../_hooks';
-import { Note, Folder } from './types';
+import { Note } from './types';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
 
@@ -13,7 +13,6 @@ interface NoteRegularEditorProps {
   tabSize?: number;
   fontSize?: string;
   notes: Note[];
-  folders: Folder[];
   selectedNote: Note | null;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
@@ -25,7 +24,6 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   tabSize = 2,
   fontSize = '16px',
   notes,
-  folders,
   selectedNote,
   setIsLoading,
   setSyncProgress

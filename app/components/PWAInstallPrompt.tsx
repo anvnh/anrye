@@ -42,6 +42,10 @@ export default function PWAInstallPrompt() {
   };
 
   const handleDismiss = () => {
+    if (typeof window !== 'undefined') {
+      const nextPromptTime = Date.now() + 10 * 24 * 60 * 60 * 1000; // 10 days in ms
+      localStorage.setItem('pwa_install_prompt_dismissed_until', nextPromptTime.toString());
+    }
     setShowInstallPrompt(false);
   };
 

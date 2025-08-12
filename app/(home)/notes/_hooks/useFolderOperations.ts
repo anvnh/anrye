@@ -158,12 +158,14 @@ export const useFolderOperations = (
   }, [folders, isSignedIn, setIsLoading, setSyncProgress, setFolders]);
 
   const toggleFolder = useCallback((folderId: string) => {
-    setFolders(folders.map(folder =>
-      folder.id === folderId
-        ? { ...folder, expanded: !folder.expanded }
-        : folder
-    ));
-  }, [folders, setFolders]);
+    setFolders(prevFolders => 
+      prevFolders.map(folder =>
+        folder.id === folderId
+          ? { ...folder, expanded: !folder.expanded }
+          : folder
+      )
+    );
+  }, [setFolders]);
 
   return {
     createFolder,

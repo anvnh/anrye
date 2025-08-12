@@ -157,12 +157,12 @@ const MemoizedMarkdownBlock = React.memo(
       return prev.content === next.content;
     }
     
-    // For other blocks, use standard comparison
+    // For other blocks, use standard comparison but ignore folders changes
     return (
       prev.content === next.content && 
       prev.selectedNote?.id === next.selectedNote?.id &&
-      prev.isSignedIn === next.isSignedIn &&
-      prev.notes.length === next.notes.length
+      prev.selectedNote?.content === next.selectedNote?.content &&
+      prev.isSignedIn === next.isSignedIn
     );
   }
 );
@@ -179,7 +179,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   isSignedIn: boolean;
   driveService: any;
   onNavigateToNote?: (noteId: string) => void;
-}> = ({
+}> = React.memo(({
   content,
   notes,
   selectedNote,
@@ -218,4 +218,12 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
       ))}
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render when content or selected note actually changes
+  return (
+    prevProps.content === nextProps.content &&
+    prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
+    prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
+    prevProps.isSignedIn === nextProps.isSignedIn
+  );
+});

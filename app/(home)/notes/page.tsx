@@ -33,6 +33,115 @@ import { startEdit, cancelEdit, closeNote } from './_utils/noteActions';
 import { clearAllData, setupDebugUtils } from './_utils/debugUtils';
 // Removed: heading-based sync is now self-contained in NoteSplitEditor
 
+import React, { useMemo } from 'react';
+import { Note } from './_components/types';
+import { MemoizedMarkdown } from './_utils/markdownRenderer';
+
+// Memoized note content wrapper to prevent re-renders when folders change
+const MemoizedNoteContent = React.memo(({
+  isEditing,
+  isSplitMode,
+  editContent,
+  setEditContent,
+  notes,
+  selectedNote,
+  setNotes,
+  setSelectedNote,
+  isSignedIn,
+  driveService,
+  tabSize,
+  fontSize,
+  previewFontSize,
+  setIsLoading,
+  setSyncProgress
+}: {
+  isEditing: boolean;
+  isSplitMode: boolean;
+  editContent: string;
+  setEditContent: (content: string) => void;
+  notes: Note[];
+  selectedNote: Note | null;
+  setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
+  setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>;
+  isSignedIn: boolean;
+  driveService: any;
+  tabSize: number;
+  fontSize: string;
+  previewFontSize: string;
+  setIsLoading: (loading: boolean) => void;
+  setSyncProgress: (progress: number) => void;
+}) => {
+  if (!isEditing) {
+    if (!selectedNote) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FileText size={64} className="text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-300 text-lg">Select a note to start reading</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <NotePreview
+        selectedNote={selectedNote}
+        notes={notes}
+        setNotes={setNotes}
+        setSelectedNote={setSelectedNote}
+        isSignedIn={isSignedIn}
+        driveService={driveService}
+        previewFontSize={previewFontSize}
+      />
+    );
+  }
+
+  if (isSplitMode) {
+    return (
+      <NoteSplitEditor
+        editContent={editContent}
+        setEditContent={setEditContent}
+        notes={notes}
+        selectedNote={selectedNote}
+        setNotes={setNotes}
+        setSelectedNote={setSelectedNote}
+        isSignedIn={isSignedIn}
+        driveService={driveService}
+        tabSize={tabSize}
+        fontSize={fontSize}
+        previewFontSize={previewFontSize}
+        setIsLoading={setIsLoading}
+        setSyncProgress={setSyncProgress}
+      />
+    );
+  }
+
+  return (
+    <NoteRegularEditor
+      editContent={editContent}
+      setEditContent={setEditContent}
+      tabSize={tabSize}
+      fontSize={fontSize}
+      notes={notes}
+      selectedNote={selectedNote}
+      setIsLoading={setIsLoading}
+      setSyncProgress={setSyncProgress}
+    />
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render when content or editing state actually changes
+  return (
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.isSplitMode === nextProps.isSplitMode &&
+    prevProps.editContent === nextProps.editContent &&
+    prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
+    prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
+    prevProps.isSignedIn === nextProps.isSignedIn
+  );
+});
+
+MemoizedNoteContent.displayName = 'MemoizedNoteContent';
+
 export default function NotesPage() {
 
   // Use custom hooks for state management
@@ -368,51 +477,23 @@ export default function NotesPage() {
                   transition: 'font-family 0.2s, font-size 0.2s',
                 }}
               >
-                {isEditing ? (
-                  isSplitMode ? (
-                    /* Split Mode: Raw + Preview */
-                    <NoteSplitEditor
-                      editContent={editContent}
-                      setEditContent={setEditContent}
-                      notes={notes}
-                      folders={folders}
-                      selectedNote={selectedNote}
-                      setNotes={setNotes}
-                      setSelectedNote={setSelectedNote}
-                      isSignedIn={isSignedIn}
-                      driveService={driveService}
-                      tabSize={tabSize}
-                      fontSize={fontSize}
-                      previewFontSize={previewFontSize}
-                      setIsLoading={setIsLoading}
-                      setSyncProgress={setSyncProgress}
-                    />
-                  ) : (
-                    /* Regular Edit Mode */
-                    <NoteRegularEditor
-                      editContent={editContent}
-                      setEditContent={setEditContent}
-                      tabSize={tabSize}
-                      fontSize={fontSize}
-                      notes={notes}
-                      folders={folders}
-                      selectedNote={selectedNote}
-                      setIsLoading={setIsLoading}
-                      setSyncProgress={setSyncProgress}
-                    />
-                  )
-                ) : (
-                  /* Preview Only Mode */
-                  <NotePreview
-                    selectedNote={selectedNote}
-                    notes={notes}
-                    setNotes={setNotes}
-                    setSelectedNote={setSelectedNote}
-                    isSignedIn={isSignedIn}
-                    driveService={driveService}
-                    previewFontSize={previewFontSize}
-                  />
-                )}
+                <MemoizedNoteContent
+                  isEditing={isEditing}
+                  isSplitMode={isSplitMode}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                  notes={notes}
+                  selectedNote={selectedNote}
+                  setNotes={setNotes}
+                  setSelectedNote={setSelectedNote}
+                  isSignedIn={isSignedIn}
+                  driveService={driveService}
+                  tabSize={tabSize}
+                  fontSize={fontSize}
+                  previewFontSize={previewFontSize}
+                  setIsLoading={setIsLoading}
+                  setSyncProgress={setSyncProgress}
+                />
               </div>
             </>
           ) : (

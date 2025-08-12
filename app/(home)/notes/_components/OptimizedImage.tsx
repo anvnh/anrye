@@ -168,6 +168,20 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
       onClick={onClick}
     />
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.src === nextProps.src &&
+    prevProps.alt === nextProps.alt &&
+    prevProps.className === nextProps.className &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height &&
+    prevProps.priority === nextProps.priority &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.onLoad === nextProps.onLoad &&
+    prevProps.onError === nextProps.onError &&
+    prevProps.onUrlLoaded === nextProps.onUrlLoaded
+  );
 });
 
 OptimizedImage.displayName = 'OptimizedImage';
