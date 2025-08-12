@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -394,11 +394,12 @@ export default function NoteSidebar({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-green-400 hover:text-green-300 hover:bg-gray-700/60 rounded-2xl"
-                          title="Google Drive connected"
+                          className="
+                            flex items-center gap-2 px-2 py-1.5 text-xs font-medium 
+                            transition-all duration-200 text-gray-300 hover:text-white 
+                            hover:bg-gray-700/60 rounded-2xl"
                         >
-                          <Cloud size={12} />
-                          <span>Drive</span>
+                          <Cog size={18} />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className='bg-main border-gray-700 text-white'>
@@ -433,9 +434,8 @@ export default function NoteSidebar({
                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-gray-400 hover:text-gray-300 hover:bg-gray-700/60 disabled:opacity-50 rounded-2xl"
                       title="Sign in to Google Drive"
                     >
-                      <CloudOff size={12} />
                       <span>
-                        {isLoading ? 'Connecting...' : 'Drive'}
+                        {isLoading ? 'Connecting...' : 'Connect to Drive'}
                       </span>
                     </button>
                   )}
@@ -468,7 +468,7 @@ export default function NoteSidebar({
               )}
 
               {/* Mobile Collapsible Menu */}
-              <div className="lg:hidden mt-4">
+              <div className="lg:hidden mt-4 px-2">
                 <button
                   onClick={() => setIsMobileMenuExpanded(!isMobileMenuExpanded)}
                   className="w-full flex items-center justify-between py-0.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
@@ -503,17 +503,19 @@ export default function NoteSidebar({
                       onSetSelectedPath(currentPath);
                       onSetIsCreatingNote(true);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-600/20 hover:border-blue-500/30 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <FileText size={16} className="text-blue-400" />
-                    <span>Create New Note</span>
+                    <span>
+                      Create New Note
+                    </span>
                   </button>
                   <button
                     onClick={() => {
                       onSetSelectedPath(currentPath);
                       onSetIsCreatingFolder(true);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-green-600/20 hover:border-green-500/30 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 border border-transparent rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <FolderPlus size={16} className="text-green-400" />
                     <span>Create New Folder</span>
