@@ -37,7 +37,7 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 
-import { Checkbox } from '@/components/ui/checkbox';
+// Removed custom checkbox import - using default HTML checkbox
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface MarkdownRendererProps {
@@ -616,10 +616,11 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
 
               return (
                 <li className="text-gray-300 flex items-baseline gap-2 list-none" {...props}>
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     checked={isChecked}
-                    onCheckedChange={(newChecked: boolean) => {
-                      
+                    onChange={(e) => {
+                      const newChecked = e.target.checked;
                       
                       // Ensure we have valid lineIndex
                       if (lineIndex === -1) {
