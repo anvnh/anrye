@@ -78,7 +78,8 @@ export default function NoteSidebar({
               <ContextMenuTrigger asChild>
                 <div
                   className={`
-                    flex items-center px-3 py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+                    flex items-center py-1 rounded-lg cursor-pointer group 
+                    transition-all duration-200 ease-in-out
                     hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
                     ${dragOver === folder.id ? 'bg-blue-600/40 shadow-lg ring-2 ring-blue-500/50' : ''}
                     ${level > 0 ? 'ml-2' : ''}
@@ -104,27 +105,28 @@ export default function NoteSidebar({
                     <FolderIcon size={16} className="text-blue-400 mr-3 transition-colors duration-200" />
                   )}
                   <span
-                    className="text-gray-300 text-sm flex-1 truncate font-medium"
-                    style={{ maxWidth: 'calc(100% - 50px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    className="text-gray-300 text-sm flex-1 truncate font-medium min-w-0"
                     title={folder.name}
                   >
                     {folder.name}
                   </span>
-                  <MobileItemMenu
-                    item={folder}
-                    itemType="folder"
-                    onCreateFolder={(path: string) => {
-                      onSetSelectedPath(path);
-                      onSetIsCreatingFolder(true);
-                    }}
-                    onCreateNote={(path: string) => {
-                      onSetSelectedPath(path);
-                      onSetIsCreatingNote(true);
-                    }}
-                    onRenameItem={(id: string, name: string) => onRenameFolder(id, name)}
-                    onDeleteItem={(id: string) => onDeleteFolder(id)}
-                    onMoveItem={handleMobileMove}
-                  />
+                  <div className="flex-shrink-0 ml-2">
+                    <MobileItemMenu
+                      item={folder}
+                      itemType="folder"
+                      onCreateFolder={(path: string) => {
+                        onSetSelectedPath(path);
+                        onSetIsCreatingFolder(true);
+                      }}
+                      onCreateNote={(path: string) => {
+                        onSetSelectedPath(path);
+                        onSetIsCreatingNote(true);
+                      }}
+                      onRenameItem={(id: string, name: string) => onRenameFolder(id, name)}
+                      onDeleteItem={(id: string) => onDeleteFolder(id)}
+                      onMoveItem={handleMobileMove}
+                    />
+                  </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
@@ -181,7 +183,7 @@ export default function NoteSidebar({
               <ContextMenuTrigger asChild>
                 <div
                   className={`
-                    flex items-center px-3 py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+                    flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
                     hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
                     ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
                     ${level > 0 ? 'ml-2' : ''}
@@ -199,21 +201,22 @@ export default function NoteSidebar({
                   <div className="w-4 mr-2"></div>
                   <FileText size={16} className="text-gray-400 mr-3 transition-colors duration-200" />
                   <span
-                    className="text-gray-300 text-sm flex-1 truncate"
-                    style={{ maxWidth: 'calc(100% - 50px)', display: 'inline-block', verticalAlign: 'middle' }}
+                    className="text-gray-300 text-sm flex-1 truncate min-w-0"
                     title={note.title}
                   >
                     {note.title}
                   </span>
-                  <MobileItemMenu
-                    item={note}
-                    itemType="note"
-                    onOpenNote={(note: Note) => onSelectNote(note)}
-                    onRenameItem={(id: string, title: string) => onRenameNote(id, title)}
-                    onDeleteItem={(id: string) => onDeleteNote(id)}
-                    onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
-                    onMoveItem={handleMobileMove}
-                  />
+                  <div className="flex-shrink-0 ml-2">
+                    <MobileItemMenu
+                      item={note}
+                      itemType="note"
+                      onOpenNote={(note: Note) => onSelectNote(note)}
+                      onRenameItem={(id: string, title: string) => onRenameNote(id, title)}
+                      onDeleteItem={(id: string) => onDeleteNote(id)}
+                      onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
+                      onMoveItem={handleMobileMove}
+                    />
+                  </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
@@ -269,14 +272,14 @@ export default function NoteSidebar({
 
   const handleMoveConfirm = (targetFolderId: string) => {
     if (!moveItem) return;
-    
+
     // Set the dragged item state first
     const mockDraggedItem = { type: moveItem.type, id: moveItem.item.id };
     onDragStart({} as React.DragEvent, moveItem.type, moveItem.item.id);
-    
+
     // Then trigger the drop with the target folder
     onDrop({} as React.DragEvent, targetFolderId);
-    
+
     setMoveItem(null);
     setIsMoveDialogOpen(false);
   };
@@ -390,9 +393,9 @@ export default function NoteSidebar({
                         className={`
                       flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
                       ${isLoading
-                          ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
-                        }
+                            ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
+                          }
                     `}
                         title="Sync with Google Drive"
                       >
@@ -401,7 +404,7 @@ export default function NoteSidebar({
                           className={`${isLoading ? 'animate-spin' : ''}`}
                         />
                       </button>
-                      
+
                       {onClearCacheAndSync && (
                         <button
                           onClick={onClearCacheAndSync}
@@ -409,9 +412,9 @@ export default function NoteSidebar({
                           className={`
                         flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
                         ${isLoading
-                            ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
-                            : 'bg-orange-600 hover:bg-orange-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
-                          }
+                              ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
+                              : 'bg-orange-600 hover:bg-orange-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
+                            }
                       `}
                           title="Clear cache and sync from scratch"
                         >
@@ -513,7 +516,7 @@ export default function NoteSidebar({
                 isExpanded={isImagesSectionExpanded}
                 onToggleExpanded={onToggleImagesSection}
               />
-              
+
               {/* File Tree */}
               {renderFileTree()}
             </div>

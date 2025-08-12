@@ -15,11 +15,11 @@ interface MobileFileOperationsProps {
   // Item-specific operations
   item?: Note | Folder;
   itemType?: 'note' | 'folder';
-  
+
   // Global operations
   isGlobalFAB?: boolean;
   selectedPath?: string;
-  
+
   // Callbacks
   onCreateFolder?: (path: string) => void;
   onCreateNote?: (path: string) => void;
@@ -31,13 +31,13 @@ interface MobileFileOperationsProps {
 }
 
 // Three-dot menu for individual items using Radix UI DropdownMenu
-export function MobileItemMenu({ 
-  item, 
-  itemType, 
-  onCreateFolder, 
-  onCreateNote, 
-  onRenameItem, 
-  onDeleteItem, 
+export function MobileItemMenu({
+  item,
+  itemType,
+  onCreateFolder,
+  onCreateNote,
+  onRenameItem,
+  onDeleteItem,
   onOpenNote,
   onSetIsMobileSidebarOpen,
   onMoveItem
@@ -50,14 +50,14 @@ export function MobileItemMenu({
         <DropdownMenuTrigger asChild>
           <button
             onClick={(e) => e.stopPropagation()}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100 opacity-100"
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100 opacity-100 flex-shrink-0"
             aria-label="More options"
           >
             <MoreVertical size={16} />
           </button>
         </DropdownMenuTrigger>
-        
-        <DropdownMenuContent 
+
+        <DropdownMenuContent
           className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl"
           side="bottom"
           align="end"
@@ -152,10 +152,10 @@ export function MobileItemMenu({
 }
 
 // Floating Action Button for creating new items
-export function MobileFAB({ 
-  selectedPath = '', 
-  onCreateFolder, 
-  onCreateNote 
+export function MobileFAB({
+  selectedPath = '',
+  onCreateFolder,
+  onCreateNote
 }: MobileFileOperationsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -181,9 +181,8 @@ export function MobileFAB({
   return (
     <div className="fixed bottom-6 right-6 z-50 lg:hidden" ref={fabRef}>
       {/* Action buttons */}
-      <div className={`flex flex-col gap-3 mb-3 transition-all duration-300 ${
-        isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
-      }`}>
+      <div className={`flex flex-col gap-3 mb-3 transition-all duration-300 ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
+        }`}>
         <button
           onClick={() => handleAction(() => onCreateNote?.(selectedPath))}
           className="w-12 h-12 bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95"
@@ -203,9 +202,8 @@ export function MobileFAB({
       {/* Main FAB */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-300 ${
-          isOpen ? 'rotate-45' : 'rotate-0'
-        }`}
+        className={`w-14 h-14 bg-gray-700 hover:bg-gray-600 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-300 ${isOpen ? 'rotate-45' : 'rotate-0'
+          }`}
         aria-label={isOpen ? 'Close menu' : 'Open menu'}
       >
         {isOpen ? <X size={24} /> : <Plus size={24} />}
