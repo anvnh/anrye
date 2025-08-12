@@ -46,6 +46,7 @@ export default function NoteSidebar({
   onToggleSidebar,
   onToggleImagesSection,
   onForceSync,
+  onClearCacheAndSync,
   onSignIn,
   onSignOut
 }: NoteSidebarProps) {
@@ -380,25 +381,47 @@ export default function NoteSidebar({
                     </button>
                   )}
 
-                  {/* Sync Button */}
+                  {/* Sync Buttons */}
                   {isSignedIn && onForceSync && (
-                    <button
-                      onClick={onForceSync}
-                      disabled={isLoading}
-                      className={`
-                    flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
-                    ${isLoading
-                        ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
-                      }
-                  `}
-                      title="Sync with Google Drive"
-                    >
-                      <RefreshCw
-                        size={12}
-                        className={`${isLoading ? 'animate-spin' : ''}`}
-                      />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={onForceSync}
+                        disabled={isLoading}
+                        className={`
+                      flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
+                      ${isLoading
+                          ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
+                        }
+                    `}
+                        title="Sync with Google Drive"
+                      >
+                        <RefreshCw
+                          size={12}
+                          className={`${isLoading ? 'animate-spin' : ''}`}
+                        />
+                      </button>
+                      
+                      {onClearCacheAndSync && (
+                        <button
+                          onClick={onClearCacheAndSync}
+                          disabled={isLoading}
+                          className={`
+                        flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200
+                        ${isLoading
+                            ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed rounded-2xl'
+                            : 'bg-orange-600 hover:bg-orange-700 text-white hover:scale-105 active:scale-95 rounded-2xl'
+                          }
+                      `}
+                          title="Clear cache and sync from scratch"
+                        >
+                          <Trash2
+                            size={12}
+                            className={`${isLoading ? 'animate-spin' : ''}`}
+                          />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

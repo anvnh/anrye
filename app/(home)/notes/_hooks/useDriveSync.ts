@@ -29,6 +29,11 @@ export const useDriveSync = (
 
       for (const file of files) {
         if (file.mimeType === 'application/vnd.google-apps.folder') {
+          // Skip the Images folder as it's handled separately by ImagesSection
+          if (file.name === 'Images') {
+            continue;
+          }
+          
           // It's a folder
           const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
 
@@ -208,6 +213,186 @@ export const useDriveSync = (
     }
   }, [hasSyncedWithDrive, isSignedIn, forceReAuthenticate, setIsLoading, setSyncProgress, setFolders, setNotes]);
 
+  const clearCacheAndSync = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setSyncProgress(5);
+      
+      // Clear data cache only (preserve authentication tokens)
+      if (typeof window !== 'undefined') {
+        // Clear folder and note cache
+        localStorage.removeItem('folders-cache');
+        localStorage.removeItem('notes-cache');
+        
+        // Clear image cache
+        localStorage.removeItem('image-thumbnail-cache');
+        
+        // Clear sync status flags
+        localStorage.removeItem('has-synced-with-drive');
+        localStorage.removeItem('has-synced-love-drive');
+        
+        // Clear other data cache items (but preserve auth tokens)
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (
+            key.includes('cache') || 
+            key.includes('sync') || 
+            (key.includes('drive') && !key.includes('token') && !key.includes('auth'))
+          )) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        console.log('Cleared data cache (preserved authentication tokens)');
+      }
+      
+      setSyncProgress(10);
+      
+      // Reset all sync states
+      setHasSyncedWithDrive(false);
+      setIsInitialized(false);
+      
+      setSyncProgress(15);
+      
+      // Clear all local data except root folder
+      setNotes([]);
+      setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+      
+      setSyncProgress(20);
+      
+      const driveModule = await loadDriveService();
+      if (!driveModule) return;
+      
+      const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
+      setSyncProgress(30);
+
+      // Get all files and folders from Drive
+      const getAllDriveFiles = async (parentId: string, currentPath: string = ''): Promise<{files: any[], folders: any[]}> => {
+        const files = await driveModule.driveService.listFiles(parentId);
+        const driveFiles: any[] = [];
+        const driveFolders: any[] = [];
+
+        for (const file of files) {
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            // Skip the Images folder as it's handled separately by ImagesSection
+            if (file.name === 'Images') {
+              continue;
+            }
+            
+            driveFolders.push({
+              ...file,
+              path: currentPath ? `${currentPath}/${file.name}` : file.name
+            });
+            // Recursively get subfolders and files
+            const subResults = await getAllDriveFiles(file.id, currentPath ? `${currentPath}/${file.name}` : file.name);
+            driveFiles.push(...subResults.files);
+            driveFolders.push(...subResults.folders);
+          } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
+            driveFiles.push({
+              ...file,
+              path: currentPath,
+              title: file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name
+            });
+          }
+        }
+
+        return { files: driveFiles, folders: driveFolders };
+      };
+
+      setSyncProgress(40);
+      const { files: driveFiles, folders: driveFolders } = await getAllDriveFiles(notesFolderId);
+      
+      setSyncProgress(60);
+
+      // Load all folders first
+      for (const folder of driveFolders) {
+        const folderPath = folder.path;
+        const parentFolder = driveFolders.find(f => f.id === folder.parents?.[0]) || { path: '' };
+        const parentPath = parentFolder.path;
+        
+        setFolders(prevFolders => {
+          const existingFolder = prevFolders.find(f => f.driveFolderId === folder.id);
+          if (!existingFolder) {
+            const newFolder: Folder = {
+              id: Date.now().toString() + Math.random(),
+              name: folder.name,
+              path: folderPath,
+              parentId: prevFolders.find(f => f.driveFolderId === folder.parents?.[0])?.id || 'root',
+              driveFolderId: folder.id,
+              expanded: false
+            };
+            return [...prevFolders, newFolder];
+          }
+          return prevFolders;
+        });
+      }
+      
+      setSyncProgress(70);
+
+      // Load all notes
+      for (const file of driveFiles) {
+        try {
+          const content = await driveModule.driveService.getFile(file.id);
+          const noteTitle = file.title;
+          const notePath = file.path;
+          
+          setNotes(prevNotes => {
+            const existingNote = prevNotes.find(n => n.driveFileId === file.id);
+            if (!existingNote) {
+              const newNote: Note = {
+                id: Date.now().toString() + Math.random(),
+                title: noteTitle,
+                content: content,
+                path: notePath,
+                driveFileId: file.id,
+                createdAt: file.createdTime,
+                updatedAt: file.modifiedTime
+              };
+              return [...prevNotes, newNote];
+            }
+            return prevNotes;
+          });
+        } catch (error) {
+          console.error('Failed to load note content for', file.title, ':', error);
+        }
+      }
+      
+      setSyncProgress(90);
+      
+      // Mark as synced and initialized
+      setHasSyncedWithDrive(true);
+      setIsInitialized(true);
+      setSyncProgress(100);
+      
+      console.log('Cache cleared and fresh sync completed successfully');
+      
+    } catch (error) {
+      console.error('Clear cache and sync failed:', error);
+      
+      // Check if it's a GAPI error that needs reset
+      if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
+        
+        try {
+          await forceReAuthenticate();
+          // Retry sync once after re-authentication
+          setTimeout(() => {
+            clearCacheAndSync();
+          }, 1000);
+          return;
+        } catch (retryError) {
+          console.error('Failed to re-authenticate:', retryError);
+        }
+      }
+      
+      alert(`Clear cache and sync failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setSyncProgress(0), 500);
+    }
+  }, [isSignedIn, forceReAuthenticate, setIsLoading, setSyncProgress, setFolders, setNotes]);
+
   const forceSync = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -234,6 +419,11 @@ export const useDriveSync = (
 
         for (const file of files) {
           if (file.mimeType === 'application/vnd.google-apps.folder') {
+            // Skip the Images folder as it's handled separately by ImagesSection
+            if (file.name === 'Images') {
+              continue;
+            }
+            
             driveFolders.push({
               ...file,
               path: currentPath ? `${currentPath}/${file.name}` : file.name
@@ -339,6 +529,7 @@ export const useDriveSync = (
     setIsInitialized,
     syncWithDrive,
     forceSync,
+    clearCacheAndSync,
     loadFromDrive,
   };
 }; 

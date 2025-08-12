@@ -81,6 +81,7 @@ export default function NotesPage() {
     setIsInitialized,
     syncWithDrive,
     forceSync,
+    clearCacheAndSync,
   } = useDriveSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
 
   const {
@@ -300,6 +301,7 @@ export default function NotesPage() {
           onToggleSidebar={toggleSidebar}
           onToggleImagesSection={() => setIsImagesSectionExpanded(!isImagesSectionExpanded)}
           onForceSync={forceSync}
+          onClearCacheAndSync={clearCacheAndSync}
           onSignIn={() => {
             // Use the popup OAuth flow that returns refresh tokens
             driveService.signIn();

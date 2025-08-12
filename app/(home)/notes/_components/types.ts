@@ -65,6 +65,7 @@ export interface NoteSidebarProps {
   onToggleSidebar: () => void;
   onToggleImagesSection: () => void;
   onForceSync?: () => void;
+  onClearCacheAndSync?: () => void;
   onSignIn?: () => void;
   onSignOut?: () => void;
 }
