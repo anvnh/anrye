@@ -32,9 +32,10 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
       if (cached) {
         try {
           const parsedCache = new Map(JSON.parse(cached));
-          console.log('Loaded cache from localStorage:', parsedCache.size, 'items');
+          // console.log('Loaded cache from localStorage:', parsedCache.size, 'items');
           return parsedCache;
         } catch (error) {
+          // TODO: Create a proper error display and handling mechanism
           console.error('Failed to parse image cache:', error);
         }
       }
@@ -44,12 +45,12 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
   const loadImages = async () => {
     if (!isSignedIn) return;
-    
+
     try {
       setIsLoading(true);
       const imagesList = await driveService.getImagesFromImagesFolder();
       setImages(imagesList);
-      
+
       // Pre-cache thumbnails for new images
       imagesList.forEach(image => {
         if (!imageCache.has(image.id)) {
@@ -64,11 +65,11 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
           });
         }
       });
-      
-      console.log('Image cache size:', imageCache.size);
-      console.log('Cached images:', Array.from(imageCache.keys()));
+
+      // console.log('Image cache size:', imageCache.size);
+      // console.log('Cached images:', Array.from(imageCache.keys()));
     } catch (error) {
-      console.error('Failed to load images:', error);
+      // console.error('Failed to load images:', error);
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +123,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
     // Listen for custom event when image is uploaded
     window.addEventListener('imageUploaded', handleImageUploaded);
-    
+
     return () => {
       window.removeEventListener('imageUploaded', handleImageUploaded);
     };
@@ -191,7 +192,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
   const handleDelete = async (image: DriveImage) => {
     if (!confirm(`Are you sure you want to delete "${image.name}"?`)) return;
-    
+
     try {
       await driveService.deleteFile(image.id);
       setImages(prev => prev.filter(img => img.id !== image.id));
@@ -207,9 +208,9 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
   return (
     <>
       {/* Images Section Header */}
-      <div className="mb-4">
+      <div>
         <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center px-2 py-0.5 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
           onClick={onToggleExpanded}
         >
           <ImageIcon size={16} className="text-green-400 mr-3" />
@@ -220,7 +221,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
             </span>
           )}
         </div>
-        
+
         {/* Separator */}
         <div className="border-t border-gray-600/50 my-3"></div>
       </div>
@@ -229,15 +230,15 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
       {isExpanded && (
         <div className="mb-4">
           {isLoading ? (
-                          <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
-                <p className="text-gray-500 text-xs mt-2">Loading images...</p>
-              </div>
-            ) : images.length === 0 ? (
-              <div className="text-center py-4">
-                <ImageIcon size={32} className="text-gray-600 mx-auto mb-2" />
-                <p className="text-gray-500 text-xs">No images yet</p>
-              </div>
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
+              <p className="text-gray-500 text-xs mt-2">Loading images...</p>
+            </div>
+          ) : images.length === 0 ? (
+            <div className="text-center py-4">
+              <ImageIcon size={32} className="text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-500 text-xs">No images yet</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {images.map((image) => (
@@ -304,7 +305,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
                       }}
                     />
                   )}
-                  
+
                   {/* Overlay with actions */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1">
                     <button
@@ -338,7 +339,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
                       <Trash2 size={12} />
                     </button>
                   </div>
-                  
+
                   {/* Image info */}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 truncate">
                     {image.name}
@@ -358,7 +359,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
               <span>{selectedImage?.name}</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-hidden">
             <img
               src={`https://drive.google.com/uc?export=view&id=${selectedImage?.id}`}
@@ -371,7 +372,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
               }}
             />
           </div>
-          
+
           {/* Image info footer */}
           <div className="p-4 border-t border-gray-600/50 bg-gray-800/50">
             <div className="text-sm text-gray-300">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -50,6 +50,9 @@ export default function NoteSidebar({
   onSignIn,
   onSignOut
 }: NoteSidebarProps) {
+
+  // Add state for mobile menu collapsible
+  const [isMobileMenuExpanded, setIsMobileMenuExpanded] = useState(false);
 
   const getNotesInPath = (path: string) => {
     return notes.filter(note => note.path === path);
@@ -453,18 +456,33 @@ export default function NoteSidebar({
                 </div>
               )}
 
-              {/* Home Button */}
-              <div className="mt-4">
-                <a
-                  href="/"
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+              {/* Mobile Collapsible Menu */}
+              <div className="lg:hidden mt-4">
+                <button
+                  onClick={() => setIsMobileMenuExpanded(!isMobileMenuExpanded)}
+                  className="w-full flex items-center justify-between py-0.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <Home size={16} className="text-blue-400" />
-                  <span>Home</span>
-                </a>
+                  <div className="flex items-center gap-2">
+                    <Menu size={16} className="text-gray-400" />
+                    <span>Quick Actions</span>
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`text-gray-400 transition-transform duration-200 ${isMobileMenuExpanded ? 'rotate-180' : ''
+                      }`}
+                  />
+                </button>
 
-                {/* Mobile Create Buttons */}
-                <div className="lg:hidden mt-3 space-y-2">
+                {/* Collapsible Content */}
+                <div className={`mt-2 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isMobileMenuExpanded ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                  <a
+                    href="/"
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Home size={16} className="text-blue-400" />
+                    <span>Home</span>
+                  </a>
                   <button
                     onClick={() => {
                       onSetSelectedPath(currentPath);
@@ -486,6 +504,17 @@ export default function NoteSidebar({
                     <span>Create New Folder</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Desktop Home Button */}
+              <div className="hidden lg:block mt-4">
+                <a
+                  href="/"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Home size={16} className="text-blue-400" />
+                  <span>Home</span>
+                </a>
               </div>
             </div>
 
