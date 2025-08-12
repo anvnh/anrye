@@ -462,9 +462,11 @@ export default function NoteSidebar({
                   onClick={() => setIsMobileMenuExpanded(!isMobileMenuExpanded)}
                   className="w-full flex items-center justify-between py-0.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 py-2 px-1">
                     <Menu size={16} className="text-gray-400" />
-                    <span>Quick Actions</span>
+                    <span>
+                      Quick Actions
+                    </span>
                   </div>
                   <ChevronDown
                     size={16}
@@ -474,7 +476,7 @@ export default function NoteSidebar({
                 </button>
 
                 {/* Collapsible Content */}
-                <div className={`mt-2 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isMobileMenuExpanded ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
+                <div className={`space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isMobileMenuExpanded ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
                   }`}>
                   <a
                     href="/"

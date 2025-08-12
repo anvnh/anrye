@@ -210,16 +210,18 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
       {/* Images Section Header */}
       <div>
         <div
-          className="flex items-center px-2 py-0.5 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center px-3 py-0.5 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
           onClick={onToggleExpanded}
         >
-          <ImageIcon size={16} className="text-green-400 mr-3" />
-          <span className="text-gray-300 text-sm font-medium flex-1">Images</span>
-          {images.length > 0 && (
-            <span className="text-gray-500 text-xs bg-gray-600/50 px-2 py-1 rounded-full">
-              {images.length}
-            </span>
-          )}
+          <div className='flex py-2'>
+            <ImageIcon size={16} className="text-green-400 mr-3" />
+            <span className="text-gray-300 text-sm font-medium flex-1">Images</span>
+            {images.length > 0 && (
+              <span className="text-gray-500 text-xs bg-gray-600/50 px-2 py-1 rounded-full">
+                {images.length}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Separator */}
