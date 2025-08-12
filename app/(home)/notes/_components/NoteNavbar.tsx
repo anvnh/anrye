@@ -23,6 +23,8 @@ interface NoteNavbarProps {
   setFontSize: (s: string) => void;
   previewFontSize: string;
   setPreviewFontSize: (s: string) => void;
+  codeBlockFontSize: string;
+  setCodeBlockFontSize: (s: string) => void;
   saveNote: () => void;
   cancelEdit: () => void;
   startEdit: () => void;
@@ -52,6 +54,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   setFontSize,
   previewFontSize,
   setPreviewFontSize,
+  codeBlockFontSize,
+  setCodeBlockFontSize,
   saveNote,
   cancelEdit,
   startEdit,
@@ -255,6 +259,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           setFontSize={setFontSize}
           previewFontSize={previewFontSize}
           setPreviewFontSize={setPreviewFontSize}
+          codeBlockFontSize={codeBlockFontSize}
+          setCodeBlockFontSize={setCodeBlockFontSize}
         />
 
         {isEditing ? (

@@ -118,9 +118,10 @@ const MemoizedMarkdownBlock = React.memo(
     setSelectedNote,
     isSignedIn,
     driveService,
-  onNavigateToNote,
-  lineOffset,
-  currentContent
+    onNavigateToNote,
+    lineOffset,
+    currentContent,
+    codeBlockFontSize
   }: {
     content: string;
     blockType: string;
@@ -132,13 +133,14 @@ const MemoizedMarkdownBlock = React.memo(
     isSignedIn: boolean;
     driveService: any;
     onNavigateToNote?: (noteId: string) => void;
-  lineOffset?: number;
-  currentContent: string;
+    lineOffset?: number;
+    currentContent: string;
+    codeBlockFontSize?: string;
   }) => {
     return (
       <MemoizedMarkdown
         content={content}
-    currentContent={currentContent}
+        currentContent={currentContent}
         notes={notes}
         selectedNote={selectedNote}
         isEditing={true}
@@ -148,8 +150,9 @@ const MemoizedMarkdownBlock = React.memo(
         setSelectedNote={setSelectedNote}
         isSignedIn={isSignedIn}
         driveService={driveService}
-    onNavigateToNote={onNavigateToNote}
-    lineOffset={lineOffset}
+        onNavigateToNote={onNavigateToNote}
+        lineOffset={lineOffset}
+        codeBlockFontSize={codeBlockFontSize}
       />
     );
   },
@@ -160,7 +163,7 @@ const MemoizedMarkdownBlock = React.memo(
     }
     // For code blocks, only re-render when content or language fence changes
     if (prev.blockType === 'code' && next.blockType === 'code') {
-      return prev.content === next.content;
+      return prev.content === next.content && prev.codeBlockFontSize === next.codeBlockFontSize;
     }
     
     // For other blocks, use standard comparison but ignore folders changes
@@ -168,7 +171,8 @@ const MemoizedMarkdownBlock = React.memo(
       prev.content === next.content && 
       prev.selectedNote?.id === next.selectedNote?.id &&
       prev.selectedNote?.content === next.selectedNote?.content &&
-      prev.isSignedIn === next.isSignedIn
+      prev.isSignedIn === next.isSignedIn &&
+      prev.codeBlockFontSize === next.codeBlockFontSize
     );
   }
 );
@@ -185,6 +189,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   isSignedIn: boolean;
   driveService: any;
   onNavigateToNote?: (noteId: string) => void;
+  codeBlockFontSize?: string;
 }> = React.memo(({
   content,
   notes,
@@ -194,7 +199,8 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
   setSelectedNote,
   isSignedIn,
   driveService,
-  onNavigateToNote
+  onNavigateToNote,
+  codeBlockFontSize
 }) => {
   const blocks = React.useMemo(() => splitMarkdownBlocksAST(content), [content]);
   return (
@@ -221,6 +227,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
             onNavigateToNote={onNavigateToNote}
             lineOffset={block.startLine}
             currentContent={content}
+            codeBlockFontSize={codeBlockFontSize}
           />
         </div>
       ))}
@@ -232,6 +239,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
     prevProps.content === nextProps.content &&
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
     prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
-    prevProps.isSignedIn === nextProps.isSignedIn
+    prevProps.isSignedIn === nextProps.isSignedIn &&
+    prevProps.codeBlockFontSize === nextProps.codeBlockFontSize
   );
 });

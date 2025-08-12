@@ -22,6 +22,13 @@ export const useFontSettings = () => {
     return '16px';
   });
 
+  const [codeBlockFontSize, setCodeBlockFontSize] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('note-codeblock-font-size') || '14px';
+    }
+    return '14px';
+  });
+
   // Save font settings to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -41,6 +48,12 @@ export const useFontSettings = () => {
     }
   }, [previewFontSize]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('note-codeblock-font-size', codeBlockFontSize);
+    }
+  }, [codeBlockFontSize]);
+
   return {
     fontFamily,
     setFontFamily,
@@ -48,5 +61,7 @@ export const useFontSettings = () => {
     setFontSize,
     previewFontSize,
     setPreviewFontSize,
+    codeBlockFontSize,
+    setCodeBlockFontSize,
   };
 }; 

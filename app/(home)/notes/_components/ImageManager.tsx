@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Image as ImageIcon, 
-  Trash2, 
-  Download, 
-  AlertTriangle, 
+import {
+  Image as ImageIcon,
+  Trash2,
+  Download,
+  AlertTriangle,
   CheckCircle,
   X,
   RefreshCw,
   Edit3
 } from 'lucide-react';
-import { 
-  extractImagesFromMarkdown, 
-  removeImageFromMarkdown, 
+import {
+  extractImagesFromMarkdown,
+  removeImageFromMarkdown,
   removeAllImagesFromMarkdown,
   deleteImageFromDrive,
   cleanupOrphanedImages,
   getImageUsageStats,
-  ImageInfo 
+  ImageInfo
 } from '../_utils/imageUtils';
 import { Note } from './types';
 import { driveService } from '@/app/lib/googleDrive';
@@ -81,7 +81,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
         console.warn('User not signed in to Google Drive, cannot load image preview');
         return;
       }
-      
+
       const token = await driveService.getAccessToken();
       if (!token) {
         console.warn('No access token available for image preview - authentication may have expired');
@@ -110,7 +110,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
 
   // Get image statistics
   const imageStats = useMemo(() => getImageUsageStats(notes), [notes]);
-  
+
   // Get images from selected note
   const selectedNoteImages = useMemo(() => {
     if (!selectedNote) return [];
@@ -128,7 +128,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
       // Only delete from Drive, keep the markdown link
       if (isSignedIn && image.driveFileId) {
         await deleteImageFromDrive(image.driveFileId);
-        
+
         // Clear the cache for this file ID since it's been deleted
         const { imageLoadingManager } = await import('../_utils/imageLoadingManager');
         imageLoadingManager.clearCacheForFile(image.driveFileId);
@@ -150,13 +150,13 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
 
     try {
       setIsLoading(true);
-      
+
       // Only delete from Drive, keep all markdown links
       if (isSignedIn) {
         for (const image of selectedNoteImages) {
           if (image.driveFileId) {
             await deleteImageFromDrive(image.driveFileId);
-            
+
             // Clear the cache for this file ID since it's been deleted
             const { imageLoadingManager } = await import('../_utils/imageLoadingManager');
             imageLoadingManager.clearCacheForFile(image.driveFileId);
@@ -176,17 +176,17 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
 
     try {
       setCleanupProgress({ isRunning: true, deleted: [], failed: [] });
-      
+
       // Get the notes folder ID
       const notesFolderId = await driveService.findOrCreateNotesFolder();
-      
+
       // Clean up orphaned images
       const result = await cleanupOrphanedImages(notes, notesFolderId);
-      
-      setCleanupProgress({ 
-        isRunning: false, 
-        deleted: result.deleted, 
-        failed: result.failed 
+
+      setCleanupProgress({
+        isRunning: false,
+        deleted: result.deleted,
+        failed: result.failed
       });
     } catch (error) {
       console.error('Failed to cleanup orphaned images:', error);
@@ -254,14 +254,16 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                   <button
                     onClick={handleRemoveAllImages}
                     disabled={isLoading}
-                    className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    className="
+                    flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-700 
+                    text-white rounded-lg transition-colors disabled:opacity-50 "
                   >
                     <Trash2 size={16} />
                     Delete All from Drive
                   </button>
                 )}
               </div>
-              
+
               {selectedNoteImages.length === 0 ? (
                 <p className="text-gray-400 text-center py-8">No images in this note</p>
               ) : (
@@ -374,7 +376,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                       </div>
                     </div>
                   )}
-                  
+
                   {cleanupProgress.failed.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 text-red-400 mb-2">

@@ -61,6 +61,8 @@ interface MarkdownRendererProps {
   lineOffset?: number;
   // Optional: the full, current document content (e.g., editor text) for precise updates
   currentContent?: string;
+  // Optional: font size for code blocks
+  codeBlockFontSize?: string;
 }
 
 // Utility function to extract text content from React nodes
@@ -310,7 +312,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   driveService,
   onNavigateToNote,
   lineOffset = 0,
-  currentContent
+  currentContent,
+  codeBlockFontSize = '14px'
 }) => {
   // Pre-process content to get all headings with consistent IDs,
   // ensure $$...$$ blocks are on their own lines, and convert wikilinks
@@ -562,7 +565,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" fill="#374151" stroke="#cbd5e1" strokeWidth="2" /><rect x="3" y="3" width="13" height="13" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="2" /></svg>
                 </button>
                 <pre className="bg-gray-800 border border-gray-600 rounded-lg p-4 overflow-x-auto w-full max-w-full">
-                  <code ref={codeRef as any} className={`text-sm font-mono text-gray-300 language-${language}`} {...props}>
+                  <code ref={codeRef as any} className={`text-sm font-mono text-gray-300 language-${language}`} {...props} style={{ fontSize: codeBlockFontSize }}>
                     {codeString}
                   </code>
                 </pre>
@@ -840,7 +843,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
     prevProps.selectedNote?.updatedAt === nextProps.selectedNote?.updatedAt &&
     prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
-    prevProps.onNavigateToNote === nextProps.onNavigateToNote
+    prevProps.onNavigateToNote === nextProps.onNavigateToNote &&
+    prevProps.codeBlockFontSize === nextProps.codeBlockFontSize
   );
 });
 

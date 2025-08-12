@@ -18,6 +18,7 @@ interface NotePreviewProps {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
   previewFontSize?: string;
+  codeBlockFontSize?: string;
 }
 
 // Utility function to check if content has headings
@@ -33,7 +34,8 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   setSelectedNote,
   isSignedIn,
   driveService,
-  previewFontSize = '16px'
+  previewFontSize = '16px',
+  codeBlockFontSize = '14px'
 }) => {
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
   const [isBacklinksOpen, setIsBacklinksOpen] = useState(false);
@@ -222,9 +224,10 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         isSignedIn={isSignedIn}
         driveService={driveService}
         onNavigateToNote={handleNavigateToNote}
+        codeBlockFontSize={codeBlockFontSize}
       />
     );
-  }, [selectedNote, wikilinkNotes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote]);
+  }, [selectedNote, wikilinkNotes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote, codeBlockFontSize]);
 
   return (
     <div className="relative h-full">

@@ -12,6 +12,7 @@ interface NoteRegularEditorProps {
   setEditContent: (content: string) => void;
   tabSize?: number;
   fontSize?: string;
+  codeBlockFontSize?: string;
   notes: Note[];
   selectedNote: Note | null;
   setIsLoading: (loading: boolean) => void;
@@ -23,6 +24,7 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
   setEditContent,
   tabSize = 2,
   fontSize = '16px',
+  codeBlockFontSize = '14px',
   notes,
   selectedNote,
   setIsLoading,

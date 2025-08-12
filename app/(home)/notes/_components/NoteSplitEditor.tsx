@@ -25,25 +25,29 @@ interface NoteSplitEditorProps {
   tabSize?: number;
   fontSize?: string;
   previewFontSize?: string;
+  codeBlockFontSize?: string;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
 }
 
-export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
-  editContent,
-  setEditContent,
-  notes,
-  selectedNote,
-  setNotes,
-  setSelectedNote,
-  isSignedIn,
-  driveService,
-  tabSize = 2,
-  fontSize = '16px',
-  previewFontSize = '16px',
-  setIsLoading,
-  setSyncProgress
-}) => {
+export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
+  {
+    editContent,
+    setEditContent,
+    notes,
+    selectedNote,
+    setNotes,
+    setSelectedNote,
+    isSignedIn,
+    driveService,
+    tabSize = 2,
+    fontSize = '16px',
+    previewFontSize = '16px',
+    codeBlockFontSize = '14px',
+    setIsLoading,
+    setSyncProgress
+  }
+) => {
 
   // Refs for scroll sync targets
   const cmRef = useRef<CMEditorApi | undefined>(undefined);
@@ -674,6 +678,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
           isSignedIn={isSignedIn}
           driveService={driveService}
           onNavigateToNote={handleNavigateToNote}
+          codeBlockFontSize={codeBlockFontSize}
         />
       </div>
     );
@@ -684,7 +689,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = ({
     });
 
     return preview;
-  }, [debouncedContent, isPending, selectedNote?.id, selectedNote?.content, isSignedIn]);
+  }, [debouncedContent, isPending, selectedNote?.id, selectedNote?.content, isSignedIn, codeBlockFontSize]);
 
   // Cleanup animation frame
   useEffect(() => {

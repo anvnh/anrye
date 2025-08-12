@@ -52,6 +52,7 @@ const MemoizedNoteContent = React.memo(({
   tabSize,
   fontSize,
   previewFontSize,
+  codeBlockFontSize,
   setIsLoading,
   setSyncProgress
 }: {
@@ -68,6 +69,7 @@ const MemoizedNoteContent = React.memo(({
   tabSize: number;
   fontSize: string;
   previewFontSize: string;
+  codeBlockFontSize: string;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
 }) => {
@@ -92,6 +94,7 @@ const MemoizedNoteContent = React.memo(({
         isSignedIn={isSignedIn}
         driveService={driveService}
         previewFontSize={previewFontSize}
+        codeBlockFontSize={codeBlockFontSize}
       />
     );
   }
@@ -110,6 +113,7 @@ const MemoizedNoteContent = React.memo(({
         tabSize={tabSize}
         fontSize={fontSize}
         previewFontSize={previewFontSize}
+        codeBlockFontSize={codeBlockFontSize}
         setIsLoading={setIsLoading}
         setSyncProgress={setSyncProgress}
       />
@@ -124,6 +128,7 @@ const MemoizedNoteContent = React.memo(({
       fontSize={fontSize}
       notes={notes}
       selectedNote={selectedNote}
+      codeBlockFontSize={codeBlockFontSize}
       setIsLoading={setIsLoading}
       setSyncProgress={setSyncProgress}
     />
@@ -140,7 +145,8 @@ const MemoizedNoteContent = React.memo(({
   // Re-render when formatting settings change
   prevProps.tabSize === nextProps.tabSize &&
   prevProps.fontSize === nextProps.fontSize &&
-  prevProps.previewFontSize === nextProps.previewFontSize
+  prevProps.previewFontSize === nextProps.previewFontSize &&
+  prevProps.codeBlockFontSize === nextProps.codeBlockFontSize
   );
 });
 
@@ -180,6 +186,7 @@ export default function NotesPage() {
     fontFamily, setFontFamily,
     fontSize, setFontSize,
     previewFontSize, setPreviewFontSize,
+    codeBlockFontSize, setCodeBlockFontSize,
   } = useFontSettings();
 
   const {
@@ -460,6 +467,8 @@ export default function NotesPage() {
                 setFontSize={setFontSize}
                 previewFontSize={previewFontSize}
                 setPreviewFontSize={setPreviewFontSize}
+                codeBlockFontSize={codeBlockFontSize}
+                setCodeBlockFontSize={setCodeBlockFontSize}
                 saveNote={saveNote}
                 cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
                 startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
@@ -495,6 +504,7 @@ export default function NotesPage() {
                   tabSize={tabSize}
                   fontSize={fontSize}
                   previewFontSize={previewFontSize}
+                  codeBlockFontSize={codeBlockFontSize}
                   setIsLoading={setIsLoading}
                   setSyncProgress={setSyncProgress}
                 />
