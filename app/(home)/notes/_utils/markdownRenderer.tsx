@@ -24,6 +24,8 @@ import {
   ClipboardList
 } from 'lucide-react';
 import FoldableHeading from '../_components/FoldableHeading';
+import { CheckboxItem } from '../_components/CheckboxItem';
+import { CheckboxProvider } from '../_contexts/CheckboxContext';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -88,41 +90,7 @@ const stripMarkdown = (text: string): string => {
     .trim();
 };
 
-// Utility function to update checkbox content by line index (safe, preserves all lines)
-const updateCheckboxContent = (
-  content: string,
-  lineIndex: number,
-  newChecked: boolean
-): string => {
 
-  
-  // Split preserving all lines, including trailing empty lines
-  const matchLines = content.match(/[^\n]*\n?|$/g);
-  const lines = matchLines ? matchLines.slice(0, -1) : [];
-  
-
-  
-  if (lineIndex < 0 || lineIndex >= lines.length) {
-    // Invalid line index
-    return content;
-  }
-  
-  const line = lines[lineIndex].replace(/\r?\n$/, '');
-
-  
-  const checkboxMatch = line.match(/^(\s*)-\s*\[[ xX]?\]\s*(.*)$/);
-  if (checkboxMatch) {
-    const [, indent, lineText] = checkboxMatch;
-    const newLine = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
-    lines[lineIndex] = newLine;
-
-    // Preserve all lines and trailing newlines
-    return lines.join('');
-  } else {
-    // No checkbox pattern found
-    return content;
-  }
-};
 
 // Remark plugin to transform callouts
 const remarkCallouts = () => {
@@ -388,7 +356,14 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
   };
 
-    return (
+      return (
+    <CheckboxProvider
+      selectedNote={selectedNote}
+      setNotes={setNotes!}
+      setSelectedNote={setSelectedNote!}
+      isSignedIn={isSignedIn}
+      driveService={driveService}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
         rehypePlugins={[rehypeKatex]}
@@ -603,7 +578,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               'type' in firstChild.props && firstChild.props.type === 'checkbox') {
 
               const checkboxProps = firstChild.props as { checked?: boolean;[key: string]: unknown };
-              const isChecked = checkboxProps.checked;
+              const isChecked = checkboxProps.checked ?? false;
               const restOfContent = children.slice(1);
 
               // Find the line index of this checkbox in the original markdown
@@ -612,63 +587,16 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 lineIndex = node.position.start.line - 1;
               }
 
-              
-
               return (
-                <li className="text-gray-300 flex items-baseline gap-2 list-none" {...props}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(e) => {
-                      const newChecked = e.target.checked;
-                      
-                      // Ensure we have valid lineIndex
-                      if (lineIndex === -1) {
-                        console.warn('Invalid lineIndex for checkbox:', lineIndex);
-                        return;
-                      }
-                      
-                      try {
-                        if (isEditing && setEditContent) {
-                          const updatedContent = updateCheckboxContent(editContent, lineIndex, newChecked);
-                          setEditContent(updatedContent);
-                        } else if (selectedNote && setNotes && setSelectedNote) {
-                          const updatedContent = updateCheckboxContent(selectedNote.content, lineIndex, newChecked);
-                          const updatedNote = {
-                            ...selectedNote,
-                            content: updatedContent,
-                            updatedAt: new Date().toISOString()
-                          };
-                          setNotes(prev => prev.map(note =>
-                            note.id === selectedNote.id ? updatedNote : note
-                          ));
-                          setSelectedNote(updatedNote);
-                          
-                          // Sync with Drive if signed in
-                          if (isSignedIn && selectedNote.driveFileId && driveService) {
-                            driveService.updateFile(selectedNote.driveFileId, updatedContent)
-                              .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
-                          }
-                          
-                        } else {
-                          // console.warn('Missing required props for checkbox update:', { 
-                          //   isEditing, 
-                          //   hasSetEditContent: !!setEditContent, 
-                          //   hasSelectedNote: !!selectedNote,
-                          //   hasSetNotes: !!setNotes,
-                          //   hasSetSelectedNote: !!setSelectedNote
-                          // });
-                        }
-                      } catch (error) {
-                        // console.error('Error updating checkbox:', error);
-                      }
-                    }}
-                    className="align-middle flex-shrink-0 -mt-1 w-5 h-5 min-w-[1.25rem] min-h-[1.25rem] cursor-pointer"
-                  />
-                  <span className={`flex-1 ${isChecked ? 'line-through text-gray-500/70' : 'text-gray-300'}`}>
-                    {restOfContent}
-                  </span>
-                </li>
+                <CheckboxItem
+                  isChecked={isChecked}
+                  lineIndex={lineIndex}
+                  isEditing={isEditing}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                >
+                  {restOfContent}
+                </CheckboxItem>
               );
             }
           }
@@ -889,6 +817,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     >
       {preprocessedContent}
     </ReactMarkdown>
+    </CheckboxProvider>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison to prevent unnecessary re-renders during Drive sync and folder operations

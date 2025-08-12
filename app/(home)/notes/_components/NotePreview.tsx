@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { List, X, Network } from 'lucide-react';
 import { Note } from './types';
@@ -48,12 +48,19 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
 
   // Handle wikilink navigation
-  const handleNavigateToNote = (noteId: string) => {
+  const handleNavigateToNote = useCallback((noteId: string) => {
     const targetNote = notes.find(note => note.id === noteId);
-    if (targetNote) {
-      setSelectedNote(targetNote);
-    }
-  };
+    if (targetNote) setSelectedNote(targetNote);
+  }, [notes, setSelectedNote]);
+
+  // Build a minimal wikilink index that only changes when titles/ids/paths change
+  const wikilinkSignature = useMemo(
+    () => notes.map(n => `${n.id}|${n.title}|${n.path ?? ''}`).join('::'),
+    [notes]
+  );
+  const wikilinkNotes = useMemo(() => {
+    return notes.map(n => ({ id: n.id, title: n.title, path: (n as any).path }));
+  }, [wikilinkSignature]);
 
   // GSAP animations for outline
   useEffect(() => {
@@ -203,8 +210,9 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const memoizedMarkdown = useMemo(() => {
     return (
       <MemoizedMarkdown
-        content={selectedNote.content}
-        notes={notes}
+    content={selectedNote.content}
+    // Pass minimal notes for wikilink resolution to keep prop stable across content-only updates
+    notes={wikilinkNotes as any}
         selectedNote={selectedNote}
         isEditing={false}
         editContent=""
@@ -216,7 +224,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         onNavigateToNote={handleNavigateToNote}
       />
     );
-  }, [selectedNote, notes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote]);
+  }, [selectedNote, wikilinkNotes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote]);
 
   return (
     <div className="relative h-full">
