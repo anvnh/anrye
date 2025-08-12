@@ -12,6 +12,7 @@ import NoteNavbar from './_components/NoteNavbar';
 import { LoadingSpinner } from './_components/LoadingSpinner';
 import { ImageManager } from './_components/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import PWALoadingState from '../../components/PWALoadingState';
 
 // Import custom hooks
 import {
@@ -114,7 +115,7 @@ export default function NotesPage() {
     notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress
   );
 
-  const { isSignedIn, signIn, signOut, checkSignInStatus } = useDrive();
+  const { isSignedIn, isInitialized: isAuthInitialized, signIn, signOut, checkSignInStatus } = useDrive();
 
   // Check for OAuth success after hooks are initialized
   useEffect(() => {
@@ -166,8 +167,13 @@ export default function NotesPage() {
   useSidebarResize(isResizing, setIsResizing, setSidebarWidth);
   useResponsiveLayout(isSplitMode, setIsSplitMode);
 
-  // Initialize data and sync with Drive
+  // Initialize data and sync with Drive - wait for auth to be initialized first
   useEffect(() => {
+    // Only proceed if authentication has been properly initialized
+    if (!isAuthInitialized) {
+      return;
+    }
+
     const initializeData = async () => {
       try {
         const savedHasSynced = localStorage.getItem('has-synced-drive');
@@ -191,7 +197,7 @@ export default function NotesPage() {
     };
 
     initializeData();
-  }, [isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized]);
+  }, [isAuthInitialized, isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized]);
 
   // No external scroll sync cleanup needed
 
@@ -260,9 +266,18 @@ export default function NotesPage() {
     setNewNoteName('');
   };
 
-  // Show loading spinner while initializing
-  if (!isInitialized) {
-    return <LoadingSpinner />;
+  // Show enhanced loading state for PWA
+  if (!isAuthInitialized || !isInitialized) {
+    return (
+      <PWALoadingState
+        isAuthLoading={false}
+        isDataLoading={false}
+        isAuthInitialized={isAuthInitialized}
+        isDataInitialized={isInitialized}
+      >
+        <LoadingSpinner />
+      </PWALoadingState>
+    );
   }
 
   return (

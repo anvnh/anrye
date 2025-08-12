@@ -265,8 +265,27 @@ class GoogleDriveService {
   }
 
   // Public method to re-load token on client-side
-  public reloadSavedToken(): void {
+  public   reloadSavedToken(): void {
     this.loadSavedToken();
+    
+    // For PWA compatibility, also check for temporary tokens
+    if (typeof window !== 'undefined') {
+      const tempTokens = localStorage.getItem('google_drive_tokens_temp');
+      if (tempTokens) {
+        try {
+          const tokens = JSON.parse(tempTokens);
+          if (tokens.access_token) {
+            this.accessToken = tokens.access_token;
+            this.refreshToken = tokens.refresh_token;
+            this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
+            localStorage.removeItem('google_drive_tokens_temp');
+          }
+        } catch (error) {
+          console.error('Error processing temp tokens in reloadSavedToken:', error);
+          localStorage.removeItem('google_drive_tokens_temp');
+        }
+      }
+    }
   }
 
   private clearSavedToken(): void {
@@ -397,25 +416,27 @@ class GoogleDriveService {
         }
       }
 
-      // 1) First, check for temporary tokens from OAuth callback (same-window redirect)
+      // 1) Enhanced temporary token processing for PWA
       const tempTokens = localStorage.getItem('google_drive_tokens_temp');
       if (tempTokens) {
         try {
+
           const tokens = JSON.parse(tempTokens);
-          localStorage.removeItem('google_drive_tokens_temp');
           
           if (tokens.access_token) {
             this.accessToken = tokens.access_token;
             this.refreshToken = tokens.refresh_token;
             this.saveToken(tokens.access_token, tokens.expires_in, tokens.refresh_token);
-                      // OAuth tokens processed successfully
             
             // Load Google API for Drive operations
             await this.loadGoogleAPI();
+            
+            // Clear temp tokens after successful processing
+            localStorage.removeItem('google_drive_tokens_temp');
             return true;
           }
         } catch (error) {
-          // Error processing temporary tokens
+          console.error('Error processing temporary tokens:', error);
           localStorage.removeItem('google_drive_tokens_temp');
         }
       }
@@ -429,7 +450,7 @@ class GoogleDriveService {
       // Start OAuth flow (popup/programmatic mode)
       return await this.startOAuthFlow();
     } catch (error) {
-      // Sign in error
+      console.error('Sign in error:', error);
       return false;
     }
   }

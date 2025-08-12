@@ -84,6 +84,57 @@ export default function RootLayout({
         {process.env.NODE_ENV === 'production' && (
           <Script src="/sw-register.js" strategy="afterInteractive" />
         )}
+        <Script
+          id="pwa-auth-preloader"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Initialize PWA auth preloader inline
+              (function() {
+                if (typeof window !== 'undefined') {
+                  // Simple preloader logic inline
+                  const checkAuthPreload = async () => {
+                    try {
+                      // Check for temporary tokens
+                      const tempTokens = localStorage.getItem('google_drive_tokens_temp');
+                      if (tempTokens) {
+                        const tokens = JSON.parse(tempTokens);
+                        if (tokens.access_token) {
+                          return true;
+                        }
+                      }
+                      
+                      // Check for existing tokens
+                      const tokenRaw = localStorage.getItem('google_drive_token');
+                      if (tokenRaw) {
+                        const tokenData = JSON.parse(tokenRaw);
+                        if (tokenData.access_token) {
+                          const now = Date.now();
+                          const isExpired = tokenData.expires_at && tokenData.expires_at < now;
+                          const hasRefreshToken = tokenData.refresh_token && tokenData.refresh_expires_at && tokenData.refresh_expires_at > now;
+                          
+                          if (!isExpired || hasRefreshToken) {
+                            return true;
+                          }
+                        }
+                      }
+                      
+                      return false;
+                    } catch (error) {
+                      console.error('PWA: Auth preload check failed:', error);
+                      return false;
+                    }
+                  };
+                  
+                  // Run preload check and set global flag
+                  checkAuthPreload().then(() => {
+                    window.__pwa_auth_preloaded = true;
+                  });
+                }
+              })();
+            `
+          }}
+        />
       </body>
     </html>
   );

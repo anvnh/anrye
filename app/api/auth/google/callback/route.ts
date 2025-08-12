@@ -147,19 +147,47 @@ export async function GET(request: NextRequest) {
         // Send tokens to parent window and close popup
         const tokens = ${JSON.stringify(tokens)};
         
-        // Support both popup and redirect flows
-        if (window.opener) {
-            // We're in a popup window
-            window.opener.postMessage({
-                type: 'GOOGLE_AUTH_SUCCESS',
-                tokens: tokens
-            }, '${stateData.origin}');
-            window.close();
-        } else {
-            // We're in the same window (redirect flow)
-            localStorage.setItem('google_drive_tokens_temp', JSON.stringify(tokens));
-            window.location.href = '/notes?auth_success=true';
+        // Enhanced PWA support with multiple fallback mechanisms
+        function processTokens() {
+            try {
+                // Store tokens in localStorage first (most reliable)
+                localStorage.setItem('google_drive_tokens_temp', JSON.stringify(tokens));
+                
+                // Support both popup and redirect flows
+                if (window.opener) {
+                    // We're in a popup window
+                    try {
+                        window.opener.postMessage({
+                            type: 'GOOGLE_AUTH_SUCCESS',
+                            tokens: tokens
+                        }, '${stateData.origin}');
+                    } catch (e) {
+                        console.log('PostMessage failed, using localStorage fallback');
+                    }
+                    
+                    // Close popup after a short delay to ensure tokens are stored
+                    setTimeout(() => {
+                        window.close();
+                    }, 500);
+                } else {
+                    // We're in the same window (redirect flow)
+                    // Add a small delay to ensure localStorage is set before redirect
+                    setTimeout(() => {
+                        window.location.href = '/notes?auth_success=true';
+                    }, 300);
+                }
+            } catch (error) {
+                console.error('Error processing tokens:', error);
+                // Fallback: redirect anyway
+                window.location.href = '/notes?auth_success=true';
+            }
         }
+        
+        // Process tokens immediately
+        processTokens();
+        
+        // Also try again after a short delay for PWA compatibility
+        setTimeout(processTokens, 100);
     </script>
 </body>
 </html>`;
