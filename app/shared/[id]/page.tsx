@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import 'katex/dist/katex.min.css';
+import '@/app/(home)/notes/notes.css';
 import { useParams } from 'next/navigation';
 import { gsap } from 'gsap';
 import { MemoizedMarkdown } from '@/app/(home)/notes/_utils';
@@ -502,13 +504,79 @@ export default function SharedNotePage() {
 
             {/* Main Content */}
             <div 
-              className={`${hasOutline ? 'flex-1' : 'w-full'} px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main`}
+              className={`${hasOutline ? 'flex-1' : 'w-full'} px-4 sm:px-8 lg:px-16 xl:px-64 py-4 sm:py-6 h-full bg-main overflow-x-hidden min-w-0`}
               style={{
                 fontSize: displaySettings.fontSize,
                 fontFamily: displaySettings.fontFamily !== 'inherit' ? displaySettings.fontFamily : undefined
               }}
             >
-              <MemoizedMarkdown content={note.content} />
+              <div className="prose prose-invert max-w-none min-w-0" style={{ fontSize: displaySettings.fontSize }}>
+                <style jsx>{`
+                  /* Make code blocks responsive with smooth horizontal scroll */
+                  .prose pre {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scrollbar-width: thin;
+                    max-width: 100%;
+                    width: 100%;
+                    touch-action: pan-x;
+                  }
+                  .prose pre code {
+                    display: block;
+                    white-space: pre;
+                    word-wrap: normal;
+                  }
+                  /* Ensure our custom code-block wrapper also enforces scroll */
+                  .code-block-stable { max-width: 100%; overflow-x: hidden; }
+                  .code-block-stable > pre {
+                    width: 100%;
+                    max-width: 100%;
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch;
+                    touch-action: pan-x;
+                  }
+                  .code-block-stable > pre > code { display: block; white-space: pre; }
+                  /* Prevent layout breakage from long inline code */
+                  .prose :not(pre) > code {
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                  }
+
+                  /* KaTeX responsiveness and dark theme adjustments */
+                  .katex { color: #e5e7eb !important; }
+                  .katex-display {
+                    margin: 1.5em 0 !important;
+                    text-align: center !important;
+                    overflow-x: auto !important;
+                    overflow-y: hidden !important;
+                    max-width: 100% !important;
+                    padding: 0.5rem 0 !important;
+                    -webkit-overflow-scrolling: touch !important;
+                  }
+                  .katex-display > .katex {
+                    display: inline-block !important;
+                    white-space: nowrap !important;
+                    min-width: max-content !important;
+                    max-width: none !important;
+                  }
+                  .math-display { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+                  /* Mobile-specific KaTeX adjustments */
+                  @media (max-width: 480px) {
+                    .katex { font-size: 0.9em !important; }
+                    .katex-display { margin: 1em 0 !important; padding: 0.25rem 0 !important; }
+                    .katex-display > .katex { font-size: 0.85em !important; }
+                  }
+                  @media (max-width: 360px) {
+                    .katex { font-size: 0.8em !important; }
+                    .katex-display > .katex { font-size: 0.75em !important; }
+                  }
+
+                  /* Keep prose from causing horizontal overflow */
+                  .prose { overflow-x: hidden !important; }
+                  .prose * { max-width: 100% !important; box-sizing: border-box !important; }
+                `}</style>
+                <MemoizedMarkdown content={note.content} />
+              </div>
             </div>
           </div>
         </div>
