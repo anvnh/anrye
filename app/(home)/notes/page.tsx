@@ -136,7 +136,11 @@ const MemoizedNoteContent = React.memo(({
     prevProps.editContent === nextProps.editContent &&
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
     prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
-    prevProps.isSignedIn === nextProps.isSignedIn
+  prevProps.isSignedIn === nextProps.isSignedIn &&
+  // Re-render when formatting settings change
+  prevProps.tabSize === nextProps.tabSize &&
+  prevProps.fontSize === nextProps.fontSize &&
+  prevProps.previewFontSize === nextProps.previewFontSize
   );
 });
 
