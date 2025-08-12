@@ -5,12 +5,12 @@ interface CheckboxItemProps {
   isChecked: boolean;
   lineIndex: number;
   children: React.ReactNode;
-  isEditing: boolean;
-  editContent: string;
+  isEditing?: boolean;
+  editContent?: string;
   setEditContent?: (content: string) => void;
 }
 
-export const CheckboxItem = memo<CheckboxItemProps>(({ isChecked, lineIndex, children, isEditing, editContent, setEditContent }) => {
+export const CheckboxItem = memo<CheckboxItemProps>(({ isChecked, lineIndex, children }) => {
   const { updateCheckbox } = useCheckbox();
 
   // Local UI state to avoid forcing a full markdown re-render on every toggle
@@ -30,30 +30,10 @@ export const CheckboxItem = memo<CheckboxItemProps>(({ isChecked, lineIndex, chi
     }
     
     try {
-      if (isEditing && setEditContent) {
-        // For editing mode, still use the old approach
-        const matchLines = editContent.match(/[^\n]*\n?|$/g);
-        const lines = matchLines ? matchLines.slice(0, -1) : [];
-        
-        if (lineIndex < 0 || lineIndex >= lines.length) {
-          return;
-        }
-        
-        const line = lines[lineIndex].replace(/\r?\n$/, '');
-        const checkboxMatch = line.match(/^(\s*)-\s*\[[ xX]?\]\s*(.*)$/);
-        if (checkboxMatch) {
-          const [, indent, lineText] = checkboxMatch;
-          const newLine = `${indent}- [${newChecked ? 'x' : ' '}] ${lineText}` + (lines[lineIndex].endsWith('\n') ? '\n' : '');
-          lines[lineIndex] = newLine;
-          const updatedContent = lines.join('');
-          setEditContent(updatedContent);
-        }
-      } else {
-        // Optimized: update UI immediately without forcing a parent re-render
-        setLocalChecked(newChecked);
-        // Persist the change via context (updates content refs, notes list, and Drive)
-        updateCheckbox(lineIndex, newChecked);
-      }
+      // Optimized: update UI immediately without forcing a parent re-render
+      setLocalChecked(newChecked);
+      // Persist the change via context (updates content refs, editor text, notes list, and Drive)
+      updateCheckbox(lineIndex, newChecked);
     } catch (error) {
       console.error('Error updating checkbox:', error);
     }

@@ -56,6 +56,10 @@ interface MarkdownRendererProps {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
   onNavigateToNote?: (noteId: string) => void;
+  // Optional: when rendering a content slice (split blocks), provide the starting line index
+  lineOffset?: number;
+  // Optional: the full, current document content (e.g., editor text) for precise updates
+  currentContent?: string;
 }
 
 // Utility function to extract text content from React nodes
@@ -303,7 +307,9 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   setSelectedNote,
   isSignedIn = false,
   driveService,
-  onNavigateToNote
+  onNavigateToNote,
+  lineOffset = 0,
+  currentContent
 }) => {
   // Pre-process content to get all headings with consistent IDs,
   // ensure $$...$$ blocks are on their own lines, and convert wikilinks
@@ -362,6 +368,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
       setNotes={setNotes!}
       setSelectedNote={setSelectedNote!}
       isSignedIn={isSignedIn}
+      setEditContent={setEditContent}
+      currentContent={currentContent ?? (isEditing ? (editContent || content) : content)}
       driveService={driveService}
     >
       <ReactMarkdown
@@ -581,19 +589,17 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               const isChecked = checkboxProps.checked ?? false;
               const restOfContent = children.slice(1);
 
-              // Find the line index of this checkbox in the original markdown
+              // Find the line index of this checkbox relative to the source text
+              // When rendering a split block, add the block's starting line offset
               let lineIndex = -1;
               if (node && typeof node.position === 'object' && node.position && typeof node.position.start === 'object') {
-                lineIndex = node.position.start.line - 1;
+                lineIndex = (node.position.start.line - 1) + (lineOffset || 0);
               }
 
               return (
                 <CheckboxItem
                   isChecked={isChecked}
                   lineIndex={lineIndex}
-                  isEditing={isEditing}
-                  editContent={editContent}
-                  setEditContent={setEditContent}
                 >
                   {restOfContent}
                 </CheckboxItem>

@@ -13,6 +13,10 @@ interface CheckboxProviderProps {
   setNotes: React.Dispatch<React.SetStateAction<any[]>>;
   setSelectedNote: React.Dispatch<React.SetStateAction<any | null>>;
   isSignedIn: boolean;
+  // When provided (e.g., in split editor), also update the editor content
+  setEditContent?: (content: string) => void;
+  // Optional live content override (e.g., current editor text)
+  currentContent?: string;
   driveService?: {
     updateFile: (fileId: string, content: string) => Promise<void>;
   };
@@ -24,15 +28,23 @@ export const CheckboxProvider: React.FC<CheckboxProviderProps> = ({
   setNotes,
   setSelectedNote,
   isSignedIn,
+  setEditContent,
+  currentContent,
   driveService
 }) => {
   // Use ref to store the latest content without causing re-renders
   const contentRef = useRef<string>(selectedNote?.content || '');
-  
-  // Update ref when selectedNote changes
-  if (selectedNote && contentRef.current !== selectedNote.content) {
-    contentRef.current = selectedNote.content;
-  }
+
+  // Keep ref in sync with the best available source of truth
+  React.useEffect(() => {
+    if (typeof currentContent === 'string') {
+      if (contentRef.current !== currentContent) contentRef.current = currentContent;
+      return;
+    }
+    if (selectedNote && typeof selectedNote.content === 'string') {
+      if (contentRef.current !== selectedNote.content) contentRef.current = selectedNote.content;
+    }
+  }, [currentContent, selectedNote?.content]);
 
   const updateCheckbox = useCallback((lineIndex: number, newChecked: boolean) => {
     if (!selectedNote) return;
@@ -68,6 +80,18 @@ export const CheckboxProvider: React.FC<CheckboxProviderProps> = ({
       // Update notes list so persistence and other views receive the change
       setNotes(prev => prev.map(note => (note.id === selectedNote.id ? updatedNote : note)));
 
+      // Also mutate the selectedNote in place so consumers reading it directly (e.g., startEdit)
+      // see the latest content without forcing a re-render (prevents image remounts in preview).
+      try {
+        (selectedNote as any).content = updatedContent;
+        (selectedNote as any).updatedAt = updatedNote.updatedAt;
+      } catch {}
+
+      // If an editor is present (split mode), update the raw editor text too
+      if (typeof setEditContent === 'function') {
+        try { setEditContent(updatedContent); } catch {}
+      }
+
       // Important: don't call setSelectedNote(updatedNote) here to avoid
       // replacing the object and triggering a full markdown re-render which
       // unmounts/remounts images. The NotePreview uses MemoizedMarkdown with
@@ -79,7 +103,7 @@ export const CheckboxProvider: React.FC<CheckboxProviderProps> = ({
           .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
       }
     }
-  }, [selectedNote, setNotes, setSelectedNote, isSignedIn, driveService]);
+  }, [selectedNote, setNotes, setSelectedNote, isSignedIn, driveService, setEditContent]);
 
   const getCurrentContent = useCallback(() => {
     return contentRef.current;

@@ -118,7 +118,9 @@ const MemoizedMarkdownBlock = React.memo(
     setSelectedNote,
     isSignedIn,
     driveService,
-    onNavigateToNote
+  onNavigateToNote,
+  lineOffset,
+  currentContent
   }: {
     content: string;
     blockType: string;
@@ -130,10 +132,13 @@ const MemoizedMarkdownBlock = React.memo(
     isSignedIn: boolean;
     driveService: any;
     onNavigateToNote?: (noteId: string) => void;
+  lineOffset?: number;
+  currentContent: string;
   }) => {
     return (
       <MemoizedMarkdown
         content={content}
+    currentContent={currentContent}
         notes={notes}
         selectedNote={selectedNote}
         isEditing={true}
@@ -143,7 +148,8 @@ const MemoizedMarkdownBlock = React.memo(
         setSelectedNote={setSelectedNote}
         isSignedIn={isSignedIn}
         driveService={driveService}
-        onNavigateToNote={onNavigateToNote}
+    onNavigateToNote={onNavigateToNote}
+    lineOffset={lineOffset}
       />
     );
   },
@@ -213,6 +219,8 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
             isSignedIn={isSignedIn}
             driveService={driveService}
             onNavigateToNote={onNavigateToNote}
+            lineOffset={block.startLine}
+            currentContent={content}
           />
         </div>
       ))}
