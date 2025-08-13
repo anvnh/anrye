@@ -6,23 +6,6 @@ import { X, RotateCw, RotateCcw, Save } from 'lucide-react';
 import ColorPicker from './ColorPicker';
 import { driveService } from '@/app/lib/googleDrive';
 
-/**
- * Image Editor Component
- * 
- * Features:
- * - Drawing and erasing tools
- * - Text overlay
- * - Rotation and scaling
- * - Optional cropping (only when crop tool is active)
- * - Save to Google Drive
- * 
- * Crop Behavior:
- * - No automatic cropping by default
- * - Crop only applied when user explicitly selects crop tool and drags
- * - Clear crop button to remove crop selection
- * - Visual crop overlay shows selected area
- */
-
 interface ImageEditorProps {
   src: string; // original image URL (can be blob or web URL)
   driveFileId?: string; // if provided, allow saving back to Drive
@@ -40,7 +23,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [tool, setTool] = useState<'move' | 'draw' | 'eraser' | 'rect' | 'text' | 'crop' | 'none'>('draw');
   const [brushColor, setBrushColor] = useState('#ff4757');
-  const [brushSize, setBrushSize] = useState(4);
+
+  const [strokeSizes, setStrokeSizes] = useState<{ draw: number; eraser: number }>({
+    draw: 90,      // brush mặc định 90
+    eraser: 100,   // eraser mặc định 100
+  });
+  const strokeSize = tool === 'eraser' ? strokeSizes.eraser : strokeSizes.draw;
+
   const [scale, setScale] = useState(1);
   const [textValue, setTextValue] = useState<string>('Text');
   const [textSize, setTextSize] = useState<number>(28);
@@ -162,9 +151,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
 
   const save = async () => {
     if (!imgRef.current || isSaving) return;
-    
+
     setIsSaving(true);
-    
+
     try {
       const blob = await drawToCanvas();
 
@@ -260,9 +249,16 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       const ctx = (overlayRef.current as HTMLCanvasElement).getContext('2d')!;
       ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
       ctx.strokeStyle = brushColor;
-      ctx.lineWidth = brushSize;
+      ctx.lineWidth = strokeSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+
+      // Start stroke at the clicked point
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x + 0.01, pt.y); // small line to start stroke
+      ctx.stroke();
+
       lastPointRef.current = pt;
       lastMidRef.current = pt;
       setIsDragging(true);
@@ -325,28 +321,28 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
       return;
     }
     if (!isDragging || !dragStart) return;
-    
+
     // Only handle crop tool
     if (tool !== 'crop') return;
-    
+
     const rect = container.getBoundingClientRect();
     const x = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
     const y = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
-    
+
     // Calculate crop area based on drag start and current position
     const startX = Math.min(dragStart.x, x);
     const startY = Math.min(dragStart.y, y);
     const endX = Math.max(dragStart.x, x);
     const endY = Math.max(dragStart.y, y);
-    
+
     const scaleX = imgRef.current.naturalWidth / rect.width;
     const scaleY = imgRef.current.naturalHeight / rect.height;
-    
-    setCrop({ 
-      x: Math.floor(startX * scaleX), 
-      y: Math.floor(startY * scaleY), 
-      w: Math.floor((endX - startX) * scaleX), 
-      h: Math.floor((endY - startY) * scaleY) 
+
+    setCrop({
+      x: Math.floor(startX * scaleX),
+      y: Math.floor(startY * scaleY),
+      w: Math.floor((endX - startX) * scaleX),
+      h: Math.floor((endY - startY) * scaleY)
     });
   };
 
@@ -391,15 +387,16 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
             )}
             <div className="absolute inset-0" onMouseDown={startCrop} onMouseMove={moveCrop} onMouseUp={() => { setIsDragging(false); setIsDraggingText(false); }} />
           </div>
+
           {/* Eraser cursor overlay (scaled with zoom) */}
           {tool === 'eraser' && cursor.visible && (
             <div
               className="absolute rounded-full border border-white/80 shadow pointer-events-none"
               style={{
-                left: cursor.x - (brushSize * scale) / 2,
-                top: cursor.y - (brushSize * scale) / 2,
-                width: brushSize * scale,
-                height: brushSize * scale,
+                left: cursor.x - (strokeSize * scale) / 2,
+                top: cursor.y - (strokeSize * scale) / 2,
+                width: strokeSize * scale,
+                height: strokeSize * scale,
               }}
             />
           )}
@@ -413,55 +410,76 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ src, driveFileId, onClose, on
                 Drag to select crop area
               </div>
             )}
-          <label className="text-xs text-white/80">Tool:</label>
-          <select value={tool} onChange={(e)=>setTool(e.target.value as any)} className="px-2 py-1 rounded bg-gray-800/70 text-white">
-            <option value="move">Move</option>
-            <option value="draw">Brush</option>
-            <option value="eraser">Eraser</option>
-            <option value="rect">Rectangle</option>
-            <option value="text">Text</option>
-            <option value="crop">Crop</option>
-            <option value="none">None</option>
-          </select>
-          <ColorPicker color={brushColor} onChange={setBrushColor} />
-          <input type="range" min={1} max={20} value={brushSize} onChange={(e)=>setBrushSize(parseInt(e.target.value))} />
-          {tool === 'text' && (
-            <>
-              <input value={textValue} onChange={(e)=>setTextValue(e.target.value)} placeholder="Type text" className="px-2 py-1 rounded bg-gray-800/70 text-white w-40" />
-              <input type="range" min={10} max={120} value={textSize} onChange={(e)=>setTextSize(parseInt(e.target.value))} />
-            </>
-          )}
-          <span className="text-xs text-white/60">Zoom: {Math.round(scale*100)}%</span>
-          <button onClick={() => setRotation((r) => (r - 90 + 360) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
-            <RotateCcw size={16} /> Left
-          </button>
-          <button onClick={() => setRotation((r) => (r + 90) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
-            <RotateCw size={16} /> Right
-          </button>
-          {tool === 'crop' && crop && (
-            <button onClick={() => setCrop(null)} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
-              Clear Crop
-            </button>
-          )}
-          <button 
-            onClick={save} 
-            disabled={isSaving}
-            className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white flex items-center gap-2"
-          >
-            {isSaving ? (
+            <label className="text-xs text-white/80">Tool:</label>
+            <select value={tool} onChange={(e) => setTool(e.target.value as any)} className="px-2 py-1 rounded bg-gray-800/70 text-white">
+              <option value="move">Move</option>
+              <option value="draw">Brush</option>
+              <option value="eraser">Eraser</option>
+              <option value="rect">Rectangle</option>
+              <option value="text">Text</option>
+              <option value="crop">Crop</option>
+              <option value="none">None</option>
+            </select>
+            <ColorPicker color={brushColor} onChange={setBrushColor} />
+
+            {(tool === 'draw' || tool === 'eraser') && (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save size={16} /> Save
+                <input
+                  type="range"
+                  min={1}
+                  max={200}
+                  value={strokeSize}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setStrokeSizes(s =>
+                      tool === 'eraser' ? { ...s, eraser: v } : { ...s, draw: v }
+                    );
+                  }}
+                />
+                <span className="text-xs text-white/80 tabular-nums w-10 text-right">
+                  {strokeSize}px
+                </span>
               </>
             )}
-          </button>
-          <button onClick={onClose} className="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white flex items-center gap-2">
-            <X size={16} /> Cancel
-          </button>
+
+
+            {tool === 'text' && (
+              <>
+                <input value={textValue} onChange={(e) => setTextValue(e.target.value)} placeholder="Type text" className="px-2 py-1 rounded bg-gray-800/70 text-white w-40" />
+                <input type="range" min={10} max={120} value={textSize} onChange={(e) => setTextSize(parseInt(e.target.value))} />
+              </>
+            )}
+            <span className="text-xs text-white/60">Zoom: {Math.round(scale * 100)}%</span>
+            <button onClick={() => setRotation((r) => (r - 90 + 360) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
+              <RotateCcw size={16} /> Left
+            </button>
+            <button onClick={() => setRotation((r) => (r + 90) % 360)} className="px-3 py-2 rounded bg-gray-800/70 hover:bg-gray-700 text-white flex items-center gap-2">
+              <RotateCw size={16} /> Right
+            </button>
+            {tool === 'crop' && crop && (
+              <button onClick={() => setCrop(null)} className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
+                Clear Crop
+              </button>
+            )}
+            <button
+              onClick={save}
+              disabled={isSaving}
+              className="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={16} /> Save
+                </>
+              )}
+            </button>
+            <button onClick={onClose} className="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white flex items-center gap-2">
+              <X size={16} /> Cancel
+            </button>
           </div>
         </div>
 
