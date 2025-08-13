@@ -422,6 +422,19 @@ export default function NoteSidebar({
 
                         <DropdownMenuSeparator className='bg-gray-600' />
 
+                        {/* Button to refresth the page, similar to F5 */}
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              window.location.reload();
+                            }
+                          }}
+                        >
+                          Refresh the page
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator className='bg-gray-600' />
+
                         <DropdownMenuItem onClick={onSignOut}>
                           Disconnect
                         </DropdownMenuItem>
