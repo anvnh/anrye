@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, FolderPlus, FileText, Edit, Trash2, Plus, X, Move } from 'lucide-react';
+import { MoreVertical, FolderPlus, FileText, Edit, Trash2, Plus, X, Move, Star } from 'lucide-react';
 import { Note, Folder } from './types';
 import {
   DropdownMenu,
@@ -28,6 +28,8 @@ interface MobileFileOperationsProps {
   onOpenNote?: (note: Note) => void;
   onSetIsMobileSidebarOpen?: (isOpen: boolean) => void;
   onMoveItem?: (item: Note | Folder, itemType: 'note' | 'folder') => void;
+  isPinned?: boolean;
+  onTogglePin?: (item: Note | Folder, itemType: 'note' | 'folder') => void;
 }
 
 // Three-dot menu for individual items using Radix UI DropdownMenu
@@ -40,7 +42,9 @@ export function MobileItemMenu({
   onDeleteItem,
   onOpenNote,
   onSetIsMobileSidebarOpen,
-  onMoveItem
+  onMoveItem,
+  isPinned,
+  onTogglePin
 }: MobileFileOperationsProps) {
   if (!item) return null;
 
@@ -83,6 +87,13 @@ export function MobileItemMenu({
                   <DropdownMenuSeparator className="bg-gray-600" />
                   <DropdownMenuItem
                     className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                    onClick={() => onTogglePin?.(item, 'folder')}
+                  >
+                    <Star size={16} className="mr-2" />
+                    {isPinned ? 'Unpin' : 'Pin'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
                     onClick={() => onRenameItem?.(item.id, (item as Folder).name)}
                   >
                     <Edit size={16} className="mr-2" />
@@ -119,6 +130,13 @@ export function MobileItemMenu({
               >
                 <Edit size={16} className="mr-2" />
                 Open Note
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"
+                onClick={() => onTogglePin?.(item, 'note')}
+              >
+                <Star size={16} className="mr-2" />
+                {isPinned ? 'Unpin' : 'Pin'}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white"

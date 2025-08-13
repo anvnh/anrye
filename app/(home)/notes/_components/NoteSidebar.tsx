@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -108,6 +108,61 @@ export default function NoteSidebar({
 
   const isTimeSorting = timeSort !== 'none';
 
+  // Pinned state (ids for folders and notes)
+  const [pinnedFolderIds, setPinnedFolderIds] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('sidebar-pinned-folders');
+      if (raw) {
+        try {
+          const arr = JSON.parse(raw) as string[];
+          return new Set(arr);
+        } catch { }
+      }
+    }
+    return new Set();
+  });
+
+  const [pinnedNoteIds, setPinnedNoteIds] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('sidebar-pinned-notes');
+      if (raw) {
+        try {
+          const arr = JSON.parse(raw) as string[];
+          return new Set(arr);
+        } catch { }
+      }
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-pinned-folders', JSON.stringify(Array.from(pinnedFolderIds)));
+    }
+  }, [pinnedFolderIds]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-pinned-notes', JSON.stringify(Array.from(pinnedNoteIds)));
+    }
+  }, [pinnedNoteIds]);
+
+  const togglePin = (item: Note | Folder, type: 'note' | 'folder') => {
+    if (type === 'folder') {
+      setPinnedFolderIds(prev => {
+        const next = new Set(prev);
+        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+        return next;
+      });
+    } else {
+      setPinnedNoteIds(prev => {
+        const next = new Set(prev);
+        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('sidebar-sort-folder', folderSort);
@@ -206,10 +261,22 @@ export default function NoteSidebar({
       }
     }
 
+    // Group pinned items to top but keep internal sort
+    const pinnedFirstFolders = sortedSubfolders.sort((a, b) => {
+      const pa = pinnedFolderIds.has(a.id) ? 1 : 0;
+      const pb = pinnedFolderIds.has(b.id) ? 1 : 0;
+      return pb - pa; // pinned first
+    });
+    const pinnedFirstNotes = sortedNotes.sort((a, b) => {
+      const pa = pinnedNoteIds.has(a.id) ? 1 : 0;
+      const pb = pinnedNoteIds.has(b.id) ? 1 : 0;
+      return pb - pa; // pinned first
+    });
+
     return (
       <div className={level > 0 ? 'ml-3' : ''}>
         {/* Render subfolders */}
-        {sortedSubfolders.map(folder => (
+        {pinnedFirstFolders.map(folder => (
           <div key={folder.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
@@ -242,15 +309,19 @@ export default function NoteSidebar({
                     <FolderIcon size={16} className="text-blue-400 mr-3 transition-colors duration-200" />
                   )}
                   <span
-                    className="text-gray-300 text-sm flex-1 truncate font-medium min-w-0"
+                    className="text-gray-300 text-sm flex-1 truncate font-medium min-w-0 flex items-center justify-between gap-1"
                     title={folder.name}
                   >
                     {folder.name}
+                    {pinnedFolderIds.has(folder.id) && (
+                      <Star size={12} className="text-yellow-400 flex-shrink-0" />
+                    )}
                   </span>
                   <div className="flex-shrink-0 ml-2">
                     <MobileItemMenu
                       item={folder}
                       itemType="folder"
+                      isPinned={pinnedFolderIds.has(folder.id)}
                       onCreateFolder={(path: string) => {
                         onSetSelectedPath(path);
                         onSetIsCreatingFolder(true);
@@ -261,12 +332,20 @@ export default function NoteSidebar({
                       }}
                       onRenameItem={(id: string, name: string) => onRenameFolder(id, name)}
                       onDeleteItem={(id: string) => onDeleteFolder(id)}
+                      onTogglePin={(it) => togglePin(it as Folder, 'folder')}
                       onMoveItem={handleMobileMove}
                     />
                   </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+                <ContextMenuItem
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  onClick={() => togglePin(folder, 'folder')}
+                >
+                  <Star size={16} className="mr-2" />
+                  {pinnedFolderIds.has(folder.id) ? 'Unpin' : 'Pin'}
+                </ContextMenuItem>
                 <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => {
@@ -314,7 +393,7 @@ export default function NoteSidebar({
         ))}
 
         {/* Render notes */}
-        {sortedNotes.map(note => (
+        {pinnedFirstNotes.map(note => (
           <div key={note.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
@@ -338,25 +417,37 @@ ${level > 0 ? 'ml-2' : ''}
                   <div className="w-4 mr-2"></div>
                   <FileText size={16} className="text-gray-400 mr-3 transition-colors duration-200" />
                   <span
-                    className="text-gray-300 text-sm flex-1 truncate min-w-0"
+                    className="text-gray-300 text-sm flex-1 truncate min-w-0 flex items-center gap-1 justify-between"
                     title={note.title}
                   >
                     {note.title}
+                    {pinnedNoteIds.has(note.id) && (
+                      <Star size={12} className="text-yellow-400 flex-shrink-0" />
+                    )}
                   </span>
                   <div className="flex-shrink-0 ml-2">
                     <MobileItemMenu
                       item={note}
                       itemType="note"
+                      isPinned={pinnedNoteIds.has(note.id)}
                       onOpenNote={(note: Note) => onSelectNote(note)}
                       onRenameItem={(id: string, title: string) => onRenameNote(id, title)}
                       onDeleteItem={(id: string) => onDeleteNote(id)}
                       onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
+                      onTogglePin={(it) => togglePin(it as Note, 'note')}
                       onMoveItem={handleMobileMove}
                     />
                   </div>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+                <ContextMenuItem
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  onClick={() => togglePin(note, 'note')}
+                >
+                  <Star size={16} className="mr-2" />
+                  {pinnedNoteIds.has(note.id) ? 'Unpin' : 'Pin'}
+                </ContextMenuItem>
                 <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => {
@@ -380,7 +471,7 @@ ${level > 0 ? 'ml-2' : ''}
                 <ContextMenuSeparator className="bg-gray-600 mx-1" />
                 <ContextMenuItem
                   variant="default"
-                  className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red-300 rounded-md mx-1 my-0.5"
+                  className="text-red-400 hover:bg-red-900/20 hover:text-red-300 focus:bg-red-900/20 focus:text-red- justify-between300 rounded-md mx-1 my-0.5"
                   onClick={() => onDeleteNote(note.id)}
                 >
                   <Trash2 size={16} className="mr-2 text-red-400" />
