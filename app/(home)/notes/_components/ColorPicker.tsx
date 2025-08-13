@@ -29,10 +29,10 @@ function rgbToHex(r: number, g: number, b: number) {
 }
 
 function hexToRgb(hex: string) {
-  const m = hex.replace('#','');
-  const r = parseInt(m.substring(0,2), 16);
-  const g = parseInt(m.substring(2,4), 16);
-  const b = parseInt(m.substring(4,6), 16);
+  const m = hex.replace('#', '');
+  const r = parseInt(m.substring(0, 2), 16);
+  const g = parseInt(m.substring(2, 4), 16);
+  const b = parseInt(m.substring(4, 6), 16);
   return { r, g, b };
 }
 
@@ -106,6 +106,22 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
     setHue((x / rect.width) * 360);
   };
 
+  const handleSvMove = (e: MouseEvent, element: HTMLDivElement) => {
+    if (!element) return; // guard
+    const rect = element.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    const y = clamp(e.clientY - rect.top, 0, rect.height);
+    setSat(x / rect.width);
+    setVal(1 - y / rect.height);
+  };
+
+  const handleHueMove = (e: MouseEvent, element: HTMLDivElement) => {
+    if (!element) return; // guard
+    const rect = element.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    setHue((x / rect.width) * 360);
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -120,8 +136,12 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
           <div
             onMouseDown={(e) => {
               handleSvPointer(e);
-              const move = (ev: MouseEvent) => handleSvPointer(ev as unknown as React.MouseEvent<HTMLDivElement>);
-              const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+              const el = e.currentTarget as HTMLDivElement; // <- giữ ref thật
+              const move = (ev: MouseEvent) => handleSvMove(ev, el);
+              const up = () => {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+              };
               document.addEventListener('mousemove', move);
               document.addEventListener('mouseup', up);
             }}
@@ -140,8 +160,12 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
           <div
             onMouseDown={(e) => {
               handleHuePointer(e);
-              const move = (ev: MouseEvent) => handleHuePointer(ev as unknown as React.MouseEvent<HTMLDivElement>);
-              const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+              const el = e.currentTarget as HTMLDivElement; // <- giữ ref thật
+              const move = (ev: MouseEvent) => handleHueMove(ev, el);
+              const up = () => {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+              };
               document.addEventListener('mousemove', move);
               document.addEventListener('mouseup', up);
             }}
