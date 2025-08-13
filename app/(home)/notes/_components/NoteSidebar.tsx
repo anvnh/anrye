@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -19,7 +19,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function NoteSidebar({
   notes,
@@ -61,6 +65,57 @@ export default function NoteSidebar({
   // Add state for mobile menu collapsible
   const [isMobileMenuExpanded, setIsMobileMenuExpanded] = useState(false);
 
+
+  type FolderSort = 'az' | 'za';
+  type FileSort = 'az' | 'za' | 'newest' | 'oldest';
+  type TimeSort = 'none' | 'newest' | 'oldest';
+
+  const [folderSort, setFolderSort] = useState<FolderSort>(() => {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem('sidebar-sort-folder') as FolderSort | null;
+      if (v === 'az' || v === 'za') return v;
+      // legacy fallback
+      const legacy = localStorage.getItem('sidebar-sort-mode');
+      if (legacy === 'folders-za') return 'za';
+    }
+    return 'az';
+  });
+
+  const [fileSort, setFileSort] = useState<FileSort>(() => {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem('sidebar-sort-file') as FileSort | null;
+      if (v === 'az' || v === 'za' || v === 'newest' || v === 'oldest') return v;
+      // legacy fallback
+      const legacy = localStorage.getItem('sidebar-sort-mode');
+      if (legacy === 'files-za') return 'za';
+      if (legacy === 'newest') return 'newest';
+      if (legacy === 'oldest') return 'oldest';
+      if (legacy === 'files-az') return 'az';
+    }
+    return 'az';
+  });
+
+  const [timeSort, setTimeSort] = useState<TimeSort>(() => {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem('sidebar-sort-time') as TimeSort | null;
+      if (v === 'none' || v === 'newest' || v === 'oldest') return v;
+      // migrate từ legacy single-mode
+      const legacy = localStorage.getItem('sidebar-sort-mode');
+      if (legacy === 'newest' || legacy === 'oldest') return legacy as TimeSort;
+    }
+    return 'none';
+  });
+
+  const isTimeSorting = timeSort !== 'none';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-sort-folder', folderSort);
+      localStorage.setItem('sidebar-sort-file', fileSort);
+      localStorage.setItem('sidebar-sort-time', timeSort);
+    }
+  }, [folderSort, fileSort, timeSort]);
+
   const getNotesInPath = (path: string) => {
     return notes.filter(note => note.path === path);
   };
@@ -75,14 +130,86 @@ export default function NoteSidebar({
     });
   };
 
+  const folderUpdatedAtMap = useMemo(() => {
+    const m = new Map<string, number>();
+    // root path
+    m.set('', 0);
+
+    const toTime = (d: any) => {
+      const t = d ? new Date(d).getTime() : 0;
+      return Number.isFinite(t) ? t : 0;
+    };
+
+    for (const n of notes) {
+      const t = toTime((n as any).updatedAt);
+      const path = n.path || '';
+      // Update root path
+      m.set('', Math.max(m.get('') || 0, t));
+      // Update for each folder in the path
+      if (path) {
+        const parts = path.split('/').filter(Boolean);
+        let acc = '';
+        for (const p of parts) {
+          acc = acc ? `${acc}/${p}` : p;
+          m.set(acc, Math.max(m.get(acc) || 0, t));
+        }
+      }
+    }
+    return m;
+  }, [notes]);
+
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
     const subfolders = getSubfolders(parentPath);
     const notesInPath = getNotesInPath(parentPath);
 
+    const sortedSubfolders = [...subfolders];
+    const sortedNotes = [...notesInPath];
+
+    const getTime = (d: any) => {
+      const t = d ? new Date(d).getTime() : 0;
+      return Number.isFinite(t) ? t : 0;
+    };
+
+    // Nếu timeSort đang bật → áp dụng cho cả folder + file
+    if (timeSort !== 'none') {
+      const folderTime = (f: Folder) =>
+        folderUpdatedAtMap.get(f.path) ??
+        getTime((f as any).updatedAt); // fallback nếu Folder có updatedAt
+
+      const noteTime = (n: Note) => getTime((n as any).updatedAt);
+
+      const cmp = timeSort === 'newest'
+        ? (a: number, b: number) => b - a
+        : (a: number, b: number) => a - b;
+
+      sortedSubfolders.sort((a, b) => cmp(folderTime(a), folderTime(b)));
+      sortedNotes.sort((a, b) => cmp(noteTime(a), noteTime(b)));
+    } else {
+      // Không sort theo thời gian → dùng 2 state riêng
+      // Folders: A→Z / Z→A
+      sortedSubfolders.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      if (folderSort === 'za') sortedSubfolders.reverse();
+
+      // Files: A→Z / Z→A
+      if (fileSort === 'az' || fileSort === 'za') {
+        sortedNotes.sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+        );
+        if (fileSort === 'za') sortedNotes.reverse();
+      } else {
+        // (Dự phòng nếu còn giá trị cũ)
+        sortedNotes.sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+        );
+      }
+    }
+
     return (
       <div className={level > 0 ? 'ml-3' : ''}>
         {/* Render subfolders */}
-        {subfolders.map(folder => (
+        {sortedSubfolders.map(folder => (
           <div key={folder.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
@@ -187,17 +314,17 @@ export default function NoteSidebar({
         ))}
 
         {/* Render notes */}
-        {notesInPath.map(note => (
+        {sortedNotes.map(note => (
           <div key={note.id} className="mb-1">
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div
                   className={`
-                    flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
-                    hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
-                    ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
-                    ${level > 0 ? 'ml-2' : ''}
-                  `}
+flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
+${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
+${level > 0 ? 'ml-2' : ''}
+`}
                   draggable
                   onDragStart={(e) => onDragStart(e, 'note', note.id)}
                   onClick={() => {
@@ -349,15 +476,15 @@ export default function NoteSidebar({
         <ContextMenuTrigger asChild>
           <div
             className={`
-              border-r border-gray-600/50 flex flex-col overflow-hidden relative z-50
-              ${dragOver === 'root' ? 'bg-blue-600/10' : ''}
-              ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
-              lg:relative lg:translate-x-0
-              ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
-              ${isSidebarHidden ? 'lg:hidden' : ''}
-                             shadow-xl
-               transition-all duration-300 ease-in-out
-            `}
+border-r border-gray-600/50 flex flex-col overflow-hidden relative z-50
+${dragOver === 'root' ? 'bg-blue-600/10' : ''}
+${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
+lg:relative lg:translate-x-0
+${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
+${isSidebarHidden ? 'lg:hidden' : ''}
+shadow-xl
+transition-all duration-300 ease-in-out
+`}
             style={{
               width: `${sidebarWidth}px`,
               backgroundColor: dragOver === 'root' ? '#1e40af10' : '#31363F'
@@ -370,11 +497,11 @@ export default function NoteSidebar({
                   <button
                     onClick={onToggleSidebar}
                     className={`
-                    hidden lg:flex items-center justify-center
-                    w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
-                    hover:bg-gray-600/60 hover:scale-105 active:scale-95
-                    text-gray-400 hover:text-gray-300
-                  `}
+hidden lg:flex items-center justify-center
+w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
+hover:bg-gray-600/60 hover:scale-105 active:scale-95
+text-gray-400 hover:text-gray-300
+`}
                     title={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
                   >
                     {isSidebarHidden ? (
@@ -395,9 +522,9 @@ export default function NoteSidebar({
                       <DropdownMenuTrigger asChild>
                         <button
                           className="
-                            flex items-center gap-2 px-2 py-1.5 text-xs font-medium 
-                            transition-all duration-200 text-gray-300 hover:text-white 
-                            hover:bg-gray-700/60 rounded-2xl"
+                          flex items-center gap-2 px-2 py-1.5 text-xs font-medium 
+                          transition-all duration-200 text-gray-300 hover:text-white 
+                          hover:bg-gray-700/60 rounded-2xl"
                         >
                           <Cog size={18} />
                         </button>
@@ -571,12 +698,69 @@ export default function NoteSidebar({
                 }
               }}
             >
-              {/* Images Section */}
-              <ImagesSection
-                isSignedIn={isSignedIn}
-                isExpanded={isImagesSectionExpanded}
-                onToggleExpanded={onToggleImagesSection}
-              />
+
+              {/* Image and sort section */}
+              <div className='flex w-full items-center justify-between mb-4'>
+                {/* Images Section */}
+                <ImagesSection
+                  isSignedIn={isSignedIn}
+                  isExpanded={isImagesSectionExpanded}
+                  onToggleExpanded={onToggleImagesSection}
+                />
+
+                {/* Sort control */}
+                <div className="px-4 pb-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <ArrowUpDown size={16} className="text-gray-400 cursor-pointer hover:text-white transition-colors duration-200" />
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="start" className="bg-main border-gray-700 text-white">
+                      <DropdownMenuLabel className={`${isTimeSorting ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+                        Folders
+                      </DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={folderSort}
+                        onValueChange={(v) => {
+                          if (!isTimeSorting) setFolderSort(v as FolderSort);
+                        }}
+                        className={isTimeSorting ? 'opacity-50 pointer-events-none select-none' : ''}
+                      >
+                        <DropdownMenuRadioItem value="az">A → Z</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="za">Z → A</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+
+                      <DropdownMenuSeparator className="bg-gray-600" />
+
+                      <DropdownMenuLabel className={`${isTimeSorting ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+                        Files
+                      </DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={fileSort}
+                        onValueChange={(v) => {
+                          if (!isTimeSorting) setFileSort(v as FileSort);
+                        }}
+                        className={isTimeSorting ? 'opacity-50 pointer-events-none select-none' : ''}
+                      >
+                        <DropdownMenuRadioItem value="az">A → Z</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="za">Z → A</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator className="bg-gray-600" />
+
+                      <DropdownMenuLabel>Time</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={timeSort}
+                        onValueChange={(v) => setTimeSort(v as TimeSort)}
+                      >
+                        <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="newest">Newest</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="oldest">Oldest</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
 
               {/* File Tree */}
               {renderFileTree()}
