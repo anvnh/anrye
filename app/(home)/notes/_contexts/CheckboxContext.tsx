@@ -19,6 +19,7 @@ interface CheckboxProviderProps {
   currentContent?: string;
   driveService?: {
     updateFile: (fileId: string, content: string) => Promise<void>;
+  uploadFile?: (name: string, content: string, parentId?: string) => Promise<string>;
   };
 }
 
@@ -98,9 +99,53 @@ export const CheckboxProvider: React.FC<CheckboxProviderProps> = ({
       // props that depend on selectedNote; keeping identity stable reduces churn.
       
       // Sync with Drive if signed in
-  if (isSignedIn && selectedNote.driveFileId && driveService) {
-        driveService.updateFile(selectedNote.driveFileId, updatedContent)
-          .catch((error: unknown) => console.error('Failed to update checkbox in Drive:', error));
+      if (isSignedIn && selectedNote.driveFileId && driveService) {
+        driveService
+          .updateFile(selectedNote.driveFileId, updatedContent)
+          .catch(async (error: any) => {
+            // Attempt recovery if the Drive file was moved/deleted (404)
+            const code = error?.status || error?.result?.error?.code;
+            if (code === 404 && typeof driveService.uploadFile === 'function') {
+              try {
+                // Try to find parent Drive folder ID from localStorage cache
+                let parentDriveId: string | undefined;
+                try {
+                  const raw = localStorage.getItem('folders-new');
+                  if (raw) {
+                    const folders = JSON.parse(raw) as Array<any>;
+                    // Root folder retains the Notes folder drive ID
+                    if (!selectedNote.path) {
+                      const root = folders.find((f: any) => f.id === 'root');
+                      parentDriveId = root?.driveFolderId;
+                    } else {
+                      const parent = folders.find((f: any) => f.path === selectedNote.path);
+                      parentDriveId = parent?.driveFolderId;
+                    }
+                  }
+                } catch {}
+
+                const fileName = (selectedNote.title?.endsWith('.md') ? selectedNote.title : `${selectedNote.title}.md`) || 'Untitled.md';
+
+                if (parentDriveId) {
+                  const newId = await driveService.uploadFile!(fileName, updatedContent, parentDriveId);
+                  // Update note with new drive id in both lists and selected note
+                  setNotes(prev => prev.map(n => (n.id === selectedNote.id ? { ...n, driveFileId: newId } : n)));
+                  try { (selectedNote as any).driveFileId = newId; } catch {}
+                } else {
+                  // Parent unknown: clear invalid driveFileId to avoid repeated 404s
+                  setNotes(prev => prev.map(n => (n.id === selectedNote.id ? { ...n, driveFileId: undefined } : n)));
+                  try { (selectedNote as any).driveFileId = undefined; } catch {}
+                }
+              } catch (recreateErr) {
+                // Recreation failed: clear invalid driveFileId so future saves can recreate via full save flow
+                setNotes(prev => prev.map(n => (n.id === selectedNote.id ? { ...n, driveFileId: undefined } : n)));
+                try { (selectedNote as any).driveFileId = undefined; } catch {}
+                console.error('Failed to recover checkbox update (recreate file):', recreateErr);
+              }
+            } else {
+              console.error('Failed to update checkbox in Drive:', error);
+            }
+          });
       }
     }
   }, [selectedNote, setNotes, setSelectedNote, isSignedIn, driveService, setEditContent]);

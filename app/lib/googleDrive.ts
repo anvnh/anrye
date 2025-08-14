@@ -761,6 +761,41 @@ class GoogleDriveService {
     });
   }
 
+  // Move a file or folder to a new parent folder without changing its ID
+  async moveFile(fileId: string, newParentId: string): Promise<void> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+
+    // Get current parents
+  const metaResp = await window.gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      method: 'GET',
+      params: { fields: 'parents' }
+    });
+  // gapi typings can be loose; prefer parsing body to access custom fields
+  const bodyJson = (() => { try { return JSON.parse((metaResp as any).body || '{}'); } catch { return {}; } })();
+  const currentParents: string[] = (bodyJson.parents as string[]) || [];
+
+    // Compute removeParents (everything except the new parent)
+    const removeParents = currentParents.filter(p => p !== newParentId).join(',');
+
+    // If already in the target parent and no other parents, nothing to do
+    if (removeParents.length === 0 && currentParents.includes(newParentId)) {
+      return;
+    }
+
+    // Execute the move by updating parents
+    await window.gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      method: 'PATCH',
+      params: {
+        addParents: newParentId,
+        ...(removeParents ? { removeParents } : {}),
+        fields: 'id,parents'
+      }
+    });
+  }
+
   async renameFolder(folderId: string, newName: string): Promise<void> {
     await this.ensureApiLoaded();
     await this.setAccessToken();

@@ -9,7 +9,9 @@ export const useDragAndDrop = (
   folders: Folder[],
   setFolders: React.Dispatch<React.SetStateAction<Folder[]>>,
   setIsLoading: (loading: boolean) => void,
-  setSyncProgress: (progress: number) => void
+  setSyncProgress: (progress: number) => void,
+  selectedNote: Note | null,
+  setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>
 ) => {
   const { isSignedIn } = useDrive();
 
@@ -41,7 +43,7 @@ export const useDragAndDrop = (
     try { setSyncProgress(10); } catch {}
 
     // Handle drop to root
-    if (targetFolderId === 'root') {
+  if (targetFolderId === 'root') {
       const targetFolder = folders.find(f => f.id === 'root');
       if (!targetFolder) return;
 
@@ -58,37 +60,28 @@ export const useDragAndDrop = (
             if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
               try {
                 setSyncProgress(35);
-                // Create new file in root folder
-        const newDriveFileId = await driveService.uploadFile(`${finalTitle}.md`, note.content, targetFolder.driveFolderId);
-                setSyncProgress(60);
-                // Delete old file
-                await driveService.deleteFile(note.driveFileId);
-                setSyncProgress(75);
+                // Move existing file to root parent; keep same ID
+                await driveService.moveFile(note.driveFileId, targetFolder.driveFolderId);
+                setSyncProgress(70);
 
-                // Update local note with new Drive ID and root path
-                setNotes(prev => prev.map(n =>
-                  n.id === draggedItem.id
-          ? { ...n, title: finalTitle, path: '', driveFileId: newDriveFileId }
-                    : n
-                ));
+                // Update local note with new path
+                const updated = { ...note, title: finalTitle, path: '' } as Note;
+                setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+                if (selectedNote?.id === note.id) setSelectedNote(updated);
                 setSyncProgress(90);
               } catch (error) {
                 console.error('Failed to move note to root on Drive:', error);
                 // Still update locally even if Drive operation fails
-                setNotes(prev => prev.map(n =>
-                  n.id === draggedItem.id
-          ? { ...n, title: finalTitle, path: '' }
-                    : n
-                ));
+                const updated = { ...note, title: finalTitle, path: '' } as Note;
+                setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+                if (selectedNote?.id === note.id) setSelectedNote(updated);
                 setSyncProgress(80);
               }
             } else {
               // Update locally only
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-          ? { ...n, title: finalTitle, path: '' }
-                  : n
-              ));
+              const updated = { ...note, title: finalTitle, path: '' } as Note;
+              setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+              if (selectedNote?.id === note.id) setSelectedNote(updated);
               setSyncProgress(80);
             }
           }
@@ -101,39 +94,15 @@ export const useDragAndDrop = (
             // Move on Google Drive if signed in and both have Drive IDs
             if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
               try {
-                setSyncProgress(30);
-                // Create new folder in root
-                const newDriveFolderId = await driveService.createFolder(folder.name, targetFolder.driveFolderId);
                 setSyncProgress(40);
-                // Move all files in the folder (distribute 40% across notes)
-                const notesToMove = notes.filter(n => n.path === folder.path);
-                const totalNotes = notesToMove.length || 1;
-                let processed = 0;
-                for (const note of notesToMove) {
-                  if (note.driveFileId) {
-                    const newNoteFileId = await driveService.uploadFile(`${note.title}.md`, note.content, newDriveFolderId);
-                    await driveService.deleteFile(note.driveFileId);
+                // Move the folder itself; children follow implicitly
+                await driveService.moveFile(folder.driveFolderId, targetFolder.driveFolderId);
+                setSyncProgress(70);
 
-                    // Update note with new Drive ID and path
-                    setNotes(prev => prev.map(n =>
-                      n.id === note.id
-                        ? { ...n, path: newPath, driveFileId: newNoteFileId }
-                        : n
-                    ));
-                  }
-                  processed++;
-                  const progress = 40 + Math.min(40, Math.floor((processed / totalNotes) * 40));
-                  setSyncProgress(progress);
-                }
-
-                // Delete old folder on Drive
-                await driveService.deleteFile(folder.driveFolderId);
-                setSyncProgress(85);
-
-                // Update folder with new Drive ID and path
+                // Update folder path locally
                 setFolders(prev => prev.map(f => {
                   if (f.id === draggedItem.id) {
-                    return { ...f, parentId: 'root', path: newPath, driveFolderId: newDriveFolderId };
+                    return { ...f, parentId: 'root', path: newPath };
                   }
                   if (f.path.startsWith(folder.path + '/')) {
                     const relativePath = f.path.substring(folder.path.length + 1);
@@ -146,10 +115,17 @@ export const useDragAndDrop = (
                 setNotes(prev => prev.map(n => {
                   if (n.path.startsWith(folder.path + '/')) {
                     const relativePath = n.path.substring(folder.path.length + 1);
-                    return { ...n, path: `${newPath}/${relativePath}` };
+                    return { ...n, path: `${newPath}/${relativePath}` } as Note;
                   }
                   return n;
                 }));
+                if (selectedNote && selectedNote.path.startsWith(folder.path)) {
+                  const relativePath = selectedNote.path === folder.path
+                    ? ''
+                    : selectedNote.path.substring(folder.path.length + 1);
+                  const newSelPath = relativePath ? `${newPath}/${relativePath}` : newPath;
+                  setSelectedNote({ ...selectedNote, path: newSelPath });
+                }
                 setSyncProgress(95);
 
               } catch (error) {
@@ -180,16 +156,22 @@ export const useDragAndDrop = (
               }));
 
               // Update notes in moved folders
+              let updatedSelectedLocal: Note | null = null;
               setNotes(prev => prev.map(n => {
                 if (n.path === folder.path) {
-                  return { ...n, path: newPath };
+                  const updated = { ...n, path: newPath } as Note;
+                  if (selectedNote?.id === n.id) updatedSelectedLocal = updated;
+                  return updated;
                 }
                 if (n.path.startsWith(folder.path + '/')) {
                   const relativePath = n.path.substring(folder.path.length + 1);
-                  return { ...n, path: `${newPath}/${relativePath}` };
+                  const updated = { ...n, path: `${newPath}/${relativePath}` } as Note;
+                  if (selectedNote?.id === n.id) updatedSelectedLocal = updated;
+                  return updated;
                 }
                 return n;
               }));
+              if (updatedSelectedLocal) setSelectedNote(updatedSelectedLocal);
             }
           }
         }
@@ -222,37 +204,28 @@ export const useDragAndDrop = (
           if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
             try {
               setSyncProgress(35);
-              // Create new file in target folder
-        const newDriveFileId = await driveService.uploadFile(`${finalTitle}.md`, note.content, targetFolder.driveFolderId);
-              setSyncProgress(60);
-              // Delete old file
-              await driveService.deleteFile(note.driveFileId);
-              setSyncProgress(75);
+              // Move file to new parent; keep same ID
+              await driveService.moveFile(note.driveFileId, targetFolder.driveFolderId);
+              setSyncProgress(70);
 
-              // Update local note with new Drive ID
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-          ? { ...n, title: finalTitle, path: targetFolder.path, driveFileId: newDriveFileId }
-                  : n
-              ));
+              // Update local note path/title only
+              const updated = { ...note, title: finalTitle, path: targetFolder.path } as Note;
+              setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+              if (selectedNote?.id === note.id) setSelectedNote(updated);
               setSyncProgress(90);
             } catch (error) {
               console.error('Failed to move note on Drive:', error);
               // Still update locally even if Drive operation fails
-              setNotes(prev => prev.map(n =>
-                n.id === draggedItem.id
-          ? { ...n, title: finalTitle, path: targetFolder.path }
-                  : n
-              ));
+              const updated = { ...note, title: finalTitle, path: targetFolder.path } as Note;
+              setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+              if (selectedNote?.id === note.id) setSelectedNote(updated);
               setSyncProgress(85);
             }
           } else {
             // Update locally only
-            setNotes(prev => prev.map(n =>
-              n.id === draggedItem.id
-        ? { ...n, title: finalTitle, path: targetFolder.path }
-                : n
-            ));
+            const updated = { ...note, title: finalTitle, path: targetFolder.path } as Note;
+            setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+            if (selectedNote?.id === note.id) setSelectedNote(updated);
             setSyncProgress(85);
           }
         }
@@ -265,39 +238,15 @@ export const useDragAndDrop = (
           // Move on Google Drive if signed in and both have Drive IDs
           if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
             try {
-              setSyncProgress(30);
-              // Create new folder in target location
-              const newDriveFolderId = await driveService.createFolder(folder.name, targetFolder.driveFolderId);
               setSyncProgress(40);
-              // Move all files in the folder (distribute 40% across notes)
-              const notesToMove = notes.filter(n => n.path === folder.path);
-              const totalNotes = notesToMove.length || 1;
-              let processed = 0;
-              for (const note of notesToMove) {
-                if (note.driveFileId) {
-                  const newNoteFileId = await driveService.uploadFile(`${note.title}.md`, note.content, newDriveFolderId);
-                  await driveService.deleteFile(note.driveFileId);
+              // Move the folder itself; children follow implicitly
+              await driveService.moveFile(folder.driveFolderId, targetFolder.driveFolderId);
+              setSyncProgress(70);
 
-                  // Update note with new Drive ID and path
-                  setNotes(prev => prev.map(n =>
-                    n.id === note.id
-                      ? { ...n, path: newPath, driveFileId: newNoteFileId }
-                      : n
-                  ));
-                }
-                processed++;
-                const progress = 40 + Math.min(40, Math.floor((processed / totalNotes) * 40));
-                setSyncProgress(progress);
-              }
-
-              // Delete old folder on Drive
-              await driveService.deleteFile(folder.driveFolderId);
-              setSyncProgress(85);
-
-              // Update folder with new Drive ID and path
+              // Update folder path locally
               setFolders(prev => prev.map(f => {
                 if (f.id === draggedItem.id) {
-                  return { ...f, parentId: targetFolderId, path: newPath, driveFolderId: newDriveFolderId };
+                  return { ...f, parentId: targetFolderId, path: newPath };
                 }
                 if (f.path.startsWith(folder.path + '/')) {
                   const relativePath = f.path.substring(folder.path.length + 1);
@@ -310,10 +259,17 @@ export const useDragAndDrop = (
               setNotes(prev => prev.map(n => {
                 if (n.path.startsWith(folder.path + '/')) {
                   const relativePath = n.path.substring(folder.path.length + 1);
-                  return { ...n, path: `${newPath}/${relativePath}` };
+                  return { ...n, path: `${newPath}/${relativePath}` } as Note;
                 }
                 return n;
               }));
+              if (selectedNote && selectedNote.path.startsWith(folder.path)) {
+                const relativePath = selectedNote.path === folder.path
+                  ? ''
+                  : selectedNote.path.substring(folder.path.length + 1);
+                const newSelPath = relativePath ? `${newPath}/${relativePath}` : newPath;
+                setSelectedNote({ ...selectedNote, path: newSelPath });
+              }
               setSyncProgress(95);
 
             } catch (error) {
@@ -332,16 +288,22 @@ export const useDragAndDrop = (
             if (!folder || !draggedItem) return;
 
             // Update folder and its children
-            setFolders(prev => prev.map(f => {
-              if (f.id === draggedItem.id) {
-                return { ...f, parentId: targetFolderId, path: newPath };
+            let updatedSelectedLocal: Note | null = null;
+            setNotes(prev => prev.map(n => {
+              if (n.path === folder.path) {
+                const updated = { ...n, path: newPath } as Note;
+                if (selectedNote?.id === n.id) updatedSelectedLocal = updated;
+                return updated;
               }
-              if (f.path.startsWith(folder.path + '/')) {
-                const relativePath = f.path.substring(folder.path.length + 1);
-                return { ...f, path: `${newPath}/${relativePath}` };
+              if (n.path.startsWith(folder.path + '/')) {
+                const relativePath = n.path.substring(folder.path.length + 1);
+                const updated = { ...n, path: `${newPath}/${relativePath}` } as Note;
+                if (selectedNote?.id === n.id) updatedSelectedLocal = updated;
+                return updated;
               }
-              return f;
+              return n;
             }));
+            if (updatedSelectedLocal) setSelectedNote(updatedSelectedLocal);
 
             // Update notes in moved folders
             setNotes(prev => prev.map(n => {
@@ -365,7 +327,7 @@ export const useDragAndDrop = (
       setDraggedItem(null);
       setTimeout(() => setIsLoading(false), 500);
     }
-  }, [notes, folders, isSignedIn, setIsLoading, setNotes, setFolders]);
+  }, [notes, folders, isSignedIn, setIsLoading, setNotes, setFolders, selectedNote, setSelectedNote]);
 
   return {
     handleDragStart,

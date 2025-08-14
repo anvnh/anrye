@@ -139,8 +139,12 @@ const MemoizedNoteContent = React.memo(({
     prevProps.isEditing === nextProps.isEditing &&
     prevProps.isSplitMode === nextProps.isSplitMode &&
     prevProps.editContent === nextProps.editContent &&
-    prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
-    prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
+  // Re-render when selected note identity-relevant fields change
+  prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
+  prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
+  prevProps.selectedNote?.path === nextProps.selectedNote?.path &&
+  prevProps.selectedNote?.title === nextProps.selectedNote?.title &&
+  prevProps.selectedNote?.driveFileId === nextProps.selectedNote?.driveFileId &&
   prevProps.isSignedIn === nextProps.isSignedIn &&
   // Re-render when formatting settings change
   prevProps.tabSize === nextProps.tabSize &&
@@ -232,7 +236,7 @@ export default function NotesPage() {
     handleDragOver,
     handleDrop,
   } = useDragAndDrop(
-    notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress
+  notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress, selectedNote, setSelectedNote
   );
 
   const { isSignedIn, isInitialized: isAuthInitialized, signIn, signOut, checkSignInStatus } = useDrive();
