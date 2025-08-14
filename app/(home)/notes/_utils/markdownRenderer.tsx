@@ -39,8 +39,6 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
-
-// Removed custom checkbox import - using default HTML checkbox
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface MarkdownRendererProps {

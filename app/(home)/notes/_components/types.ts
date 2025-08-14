@@ -58,8 +58,14 @@ export interface NoteSidebarProps {
   onDragStart: (e: React.DragEvent, type: 'note' | 'folder', id: string) => void;
   onDragOver: (e: React.DragEvent, targetId: string) => void;
   onDragLeave: () => void;
-  onDrop: (e: React.DragEvent, targetFolderId: string) => void;
+  onDrop: (
+    e: React.DragEvent,
+    targetFolderId: string,
+    dragged?: { type: 'note' | 'folder'; id: string } | null,
+    newTitle?: string
+  ) => void;
   onSetDragOver: (dragOver: string | null) => void;
+  onSetDraggedItem: (item: { type: 'note' | 'folder'; id: string } | null) => void;
   onSetIsResizing: (isResizing: boolean) => void;
   onSetIsMobileSidebarOpen: (isOpen: boolean) => void;
   onToggleSidebar: () => void;

@@ -429,8 +429,9 @@ export default function NotesPage() {
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragLeave={() => setDragOver(null)}
-          onDrop={(e, targetId) => handleDrop(e, targetId, draggedItem, setDraggedItem, setDragOver)}
+          onDrop={(e, targetId, dragged, newTitle) => handleDrop(e, targetId, dragged ?? draggedItem, setDraggedItem, setDragOver, newTitle)}
           onSetDragOver={setDragOver}
+          onSetDraggedItem={setDraggedItem}
           onSetIsResizing={setIsResizing}
           onSetIsMobileSidebarOpen={setIsMobileSidebarOpen}
           onToggleSidebar={toggleSidebar}

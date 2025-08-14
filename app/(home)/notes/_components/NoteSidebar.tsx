@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/context-menu';
 import { NoteSidebarProps, Note, Folder } from './types';
 import { MobileItemMenu } from './MobileFileOperations';
-import MobileMoveDialog from './MobileMoveDialog';
+import MoveDrawer from './MoveDrawer';
 import { ImagesSection } from './ImagesSection';
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ export default function NoteSidebar({
   isLoading,
   syncProgress,
   sidebarWidth,
-  dragOver,
+  dragOver: _dragOver,
   isMobileSidebarOpen,
   isSidebarHidden,
   isImagesSectionExpanded,
@@ -48,10 +48,11 @@ export default function NoteSidebar({
   onRenameFolder,
   onRenameNote,
   onDragStart,
-  onDragOver,
-  onDragLeave,
+  onDragOver: _onDragOver,
+  onDragLeave: _onDragLeave,
   onDrop,
-  onSetDragOver,
+  onSetDragOver: _onSetDragOver,
+  onSetDraggedItem,
   onSetIsResizing,
   onSetIsMobileSidebarOpen,
   onToggleSidebar,
@@ -171,6 +172,27 @@ export default function NoteSidebar({
     }
   }, [folderSort, fileSort, timeSort]);
 
+  // Move dialog state and handlers (works on both mobile and desktop)
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [moveItem, setMoveItem] = useState<{ item: Note | Folder; type: 'note' | 'folder' } | null>(null);
+
+  const handleMobileMove = (item: Note | Folder, type: 'note' | 'folder') => {
+    setMoveItem({ item, type });
+    setIsMoveDialogOpen(true);
+  };
+
+  const handleMoveConfirm = (targetFolderId: string, newTitle?: string) => {
+    if (!moveItem) return;
+    // Call onDrop with explicit dragged item to avoid async state timing issues
+    const fakeEvent = {
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    } as unknown as React.DragEvent;
+    onDrop(fakeEvent, targetFolderId, { type: moveItem.type, id: moveItem.item.id }, newTitle);
+    setMoveItem(null);
+    setIsMoveDialogOpen(false);
+  };
+
   const getNotesInPath = (path: string) => {
     return notes.filter(note => note.path === path);
   };
@@ -285,14 +307,8 @@ export default function NoteSidebar({
                     flex items-center py-2.5 rounded-lg cursor-pointer group 
                     transition-all duration-200 ease-in-out
                     hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
-                    ${dragOver === folder.id ? 'bg-blue-600/40 shadow-lg ring-2 ring-blue-500/50' : ''}
                     ${level > 0 ? 'ml-2' : ''}
                   `}
-                  draggable={folder.id !== 'root'}
-                  onDragStart={(e) => onDragStart(e, 'folder', folder.id)}
-                  onDragOver={(e) => onDragOver(e, folder.id)}
-                  onDragLeave={onDragLeave}
-                  onDrop={(e) => onDrop(e, folder.id)}
                   onClick={() => {
                     onToggleFolder(folder.id);
                     onSetSelectedPath(folder.path);
@@ -368,6 +384,13 @@ export default function NoteSidebar({
                 </ContextMenuItem>
                 {folder.id !== 'root' && (
                   <>
+                      <ContextMenuItem
+                        className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                        onClick={() => handleMobileMove(folder, 'folder')}
+                      >
+                        <Move size={16} className="mr-2" />
+                        Move to
+                      </ContextMenuItem>
                     <ContextMenuSeparator className="bg-gray-600 mx-1" />
                     <ContextMenuItem
                       className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
@@ -404,8 +427,6 @@ hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
 ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
 ${level > 0 ? 'ml-2' : ''}
 `}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, 'note', note.id)}
                   onClick={() => {
                     onSelectNote(note);
                     // Close mobile sidebar when selecting a note
@@ -461,6 +482,13 @@ ${level > 0 ? 'ml-2' : ''}
                   <Edit size={16} className="mr-2" />
                   Open Note
                 </ContextMenuItem>
+                  <ContextMenuItem
+                    className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                    onClick={() => handleMobileMove(note, 'note')}
+                  >
+                    <Move size={16} className="mr-2" />
+                    Move to
+                  </ContextMenuItem>
                 <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => onRenameNote(note.id, note.title)}
@@ -487,30 +515,6 @@ ${level > 0 ? 'ml-2' : ''}
 
   // Get current selected path for FAB
   const currentPath = folders.find(f => f.path === selectedNote?.path)?.path || '';
-
-  // Mobile move dialog state
-  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
-  const [moveItem, setMoveItem] = useState<{ item: Note | Folder; type: 'note' | 'folder' } | null>(null);
-
-  // Handle mobile move operations
-  const handleMobileMove = (item: Note | Folder, type: 'note' | 'folder') => {
-    setMoveItem({ item, type });
-    setIsMoveDialogOpen(true);
-  };
-
-  const handleMoveConfirm = (targetFolderId: string) => {
-    if (!moveItem) return;
-
-    // Set the dragged item state first
-    const mockDraggedItem = { type: moveItem.type, id: moveItem.item.id };
-    onDragStart({} as React.DragEvent, moveItem.type, moveItem.item.id);
-
-    // Then trigger the drop with the target folder
-    onDrop({} as React.DragEvent, targetFolderId);
-
-    setMoveItem(null);
-    setIsMoveDialogOpen(false);
-  };
 
   const handleSwitchDriveAccount = async () => {
     try {
@@ -568,7 +572,6 @@ ${level > 0 ? 'ml-2' : ''}
           <div
             className={`
 border-r border-gray-600/50 flex flex-col overflow-hidden relative z-50
-${dragOver === 'root' ? 'bg-blue-600/10' : ''}
 ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
 lg:relative lg:translate-x-0
 ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
@@ -578,7 +581,7 @@ transition-all duration-300 ease-in-out
 `}
             style={{
               width: `${sidebarWidth}px`,
-              backgroundColor: dragOver === 'root' ? '#1e40af10' : '#31363F'
+              backgroundColor: '#31363F'
             }}
           >
             <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0">
@@ -768,27 +771,7 @@ text-gray-400 hover:text-gray-300
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-1"
-              onDragOver={(e) => {
-                e.preventDefault();
-                // Only set to root if we're not over a specific folder
-                if (e.target === e.currentTarget) {
-                  onSetDragOver('root');
-                }
-              }}
-              onDragLeave={(e) => {
-                // Only clear if we're leaving the container itself
-                if (e.target === e.currentTarget) {
-                  onSetDragOver(null);
-                }
-              }}
-              onDrop={(e) => {
-                // Only handle drop to root if we're dropping on empty space
-                if (e.target === e.currentTarget) {
-                  onDrop(e, 'root');
-                }
-              }}
-            >
+            <div className="flex-1 overflow-y-auto p-4 space-y-1">
 
               {/* Image and sort section */}
               <div className='flex w-full items-center justify-between mb-4'>
@@ -882,8 +865,8 @@ text-gray-400 hover:text-gray-300
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Mobile Move Dialog */}
-      <MobileMoveDialog
+  {/* Move Drawer */}
+  <MoveDrawer
         isOpen={isMoveDialogOpen}
         item={moveItem?.item || null}
         itemType={moveItem?.type || 'note'}
@@ -892,7 +875,7 @@ text-gray-400 hover:text-gray-300
           setIsMoveDialogOpen(false);
           setMoveItem(null);
         }}
-        onMove={handleMoveConfirm}
+  onMove={handleMoveConfirm}
       />
     </>
   );
