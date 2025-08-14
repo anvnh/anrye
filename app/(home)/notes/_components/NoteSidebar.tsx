@@ -185,8 +185,8 @@ export default function NoteSidebar({
     if (!moveItem) return;
     // Call onDrop with explicit dragged item to avoid async state timing issues
     const fakeEvent = {
-      preventDefault: () => {},
-      stopPropagation: () => {},
+      preventDefault: () => { },
+      stopPropagation: () => { },
     } as unknown as React.DragEvent;
     onDrop(fakeEvent, targetFolderId, { type: moveItem.type, id: moveItem.item.id }, newTitle);
     setMoveItem(null);
@@ -384,13 +384,13 @@ export default function NoteSidebar({
                 </ContextMenuItem>
                 {folder.id !== 'root' && (
                   <>
-                      <ContextMenuItem
-                        className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
-                        onClick={() => handleMobileMove(folder, 'folder')}
-                      >
-                        <Move size={16} className="mr-2" />
-                        Move to
-                      </ContextMenuItem>
+                    <ContextMenuItem
+                      className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                      onClick={() => handleMobileMove(folder, 'folder')}
+                    >
+                      <Move size={16} className="mr-2" />
+                      Move to
+                    </ContextMenuItem>
                     <ContextMenuSeparator className="bg-gray-600 mx-1" />
                     <ContextMenuItem
                       className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
@@ -422,11 +422,11 @@ export default function NoteSidebar({
               <ContextMenuTrigger asChild>
                 <div
                   className={`
-flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
-hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
-${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
-${level > 0 ? 'ml-2' : ''}
-`}
+                    flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
+                    hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
+                    ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
+                    ${level > 0 ? 'ml-2' : ''}
+                  `}
                   onClick={() => {
                     onSelectNote(note);
                     // Close mobile sidebar when selecting a note
@@ -482,13 +482,13 @@ ${level > 0 ? 'ml-2' : ''}
                   <Edit size={16} className="mr-2" />
                   Open Note
                 </ContextMenuItem>
-                  <ContextMenuItem
-                    className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
-                    onClick={() => handleMobileMove(note, 'note')}
-                  >
-                    <Move size={16} className="mr-2" />
-                    Move to
-                  </ContextMenuItem>
+                <ContextMenuItem
+                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  onClick={() => handleMobileMove(note, 'note')}
+                >
+                  <Move size={16} className="mr-2" />
+                  Move to
+                </ContextMenuItem>
                 <ContextMenuItem
                   className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
                   onClick={() => onRenameNote(note.id, note.title)}
@@ -865,8 +865,8 @@ text-gray-400 hover:text-gray-300
         </ContextMenuContent>
       </ContextMenu>
 
-  {/* Move Drawer */}
-  <MoveDrawer
+      {/* Move Drawer */}
+      <MoveDrawer
         isOpen={isMoveDialogOpen}
         item={moveItem?.item || null}
         itemType={moveItem?.type || 'note'}
@@ -875,7 +875,7 @@ text-gray-400 hover:text-gray-300
           setIsMoveDialogOpen(false);
           setMoveItem(null);
         }}
-  onMove={handleMoveConfirm}
+        onMove={handleMoveConfirm}
       />
     </>
   );

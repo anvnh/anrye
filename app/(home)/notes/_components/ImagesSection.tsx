@@ -22,6 +22,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
   const [images, setImages] = useState<DriveImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<DriveImage | null>(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [imageLoadRetries, setImageLoadRetries] = useState<Map<string, number>>(new Map());
   const [imageLoadingStates, setImageLoadingStates] = useState<Set<string>>(new Set());
@@ -42,6 +43,23 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
     }
     return new Map();
   });
+  // Track current thumbnail source per image (allows fallback progression)
+  const [thumbSrcMap, setThumbSrcMap] = useState<Map<string, string>>(new Map());
+
+  const getThumbCandidates = (image: DriveImage): string[] => {
+    const candidates: string[] = [];
+    // Prefer direct view (public) to avoid lh3 rate limits
+    candidates.push(`https://drive.google.com/uc?export=view&id=${image.id}`);
+    // Then try Google Drive thumbnail endpoint
+    candidates.push(`https://drive.google.com/thumbnail?id=${image.id}&sz=w400`);
+    // As a last resort, use API-provided thumbnail (lh3), which can 429
+    if (image.thumbnailLink) candidates.push(image.thumbnailLink);
+    return candidates;
+  };
+
+  const getInitialThumbSrc = (image: DriveImage): string => {
+    return imageCache.get(image.id) || getThumbCandidates(image)[0];
+  };
 
   const loadImages = async () => {
     if (!isSignedIn) return;
@@ -76,10 +94,10 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
   };
 
   useEffect(() => {
-    if (isExpanded && isSignedIn) {
+    if (isSignedIn && isGalleryOpen) {
       loadImages();
     }
-  }, [isExpanded, isSignedIn]);
+  }, [isSignedIn, isGalleryOpen]);
 
   // Preload cached images when component mounts
   useEffect(() => {
@@ -111,13 +129,15 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
   // Listen for image upload events
   useEffect(() => {
     const handleImageUploaded = () => {
-      if (isExpanded && isSignedIn) {
+      if (isSignedIn) {
         // Clear cache when new image is uploaded
         setImageCache(new Map());
         if (typeof window !== 'undefined') {
           localStorage.removeItem('image-thumbnail-cache');
         }
-        loadImages();
+        if (isGalleryOpen) {
+          loadImages();
+        }
       }
     };
 
@@ -207,150 +227,167 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
   return (
     <>
-      {/* Images Section Header */}
+      {/* Images Section Header (opens global dialog) */}
       <div>
         <div
           className="flex items-center px-3 py-0.5 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-          onClick={onToggleExpanded}
+          onClick={() => setIsGalleryOpen(true)}
         >
           <div className='flex py-3 ml-3 mr-3'>
             <ImageIcon size={16} className="text-green-400 mr-3" />
             <span className="text-gray-300 text-sm font-medium flex-1">Images</span>
-            {images.length > 0 && (
-              <span className="text-gray-500 text-xs bg-gray-600/50 px-2 py-1 rounded-full">
-                {images.length}
-              </span>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Images Grid */}
-      {isExpanded && (
-        <div className="mb-4">
-          {isLoading ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
-              <p className="text-gray-500 text-xs mt-2">Loading images...</p>
-            </div>
-          ) : images.length === 0 ? (
-            <div className="text-center py-4">
-              <ImageIcon size={32} className="text-gray-600 mx-auto mb-2" />
-              <p className="text-gray-500 text-xs">No images yet</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {images.map((image) => (
-                <div
-                  key={image.id}
-                  className="relative group cursor-pointer rounded-lg overflow-hidden border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200"
-                  onClick={() => handleImageClick(image)}
-                >
-                  {imageLoadErrors.has(image.id) ? (
-                    <div className="w-full h-20 bg-gray-700 flex items-center justify-center">
-                      <ImageIcon size={24} className="text-gray-500" />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setImageLoadErrors(prev => {
-                            const newSet = new Set(prev);
-                            newSet.delete(image.id);
-                            return newSet;
-                          });
-                          setImageLoadRetries(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(image.id, (newMap.get(image.id) || 0) + 1);
-                            return newMap;
-                          });
+      {/* Global Gallery Dialog */}
+      <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
+        <DialogContent className="max-w-5xl max-h-[85vh] w-[min(100%,90rem)] p-0 overflow-hidden" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+          <DialogHeader className="p-4 border-b border-gray-600/50">
+            <DialogTitle className="text-white flex items-center justify-between">
+              <span>Images</span>
+              {/* {images.length > 0 && (
+                <span className="text-gray-400 text-sm">{images.length}</span>
+              )} */}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-4 overflow-auto max-h-[calc(85vh-5rem)]">
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+                <p className="text-gray-400 text-sm mt-3">Loading images...</p>
+              </div>
+            ) : images.length === 0 ? (
+              <div className="text-center py-8">
+                <ImageIcon size={40} className="text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm">No images yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {images.map((image) => (
+                  <div
+                    key={image.id}
+                    className="relative group cursor-pointer rounded-lg overflow-hidden border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200"
+                    onClick={() => handleImageClick(image)}
+                  >
+                    {imageLoadErrors.has(image.id) ? (
+                      <div className="w-full aspect-square bg-gray-700 flex items-center justify-center">
+                        <ImageIcon size={24} className="text-gray-500" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setImageLoadErrors(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(image.id);
+                              return newSet;
+                            });
+                            setImageLoadRetries(prev => {
+                              const newMap = new Map(prev);
+                              newMap.set(image.id, (newMap.get(image.id) || 0) + 1);
+                              return newMap;
+                            });
+                          }}
+                          className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors"
+                          title="Retry"
+                        >
+                          <span className="text-white text-xs">↻</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <img
+                        key={`${image.id}-${imageCache.has(image.id) ? 'cached' : 'uncached'}`}
+                        src={thumbSrcMap.get(image.id) || getInitialThumbSrc(image)}
+                        alt={image.name}
+                        className="w-full aspect-square object-cover"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        onLoad={() => {
+                          // Cache the successful URL
+                          if (!imageCache.has(image.id)) {
+                            const thumbnailUrl = thumbSrcMap.get(image.id) || getInitialThumbSrc(image);
+                            setImageCache(prev => {
+                              const newCache = new Map(prev).set(image.id, thumbnailUrl);
+                              // Save to localStorage
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('image-thumbnail-cache', JSON.stringify(Array.from(newCache.entries())));
+                              }
+                              return newCache;
+                            });
+                          }
                         }}
-                        className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors"
-                        title="Retry"
-                      >
-                        <span className="text-white text-xs">↻</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <img
-                      key={`${image.id}-${imageCache.has(image.id) ? 'cached' : 'uncached'}`}
-                      src={imageCache.get(image.id) || `https://drive.google.com/thumbnail?id=${image.id}&sz=w200`}
-                      alt={image.name}
-                      className="w-full h-20 object-cover"
-                      loading="lazy"
-                      onLoad={() => {
-                        // Cache the successful URL
-                        if (!imageCache.has(image.id)) {
-                          const thumbnailUrl = `https://drive.google.com/thumbnail?id=${image.id}&sz=w200`;
+                        onError={(e) => {
+                          const current = (e.currentTarget as HTMLImageElement).src;
+                          const candidates = getThumbCandidates(image);
+                          // If we have a cached URL and it failed, drop it and try next
+                          const idx = candidates.findIndex(u => u === current);
+                          const nextIdx = idx >= 0 ? idx + 1 : 1; // move to next or second candidate
+                          const next = candidates[nextIdx];
+                          if (next) {
+                            setThumbSrcMap(prev => new Map(prev).set(image.id, next));
+                            return;
+                          }
+                          // Out of options; mark error and clear cache
+                          setImageLoadErrors(prev => new Set(prev).add(image.id));
                           setImageCache(prev => {
-                            const newCache = new Map(prev).set(image.id, thumbnailUrl);
-                            // Save to localStorage
+                            const newCache = new Map(prev);
+                            newCache.delete(image.id);
                             if (typeof window !== 'undefined') {
                               localStorage.setItem('image-thumbnail-cache', JSON.stringify(Array.from(newCache.entries())));
                             }
                             return newCache;
                           });
-                        }
-                      }}
-                      onError={() => {
-                        setImageLoadErrors(prev => new Set(prev).add(image.id));
-                        // Remove from cache if failed
-                        setImageCache(prev => {
-                          const newCache = new Map(prev);
-                          newCache.delete(image.id);
-                          if (typeof window !== 'undefined') {
-                            localStorage.setItem('image-thumbnail-cache', JSON.stringify(Array.from(newCache.entries())));
-                          }
-                          return newCache;
-                        });
-                      }}
-                    />
-                  )}
+                        }}
+                      />
+                    )}
 
-                  {/* Overlay with actions */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleImageClick(image);
-                      }}
-                      className="p-1 bg-blue-600/80 hover:bg-blue-500/80 rounded text-white"
-                      title="View image"
-                    >
-                      <Eye size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload(image);
-                      }}
-                      className="p-1 bg-green-600/80 hover:bg-green-500/80 rounded text-white"
-                      title="Download"
-                    >
-                      <Download size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(image);
-                      }}
-                      className="p-1 bg-red-600/80 hover:bg-red-500/80 rounded text-white"
-                      title="Delete"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    {/* Overlay with actions */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleImageClick(image);
+                        }}
+                        className="px-2 py-1 bg-blue-600/80 hover:bg-blue-500/80 rounded text-white text-xs"
+                        title="View image"
+                      >
+                        <Eye size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(image);
+                        }}
+                        className="px-2 py-1 bg-green-600/80 hover:bg-green-500/80 rounded text-white text-xs"
+                        title="Download"
+                      >
+                        <Download size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(image);
+                        }}
+                        className="px-2 py-1 bg-red-600/80 hover:bg-red-500/80 rounded text-white text-xs"
+                        title="Delete"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    {/* Image info */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 truncate">
+                      {image.name}
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-                  {/* Image info */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 truncate">
-                    {image.name}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Image Preview Dialog */}
+  {/* Image Preview Dialog */}
       <Dialog open={!!selectedImage} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="max-w-4xl max-h-[80vh] p-0" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
           <DialogHeader className="p-4 border-b border-gray-600/50">
@@ -364,6 +401,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
               src={`https://drive.google.com/uc?export=view&id=${selectedImage?.id}`}
               alt={selectedImage?.name}
               className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
               onError={(e) => {
                 // Fallback to thumbnail if full image fails
                 const target = e.target as HTMLImageElement;
