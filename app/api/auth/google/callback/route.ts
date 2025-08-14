@@ -1,208 +1,107 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { stateStore } from '../route';
-import jwt from 'jsonwebtoken';
+// app/api/auth/google/callback/route.ts
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { verifyValue, parseState } from "@/app/lib/authCookies";
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+export async function GET(req: Request) {
+    const url = new URL(req.url);
+    const appOrigin = url.origin;
+    const redirectUri = `${appOrigin}/api/auth/google/callback`;
 
-export async function GET(request: NextRequest) {
-  try {
-    const url = new URL(request.url);
-    const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
-    const error = url.searchParams.get('error');
+    const code = url.searchParams.get("code");
+    const stateFromGoogle = url.searchParams.get("state") || "";
 
-    // Handle OAuth errors
-    if (error) {
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', error);
-      return NextResponse.redirect(redirectUrl);
+    // --- Read & validate oauth_state cookie ---
+    const cookieStore = await cookies(); // NOTE: await because cookies() returns a Promise in your Next version
+    const signedState = cookieStore.get("oauth_state")?.value || "";
+
+    if (!signedState) {
+        return NextResponse.redirect(`${appOrigin}?auth_error=missing_state_cookie`);
     }
 
-    // Validate state parameter
-    if (!state || !stateStore.has(state)) {
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', 'invalid_state');
-      return NextResponse.redirect(redirectUrl);
+    const rawState = verifyValue(signedState, process.env.JWT_SECRET!);
+    if (!rawState) {
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=bad_state_sig`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
     }
 
-    const stateData = stateStore.get(state)!;
-    stateStore.delete(state); // Use state only once
+    const parsed = parseState(rawState); // { uuid, timestamp, origin }
+    if (!parsed) {
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=bad_state_parse`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
+    }
+
+    // TTL 10 phút
+    if (Date.now() - parsed.timestamp > 10 * 60 * 1000) {
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=state_expired`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
+    }
+
+    if (!stateFromGoogle || parsed.uuid !== stateFromGoogle) {
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=state_mismatch`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
+    }
 
     if (!code) {
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', 'no_code');
-      return NextResponse.redirect(redirectUrl);
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=missing_code`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
     }
 
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-      // Missing Google OAuth credentials
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', 'server_config');
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Exchange authorization code for tokens
-    const redirectUri = `${stateData.origin}/api/auth/google/callback`;
-    
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
+    // --- Exchange code -> tokens ---
+    const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+            code,
+            client_id: process.env.GOOGLE_CLIENT_ID!,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+            redirect_uri: redirectUri,
+            grant_type: "authorization_code",
+        }),
     });
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      // Token exchange failed
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', 'token_exchange_failed');
-      return NextResponse.redirect(redirectUrl);
+    if (!tokenResp.ok) {
+        const r = NextResponse.redirect(`${appOrigin}?auth_error=token_exchange_failed`);
+        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        return r;
     }
 
-    const tokens = await tokenResponse.json();
-    
-    // Validate we got the required tokens
-    if (!tokens.access_token) {
-      // No access token received
-      const redirectUrl = new URL('/notes', request.url);
-      redirectUrl.searchParams.set('auth_error', 'no_access_token');
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Create JWT session for app authentication
-    const jwtPayload = {
-      username: 'google_user', // You might want to fetch actual user info from Google
-      loginTime: Date.now(),
-      provider: 'google'
+    const tokens = await tokenResp.json() as {
+        access_token?: string;
+        refresh_token?: string;
+        expires_in?: number;
+        id_token?: string;
+        scope?: string;
+        token_type?: string;
     };
-    
-    const authToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: '30d' });
 
-    // Create success page with tokens that will be handled by client-side script
-    const successHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Authorization Successful</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: #222831;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 400px;
-        }
-        .success {
-            color: #22c55e;
-            font-size: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        .info {
-            color: #6b7280;
-            margin-bottom: 1rem;
-        }
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="success">Authorization Successful!</div>
-        <div class="info">You have been successfully authenticated with Google Drive.</div>
-        <div class="spinner"></div>
-        <div style="margin-top: 1rem; color: #6b7280;">Redirecting...</div>
-    </div>
+    // --- Prepare redirect back to original path ---
+    const returnPath = parsed.origin || "/";
+    const dest = `${appOrigin}${returnPath.startsWith("/") ? returnPath : "/"}?auth_success=true`;
 
-    <script>
-        // Send tokens to parent window and close popup
-        const tokens = ${JSON.stringify(tokens)};
-        
-        // Enhanced PWA support with multiple fallback mechanisms
-        function processTokens() {
-            try {
-                // Store tokens in localStorage first (most reliable)
-                localStorage.setItem('google_drive_tokens_temp', JSON.stringify(tokens));
-                
-                // Support both popup and redirect flows
-                if (window.opener) {
-                    // We're in a popup window
-                    try {
-                        window.opener.postMessage({
-                            type: 'GOOGLE_AUTH_SUCCESS',
-                            tokens: tokens
-                        }, '${stateData.origin}');
-                    } catch (e) {
-                        console.log('PostMessage failed, using localStorage fallback');
-                    }
-                    
-                    // Close popup after a short delay to ensure tokens are stored
-                    setTimeout(() => {
-                        window.close();
-                    }, 500);
-                } else {
-                    // We're in the same window (redirect flow)
-                    // Add a small delay to ensure localStorage is set before redirect
-                    setTimeout(() => {
-                        window.location.href = '/notes?auth_success=true';
-                    }, 300);
-                }
-            } catch (error) {
-                console.error('Error processing tokens:', error);
-                // Fallback: redirect anyway
-                window.location.href = '/notes?auth_success=true';
-            }
-        }
-        
-        // Process tokens immediately
-        processTokens();
-        
-        // Also try again after a short delay for PWA compatibility
-        setTimeout(processTokens, 100);
-    </script>
-</body>
-</html>`;
+    const res = NextResponse.redirect(dest);
 
-    return new Response(successHtml, {
-      headers: { 
-        'Content-Type': 'text/html',
-        'Set-Cookie': `auth-token=${authToken}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
-      },
-    });
+    // Store/keep refresh token in HttpOnly cookie
+    // If Google doesn't return a new refresh_token, keep the existing one if present
+    const existingRefresh = cookieStore.get("gd_refresh")?.value || null;
+    const refreshToStore = tokens.refresh_token || existingRefresh || null;
+    if (refreshToStore) {
+        res.cookies.set("gd_refresh", refreshToStore, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24 * 180, // 180 days
+        });
+    }
 
-  } catch (error) {
-    // Callback error
-    const redirectUrl = new URL('/notes', request.url);
-    redirectUrl.searchParams.set('auth_error', 'callback_error');
-    return NextResponse.redirect(redirectUrl);
-  }
+    // Clear oauth_state cookie
+    res.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+
+    return res;
 }

@@ -1,36 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+export async function GET(req: Request) {
+  const c = await cookies();
+  const hasRefresh = !!c.get("gd_refresh")?.value;
 
-export async function GET(request: NextRequest) {
+  // Ghép tất cả cookie của user để forward
+  const cookieHeader = c.getAll().map((x) => `${x.name}=${x.value}`).join("; ");
+
+  let tokenOk = false;
+  let accessSample = "";
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
-    }
-    
-    // Verify JWT token
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
-    // Check if token is still valid (30 days)
-    const now = Date.now();
-    const tokenAge = now - decoded.loginTime;
-    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-    
-    if (tokenAge > maxAge) {
-      return NextResponse.json({ authenticated: false, error: 'Session expired' }, { status: 401 });
-    }
-    
-    return NextResponse.json({ 
-      authenticated: true, 
-      username: decoded.username,
-      loginTime: decoded.loginTime
+    const origin = new URL(req.url).origin;
+    const r = await fetch(`${origin}/api/auth/google/token`, {
+      method: "POST",
+      headers: {
+        Cookie: cookieHeader,          // <- QUAN TRỌNG: forward cookie người dùng
+        "Content-Type": "application/json",
+      },
     });
-    
-  } catch (error) {
-    // Auth check error
-    return NextResponse.json({ authenticated: false }, { status: 401 });
-  }
+    tokenOk = r.ok;
+    if (tokenOk) {
+      const j = await r.json();
+      accessSample = (j?.access_token ?? "").slice(0, 8);
+    }
+  } catch { }
+
+  return NextResponse.json({ hasRefresh, tokenOk, accessSample });
 }

@@ -1,76 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
+import { NextResponse } from "next/server";
+import { signValue } from "@/app/lib/authCookies";
+import { randomUUID } from "crypto";
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-
-// Store state temporarily in memory (in production, use Redis or database)
-const stateStore = new Map<string, { timestamp: number; origin: string }>();
-
-// Clean up old states every hour
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of stateStore.entries()) {
-    if (now - value.timestamp > 60 * 60 * 1000) { // 1 hour
-      stateStore.delete(key);
-    }
+export async function GET(req: Request) {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return new NextResponse("Missing GOOGLE_CLIENT_ID", { status: 500 });
   }
-}, 60 * 60 * 1000);
-
-export async function GET(request: NextRequest) {
-  try {
-  const url = new URL(request.url);
-  const action = url.searchParams.get('action');
-
-  if (action === 'login') {
-      // Generate OAuth authorization URL
-      if (!GOOGLE_CLIENT_ID) {
-        return NextResponse.json(
-          { error: 'Google Client ID not configured' },
-          { status: 500 }
-        );
-      }
-
-  // Generate random state parameter for CSRF protection
-  const state = randomBytes(32).toString('hex');
-  // Derive origin from the request URL to support direct navigation (no Origin header)
-  const origin = `${url.protocol}//${url.host}`;
-      
-      // Store state with timestamp
-      stateStore.set(state, { timestamp: Date.now(), origin });
-
-      const redirectUri = `${origin}/api/auth/google/callback`;
-      
-  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.file');
-  authUrl.searchParams.set('access_type', 'offline'); // This is crucial for refresh tokens
-  // Force account selection and consent so switching accounts works reliably
-  authUrl.searchParams.set('prompt', 'select_account consent');
-      authUrl.searchParams.set('state', state);
-
-      // Support redirect mode for consistent behavior
-      const wantsRedirect = url.searchParams.get('mode') === 'redirect';
-      
-      if (wantsRedirect) {
-        // Redirect directly to Google OAuth for same-window flow
-        return NextResponse.redirect(authUrl.toString());
-      }
-
-      // Default: return JSON for programmatic fetch (popup flow)
-      return NextResponse.json({ authUrl: authUrl.toString() });
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error) {
-    // OAuth error
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!process.env.GOOGLE_CLIENT_SECRET) {
+    return new NextResponse("Missing GOOGLE_CLIENT_SECRET", { status: 500 });
   }
+  if (!process.env.JWT_SECRET) {
+    return new NextResponse("Missing JWT_SECRET", { status: 500 });
+  }
+
+  const url = new URL(req.url);
+  const appOrigin = url.origin; // http://localhost:3000 hoặc https://anrye.netlify.app
+  const redirectUri = `${appOrigin}/api/auth/google/callback`;
+
+  // Get 'origin' (path to return after login), only allow internal paths
+  const rawOriginPath = url.searchParams.get("origin") || "/";
+  const originPath = rawOriginPath.startsWith("/") ? rawOriginPath : "/";
+
+  // Create state value
+  const stateUuid = randomUUID();
+  const stateRaw = `${stateUuid}|${Date.now()}|${originPath}`;
+  const signed = signValue(stateRaw, process.env.JWT_SECRET);
+
+  // Scope
+  const scope = [
+    "openid",
+    "email",
+    "profile",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.readonly",
+  ].join(" ");
+
+  // Tham số OAuth (offline + consent để lấy refresh_token)
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    access_type: "offline",
+    include_granted_scopes: "true",
+    prompt: "consent",
+    scope,
+    state: stateUuid,
+  });
+
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+  const resp = NextResponse.redirect(googleAuthUrl);
+  resp.cookies.set("oauth_state", signed, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 10 * 60, // 10 phút
+  });
+
+  return resp;
 }
-
-export { stateStore };
+``

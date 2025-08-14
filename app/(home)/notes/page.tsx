@@ -84,7 +84,7 @@ const MemoizedNoteContent = React.memo(({
         </div>
       );
     }
-    
+
     return (
       <NotePreview
         selectedNote={selectedNote}
@@ -139,18 +139,18 @@ const MemoizedNoteContent = React.memo(({
     prevProps.isEditing === nextProps.isEditing &&
     prevProps.isSplitMode === nextProps.isSplitMode &&
     prevProps.editContent === nextProps.editContent &&
-  // Re-render when selected note identity-relevant fields change
-  prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
-  prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
-  prevProps.selectedNote?.path === nextProps.selectedNote?.path &&
-  prevProps.selectedNote?.title === nextProps.selectedNote?.title &&
-  prevProps.selectedNote?.driveFileId === nextProps.selectedNote?.driveFileId &&
-  prevProps.isSignedIn === nextProps.isSignedIn &&
-  // Re-render when formatting settings change
-  prevProps.tabSize === nextProps.tabSize &&
-  prevProps.fontSize === nextProps.fontSize &&
-  prevProps.previewFontSize === nextProps.previewFontSize &&
-  prevProps.codeBlockFontSize === nextProps.codeBlockFontSize
+    // Re-render when selected note identity-relevant fields change
+    prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
+    prevProps.selectedNote?.content === nextProps.selectedNote?.content &&
+    prevProps.selectedNote?.path === nextProps.selectedNote?.path &&
+    prevProps.selectedNote?.title === nextProps.selectedNote?.title &&
+    prevProps.selectedNote?.driveFileId === nextProps.selectedNote?.driveFileId &&
+    prevProps.isSignedIn === nextProps.isSignedIn &&
+    // Re-render when formatting settings change
+    prevProps.tabSize === nextProps.tabSize &&
+    prevProps.fontSize === nextProps.fontSize &&
+    prevProps.previewFontSize === nextProps.previewFontSize &&
+    prevProps.codeBlockFontSize === nextProps.codeBlockFontSize
   );
 });
 
@@ -236,7 +236,7 @@ export default function NotesPage() {
     handleDragOver,
     handleDrop,
   } = useDragAndDrop(
-  notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress, selectedNote, setSelectedNote
+    notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress, selectedNote, setSelectedNote
   );
 
   const { isSignedIn, isInitialized: isAuthInitialized, signIn, signOut, checkSignInStatus } = useDrive();
@@ -249,13 +249,13 @@ export default function NotesPage() {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('auth_success');
       window.history.replaceState({}, document.title, newUrl.toString());
-      
+
       // Process temporary tokens if they exist
       const processTokens = async () => {
         try {
           // Small delay to ensure tokens are properly stored
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           // Force a fresh check of sign-in status after authentication
           if (checkSignInStatus) {
             await checkSignInStatus();
@@ -264,17 +264,17 @@ export default function NotesPage() {
           console.error('Error processing authentication:', error);
         }
       };
-      
+
       processTokens();
     }
-    
+
     const authError = urlParams.get('auth_error');
     if (authError) {
       // Remove the auth_error parameter from URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('auth_error');
       window.history.replaceState({}, document.title, newUrl.toString());
-      
+
       // Google Drive authentication error
       // You might want to show an error message to the user here
     }
@@ -443,14 +443,16 @@ export default function NotesPage() {
           onForceSync={forceSync}
           onClearCacheAndSync={clearCacheAndSync}
           onSignIn={() => {
-            // Use the popup OAuth flow that returns refresh tokens
-            driveService.signIn();
+            const origin = encodeURIComponent(
+              typeof window !== "undefined" ? window.location.pathname : "/"
+            );
+            window.location.href = `/api/auth/google?origin=${origin}`;
           }}
           onSignOut={signOut}
         />
 
         {/* Main content area */}
-  <div className={`flex-1 min-h-0 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
+        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
           {selectedNote ? (
             <>
               {/* Note Header */}
@@ -543,7 +545,7 @@ export default function NotesPage() {
                     <span className="text-sm">Sidebar</span>
                   </button>
                 )}
-                
+
                 <div className="text-center">
                   <FileText size={64} className="text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-300 text-lg">Select a note to start reading</p>
@@ -582,8 +584,8 @@ export default function NotesPage() {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-          e.preventDefault();
-          void handleCreateFolder();
+                  e.preventDefault();
+                  void handleCreateFolder();
                 } else if (e.key === 'Escape') {
                   setIsCreatingFolder(false);
                   setNewFolderName('');
@@ -641,8 +643,8 @@ export default function NotesPage() {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-          e.preventDefault();
-          void handleCreateNote();
+                  e.preventDefault();
+                  void handleCreateNote();
                 } else if (e.key === 'Escape') {
                   setIsCreatingNote(false);
                   setNewNoteName('');
