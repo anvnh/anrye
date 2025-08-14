@@ -125,18 +125,6 @@ export default function MoveDrawer({
               <p className="text-sm text-gray-400">Current: {item.path || 'Root'}</p>
             </div>
           </div>
-          {itemType === 'note' && (
-            <div className="mt-3">
-              <label className="text-xs text-gray-400 mb-1 block">New title (optional)</label>
-              <input
-                value={proposedTitle}
-                onChange={(e) => setProposedTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Keep current title"
-                style={{ backgroundColor: '#222831' }}
-              />
-            </div>
-          )}
         </div>
 
         {/* Destination Selection */}
@@ -149,7 +137,7 @@ export default function MoveDrawer({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search folders"
-                className="w-full pl-8 pr-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md pl-8 pr-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ backgroundColor: '#222831' }}
               />
             </div>
@@ -219,11 +207,10 @@ export default function MoveDrawer({
           <button
             onClick={handleMove}
             disabled={false}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-              true
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${true
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
+              }`}
           >
             Move Here
           </button>
