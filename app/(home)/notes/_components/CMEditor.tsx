@@ -24,6 +24,7 @@ export interface CMEditorApi {
   getDocText: () => string;
   getLineStartOffset: (lineNumberZeroBased: number) => number;
   setSelection: (anchor: number, head?: number) => void;
+  scrollToLine: (lineNumberZeroBased: number, smooth?: boolean) => void;
   scrollDOM: HTMLElement | null;
   contentDOM: HTMLElement | null;
 }
@@ -409,6 +410,18 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       },
       scrollDOM: (view as any).scrollDOM as HTMLElement,
       contentDOM: (view as any).contentDOM as HTMLElement,
+      scrollToLine: (lineNumberZeroBased: number, smooth: boolean = false) => {
+        const lineNumOneBased = Math.max(1, (lineNumberZeroBased | 0) + 1);
+        const line = view.state.doc.line(lineNumOneBased);
+        view.dispatch({
+          effects: EditorView.scrollIntoView(line.from, { y: 'start' })
+        });
+        if (smooth) {
+          const scroller = (view as any).scrollDOM as HTMLElement;
+          scroller?.scrollTo({ top: scroller.scrollTop, behavior: 'smooth' });
+        }
+      },
+
     } as CMEditorApi;
   });
 

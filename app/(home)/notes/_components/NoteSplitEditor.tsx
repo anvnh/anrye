@@ -63,6 +63,18 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     }
   };
 
+  // --- Sticky-bottom guard to avoid jitter when leaving bottom ---
+  const stickyBottomRef = useRef(false);
+  const BOTTOM_EPS = 1;         // px tolerance to consider "at bottom"
+  const LEAVE_BOTTOM_DELTA = 8; // px the editor/preview must move up to "unlock"
+
+
+  const scrollEditorToStartLine = useCallback((startLineZeroBased: number) => {
+    const api = cmRef.current;
+    if (!api) return;
+    // Ưu tiên không smooth khi đang sync để tránh “đuổi nhau”
+    api.scrollToLine(startLineZeroBased, /*smooth*/ false);
+  }, []);
 
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
@@ -279,7 +291,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     // Prefer block-level anchors for precision
     const blockNodes = Array.from(container.querySelectorAll('[data-block-index]')) as HTMLElement[];
     const totalLines = Math.max(1, editContent.split('\n').length);
-    const pixelsPerLine = (rawElement.scrollHeight - rawElement.clientTop) / totalLines;
+
+    // const pixelsPerLine = (rawElement.scrollHeight - rawElement.clientTop) / totalLines;
+    const pixelsPerLine = rawElement.scrollHeight / Math.max(1, totalLines);
 
     let rawAnchorsCore: number[] = [];
     let previewAnchorsCore: number[] = [];
@@ -321,6 +335,16 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     return { rawAnchors, previewAnchors };
   }
 
+  const scrollPreviewTo = (container: HTMLElement, top: number) => {
+    const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    container.scrollTo({ top: Math.min(maxTop, Math.max(0, top)), behavior: 'auto' });
+  };
+
+  const scrollPreviewToBottom = (container: HTMLElement) => {
+    const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    container.scrollTo({ top: maxTop, behavior: 'auto' });
+  };
+
   const scrollPreviewToElement = useCallback((el: HTMLElement) => {
     const container = previewRef.current;
     if (!container || !el) return;
@@ -354,6 +378,28 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     const maxScroll = rawElement.scrollHeight - rawElement.clientHeight;
     if (maxScroll <= 0) return;
     const currentScrollTop = rawElement.scrollTop;
+
+    // Treat "near bottom" as bottom to avoid needing extra wheel ticks
+    const NEAR_BOTTOM_PX = 24;          // ~1 line height or a bit more
+    const NEAR_BOTTOM_RATIO = 0.985;    // 98.5% down is bottom
+
+    // --- Near-bottom detection to avoid extra wheel turns ---
+    const nearBottom =
+      (maxScroll - currentScrollTop) <= NEAR_BOTTOM_PX ||
+      (maxScroll > 0 && (currentScrollTop / maxScroll) >= NEAR_BOTTOM_RATIO);
+
+    if (nearBottom && previewRef.current) {
+      isSyncingRef.current = true;
+      lastSourceRef.current = 'raw';
+      scrollPreviewToBottom(previewRef.current);
+      stickyBottomRef.current = true;
+      requestAnimationFrame(() => {
+        isSyncingRef.current = false;
+        lastSourceRef.current = null;
+      });
+      return;
+    }
+
     if (Math.abs(currentScrollTop - lastScrollPositions.current.raw) < SCROLL_THRESHOLD) return;
 
     lastScrollPositions.current.raw = currentScrollTop;
@@ -464,7 +510,19 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     const container = previewRef.current;
     const textarea = cmRef.current?.scrollDOM || null;
     if (!container || !textarea) return;
+
+    // If we're in sticky bottom mode and preview is still at bottom, ignore to avoid jitter
+    const maxPreview = container.scrollHeight - container.clientHeight;
+    if (stickyBottomRef.current && maxPreview > 0 && (maxPreview - container.scrollTop) <= BOTTOM_EPS) {
+      return;
+    }
+
     if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
+
+    // Leaving bottom via preview -> clear sticky
+    if (stickyBottomRef.current && container.scrollTop < (container.scrollHeight - container.clientHeight - LEAVE_BOTTOM_DELTA)) {
+      stickyBottomRef.current = false;
+    }
 
     const anchors = computeAnchors(textarea);
     if (!anchors || anchors.rawAnchors.length < 2) return;
@@ -482,6 +540,12 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     const x1 = rawAnchors[i + 1] ?? x0;
     const t = y1 === y0 ? 0 : (y - y0) / (y1 - y0);
     let target = Math.max(0, Math.min(Math.round(x0 + t * (x1 - x0)), textarea.scrollHeight - textarea.clientHeight));
+
+    // If previously sticky at bottom, avoid snapping back to exact bottom by nudging 1px up
+    if (stickyBottomRef.current && target >= container.scrollHeight - container.clientHeight) {
+      target = Math.max(0, (container.scrollHeight - container.clientHeight) - 1);
+    }
+
     // Snap to nearest raw anchor
     if (Math.abs(target - x0) < SNAP_PX) target = x0;
     else if (Math.abs(target - x1) < SNAP_PX) target = x1;
@@ -770,7 +834,69 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     return () => ro.disconnect();
   }, [rebuildDomHeadingList]);
 
-  // (moved helpers above to avoid TDZ)
+  useEffect(() => {
+    const container = previewRef.current;
+    const editorApi = cmRef.current;
+    if (!container || !editorApi) return;
+
+    let rafId: number | null = null;
+
+    const pickTopVisibleBlock = (entries: IntersectionObserverEntry[]) => {
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      return visible[0]?.target as HTMLElement | undefined;
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
+
+      const topEl = pickTopVisibleBlock(entries);
+      if (!topEl) return;
+
+      const startAttr = topEl.getAttribute('data-start-line');
+      const startLine = startAttr ? parseInt(startAttr, 10) : NaN;
+      if (!Number.isFinite(startLine)) return;
+
+      // debounce with RAF to avoid jitter
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        // Set syncing flag to prevent recursive sync
+        isSyncingRef.current = true;
+        lastSourceRef.current = 'preview';
+        scrollEditorToStartLine(startLine);
+        // Release syncing flag after scroll
+        requestAnimationFrame(() => {
+          isSyncingRef.current = false;
+          lastSourceRef.current = null;
+        });
+      });
+    }, {
+      root: container,
+      // Use a negative root margin to trigger early
+      rootMargin: '-8px 0px 0px 0px',
+      threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+    });
+
+    // Observe all nodes with start/end line attributes
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>('[data-start-line][data-end-line]'));
+    nodes.forEach(n => io.observe(n));
+
+    // Re-attach observer when content changes
+    const reconnect = () => {
+      io.disconnect();
+      const latest = Array.from(container.querySelectorAll<HTMLElement>('[data-start-line][data-end-line]'));
+      latest.forEach(n => io.observe(n));
+    };
+
+    // Reconnect observer on content change
+    reconnect();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      io.disconnect();
+    };
+  }, [debouncedContent, scrollEditorToStartLine]);
 
   return (
     <div className="flex h-full w-full relative">
