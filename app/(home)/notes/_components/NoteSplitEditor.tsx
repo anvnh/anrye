@@ -68,6 +68,18 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   const BOTTOM_EPS = 1;         // px tolerance to consider "at bottom"
   const LEAVE_BOTTOM_DELTA = 8; // px the editor/preview must move up to "unlock"
 
+  // Actively scrolled side to prevent feedback loops
+  const scrollOwnerRef = useRef<'raw' | 'preview' | null>(null);
+  const scrollOwnerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setScrollOwner = useCallback((owner: 'raw' | 'preview') => {
+    scrollOwnerRef.current = owner;
+    if (scrollOwnerTimerRef.current) clearTimeout(scrollOwnerTimerRef.current);
+    // Keep ownership for a short window after interaction
+    scrollOwnerTimerRef.current = setTimeout(() => {
+      scrollOwnerRef.current = null;
+    }, 350);
+  }, []);
+
 
   const scrollEditorToStartLine = useCallback((startLineZeroBased: number) => {
     const api = cmRef.current;
@@ -492,6 +504,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   }, [editContent, findHeadingForApproxLine, scrollPreviewToElement, scrollPreviewToHeadingId, computeAnchors]);
 
   const handleRawScroll = useCallback(() => {
+    // Only allow raw->preview sync when user is actively interacting with editor
+    if (scrollOwnerRef.current !== 'raw') return;
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastRawScrollTime < THROTTLE_DELAY) return;
     (lastScrollPositions.current as any).lastRawScrollTime = now;
@@ -502,6 +516,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   }, [syncPreviewFromRaw]);
 
   const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    // Only allow preview->raw sync when user is actively interacting with preview
+    if (scrollOwnerRef.current !== 'preview') return;
     // Reverse sync: map preview scroll to raw textarea using same anchors
     const now = Date.now();
     if (now - (lastScrollPositions.current as any).lastPreviewScrollTime < THROTTLE_DELAY) return;
@@ -571,20 +587,36 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     if (rawScrollElRef.current === el) return; // already attached to this scroller
 
     const onScroll = () => handleRawScroll();
-    const onWheel = () => handleRawScroll();
-    const onTouchMove = () => handleRawScroll();
+    const onWheel = () => {
+      setScrollOwner('raw');
+      handleRawScroll();
+    };
+    const onTouchMove = () => {
+      setScrollOwner('raw');
+      handleRawScroll();
+    };
+    const onPointerDown = () => setScrollOwner('raw');
+    const onKeyDown = (ev: KeyboardEvent) => {
+      // Keys that typically cause scrolling
+      const keys = new Set(['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'End', 'Home', ' ']);
+      if (keys.has(ev.key)) setScrollOwner('raw');
+    };
     el.addEventListener('scroll', onScroll, { passive: true } as any);
     el.addEventListener('wheel', onWheel, { passive: true } as any);
     el.addEventListener('touchmove', onTouchMove, { passive: true } as any);
+    el.addEventListener('pointerdown', onPointerDown, { passive: true } as any);
+    el.addEventListener('keydown', onKeyDown as any, false);
     rawScrollElRef.current = el;
 
     return () => {
       try { el.removeEventListener('scroll', onScroll as any); } catch { }
       try { el.removeEventListener('wheel', onWheel as any); } catch { }
       try { el.removeEventListener('touchmove', onTouchMove as any); } catch { }
+      try { el.removeEventListener('pointerdown', onPointerDown as any); } catch { }
+      try { el.removeEventListener('keydown', onKeyDown as any); } catch { }
       if (rawScrollElRef.current === el) rawScrollElRef.current = null;
     };
-  }, [editorReady, handleRawScroll]);
+  }, [editorReady, handleRawScroll, setScrollOwner]);
 
   // Perform an initial sync when editor/preview are ready or content changes
   useEffect(() => {
@@ -849,7 +881,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     };
 
     const io = new IntersectionObserver((entries) => {
-      if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
+  // Only drive editor from preview when user is scrolling preview
+  if (scrollOwnerRef.current !== 'preview') return;
+  if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
 
       const topEl = pickTopVisibleBlock(entries);
       if (!topEl) return;
@@ -861,7 +895,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
       // debounce with RAF to avoid jitter
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        // Set syncing flag to prevent recursive sync
+  // Set syncing flag to prevent recursive sync
         isSyncingRef.current = true;
         lastSourceRef.current = 'preview';
         scrollEditorToStartLine(startLine);
@@ -986,11 +1020,15 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
           ref={previewRef}
           className="preview-content flex-1 overflow-y-auto p-3.5"
           onScroll={handlePreviewScroll}
+          onWheel={() => setScrollOwner('preview')}
+          onTouchMove={() => setScrollOwner('preview')}
+          onPointerDown={() => setScrollOwner('preview')}
+          onKeyDown={() => setScrollOwner('preview')}
           style={{
             scrollBehavior: 'auto',
             // Performance optimizations
             willChange: 'scroll-position',
-            contain: 'layout style paint',
+            contain: 'content',
             backgroundColor: '#222831'
           }}
         >
@@ -1068,6 +1106,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
               .preview-content {
                 scroll-behavior: auto !important;
                 background-color: #222831 !important;
+                overscroll-behavior: contain;
+                contain: content;
               }
               .raw-content {
                 scroll-behavior: auto !important;

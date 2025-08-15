@@ -467,16 +467,16 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
                 <button
                   onClick={() => setRightSidebarTab('links')}
                   className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'links'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                    ? 'bg-secondary text-white'
+                    : 'bg-main text-gray-300 hover:bg-gray-700'}`}
                 >
                   Links
                 </button>
                 <button
                   onClick={() => setRightSidebarTab('calendar')}
                   className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'calendar'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                    ? 'bg-secondary text-white'
+                    : 'bg-main text-gray-300 hover:bg-gray-700'}`}
                 >
                   Calendar
                 </button>
