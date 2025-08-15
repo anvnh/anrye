@@ -219,7 +219,16 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     const lines = processed.split('\n');
     const titleCounts: Record<string, number> = {};
     const result: HeadingInfo[] = [];
+    const fenceRegex = /^\s*(```|~~~)/;
+    let inFence = false;
     lines.forEach((line, index) => {
+      if (fenceRegex.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+      // Ignore indented code blocks (4+ leading spaces or a tab)
+      if (/^(\t| {4,})/.test(line)) return;
       const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const level = match[1].length;

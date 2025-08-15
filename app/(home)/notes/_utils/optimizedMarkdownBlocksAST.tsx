@@ -207,7 +207,7 @@ export const OptimizedMarkdownBlocksAST: React.FC<{
     <div>
       {blocks.map((block, i) => (
         <div 
-          key={block.key} 
+          key={`${block.key}-${block.startLine}-${block.endLine}-${block.type}`}
           data-block-index={i} 
           data-block-type={block.type}
           data-start-line={block.startLine} 

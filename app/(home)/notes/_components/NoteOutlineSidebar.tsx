@@ -34,25 +34,36 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
     const lines = content.split('\n');
     const headings: OutlineItem[] = [];
     const titleCounts: { [key: string]: number } = {};
-    
+    const fenceRegex = /^\s*(```|~~~)/;
+    let inFence = false;
+
     lines.forEach((line, index) => {
-      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      if (fenceRegex.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+      // Ignore indented code blocks (4+ leading spaces or a tab)
+      if (/^(\t| {4,})/.test(line)) return;
+
+  const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const level = match[1].length;
         const rawTitle = match[2].trim();
         const cleanTitle = stripMarkdown(rawTitle);
-        
+
         // Use same ID creation logic as markdown renderer
-        const baseId = cleanTitle.toLowerCase()
+        const baseId = cleanTitle
+          .toLowerCase()
           .replace(/[^\w\s-]/g, '')
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')
           .trim();
-        
+
         // Handle duplicate titles by adding counter
         titleCounts[baseId] = (titleCounts[baseId] || 0) + 1;
         const id = titleCounts[baseId] === 1 ? baseId : `${baseId}-${titleCounts[baseId]}`;
-        
+
         headings.push({
           id,
           title: cleanTitle,
@@ -61,7 +72,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
         });
       }
     });
-    
+
     return headings;
   }, [content]);
 

@@ -332,7 +332,16 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     const lines = preprocessedContent.split('\n');
     const ids: { [lineIndex: number]: string } = {};
     const titleCounts: { [key: string]: number } = {};
+    const fenceRegex = /^\s*(```|~~~)/;
+    let inFence = false;
     lines.forEach((line, index) => {
+      if (fenceRegex.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+      // Ignore indented code blocks (4+ leading spaces or a tab)
+      if (/^(\t| {4,})/.test(line)) return;
       const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const rawTitle = match[2].trim();
@@ -354,8 +363,19 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   let currentHeadingIndex = 0;
   const getHeadingId = (text: string) => {
     const lines = preprocessedContent.split('\n');
+    const fenceRegex = /^\s*(```|~~~)/;
+    let inFence = false;
     const headingLines = lines.map((line, index) => ({ line, index }))
-      .filter(({ line }) => line.match(/^(#{1,6})\s+(.+)$/));
+      .filter(({ line }) => {
+        if (fenceRegex.test(line)) {
+          inFence = !inFence;
+          return false;
+        }
+        if (inFence) return false;
+        // Ignore indented code blocks too
+        if (/^(\t| {4,})/.test(line)) return false;
+        return /^(#{1,6})\s+(.+)$/.test(line);
+      });
     if (currentHeadingIndex < headingLines.length) {
       const lineIndex = headingLines[currentHeadingIndex].index;
       currentHeadingIndex++;
@@ -762,7 +782,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             }, []);
 
             return (
-              <div key={stableKey} className="relative my-4 md-img-wrapper">
+              <div className="relative my-4 md-img-wrapper">
                 <React.Suspense fallback={null}>
                   <div className="group relative">
                     <OptimizedImage

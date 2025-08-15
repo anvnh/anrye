@@ -34,14 +34,25 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
   const outline = useMemo(() => {
     const lines = content.split('\n');
     const headings: OutlineItem[] = [];
-    
+    const fenceRegex = /^\s*(```|~~~)/;
+    let inFence = false;
+
     lines.forEach((line, index) => {
-      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      if (fenceRegex.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+      // Ignore indented code blocks (4+ leading spaces or a tab)
+      if (/^(\t| {4,})/.test(line)) return;
+
+  const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const level = match[1].length;
         const rawTitle = match[2].trim();
         const cleanTitle = stripMarkdown(rawTitle);
-        const id = cleanTitle.toLowerCase()
+        const id = cleanTitle
+          .toLowerCase()
           .replace(/[^\w\s-]/g, '')
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')
