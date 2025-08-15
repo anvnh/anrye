@@ -25,6 +25,28 @@ function Calendar({
 }) {
   const defaultClassNames = getDefaultClassNames()
 
+  // Safety: If consumer passes `month` without `onMonthChange`, DayPicker becomes controlled
+  // and navigation (chevrons/dropdowns) won't update the month. To keep UX working by default,
+  // convert that into an uncontrolled calendar using `defaultMonth`.
+  // - If both `month` and `onMonthChange` are provided, keep controlled behavior.
+  // - If only `month` is provided, map it to `defaultMonth` and omit `month`.
+  // - Otherwise, pass through as-is.
+  const { month, onMonthChange, defaultMonth, ...restProps } = props as {
+    month?: Date
+    onMonthChange?: (month: Date) => void
+    defaultMonth?: Date
+  }
+
+  const resolvedPickerProps: React.ComponentProps<typeof DayPicker> = (() => {
+    if (month && onMonthChange) {
+      return { month, onMonthChange, defaultMonth, ...restProps }
+    }
+    if (month && !onMonthChange) {
+      return { defaultMonth: month, ...restProps }
+    }
+    return { defaultMonth, ...restProps }
+  })()
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -48,17 +70,17 @@ function Calendar({
         ),
         month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
         nav: cn(
-          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
+          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between z-10 pointer-events-auto",
           defaultClassNames.nav
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none pointer-events-auto",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none pointer-events-auto",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -124,7 +146,7 @@ function Calendar({
         hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
-      components={{
+  components={{
         Root: ({ className, rootRef, ...props }) => {
           return (
             <div
@@ -167,7 +189,7 @@ function Calendar({
         },
         ...components,
       }}
-      {...props}
+  {...resolvedPickerProps}
     />
   )
 }

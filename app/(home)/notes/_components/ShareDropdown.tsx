@@ -668,6 +668,13 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                             ? new Date(shareSettings.expireAt)
                             : new Date()}
                           captionLayout="dropdown"
+                          // Ensure dropdowns are enabled and populated
+                          fromYear={2000}
+                          toYear={2100}
+                          // Open at the selected month by default
+                          defaultMonth={shareSettings.expireAt
+                            ? new Date(shareSettings.expireAt)
+                            : new Date()}
                           onSelect={(date) => {
                             updateShareSettings(
                               'expireAt',
@@ -946,6 +953,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                         mode="single"
                         selected={editForm.expireAt ? new Date(editForm.expireAt) : new Date()}
                         captionLayout="dropdown"
+                        // Ensure dropdowns are enabled and populated
+                        fromYear={2000}
+                        toYear={2100}
+                        // Open at the selected month by default
+                        defaultMonth={editForm.expireAt ? new Date(editForm.expireAt) : new Date()}
                         onSelect={(date) => {
                           if (date) {
                             const time = editForm.selectedTime || format(new Date(), 'HH:mm:ss');

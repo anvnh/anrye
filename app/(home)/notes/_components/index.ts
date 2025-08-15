@@ -5,6 +5,7 @@ export { NoteRegularEditor } from './NoteRegularEditor';
 export { default as NoteOutlineSidebar } from './NoteOutlineSidebar';
 export { EditorToolbar } from './EditorToolbar';
 export { ShareDropdown } from './ShareDropdown';
+export { default as CalendarPanel } from './CalendarPanel';
 export { default as FoldableHeading } from './FoldableHeading';
 export { ImageManager } from './ImageManager';
 export { default as MobileFileOperations, MobileItemMenu } from './MobileFileOperations';

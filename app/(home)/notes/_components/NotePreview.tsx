@@ -7,6 +7,7 @@ import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
 import BacklinksPanel from './BacklinksPanel';
+import CalendarPanel from './CalendarPanel';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -45,6 +46,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const backlinksRef = useRef<HTMLDivElement>(null);
   const backlinksBtnRef = useRef<HTMLButtonElement>(null);
   const backlinksBackdropRef = useRef<HTMLDivElement>(null);
+  const [rightSidebarTab, setRightSidebarTab] = useState<'links' | 'calendar'>('links');
 
   // Check if the note has headings
   const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
@@ -73,7 +75,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
     if (isOutlineOpen) {
       // Animate backdrop fade in
-      gsap.fromTo(backdrop, 
+      gsap.fromTo(backdrop,
         { opacity: 0 },
         { opacity: 1, duration: 0.3, ease: "power2.out" }
       );
@@ -101,7 +103,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
     if (isBacklinksOpen) {
       // Animate backdrop fade in
-      gsap.fromTo(backlinksBackdrop, 
+      gsap.fromTo(backlinksBackdrop,
         { opacity: 0 },
         { opacity: 1, duration: 0.3, ease: "power2.out" }
       );
@@ -137,15 +139,15 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDragging) return;
-      
+
       currentX = e.touches[0].clientX;
       const deltaX = currentX - startX;
-      
+
       // Only allow swiping to the right (closing gesture)
       if (deltaX > 0) {
         const clampedDelta = Math.min(deltaX, 320);
         panel.style.transform = `translateX(${clampedDelta}px)`;
-        
+
         // Update backdrop opacity based on swipe progress
         if (backlinksBackdropRef.current) {
           const opacity = 1 - (clampedDelta / 320);
@@ -156,12 +158,12 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
     const handleTouchEnd = () => {
       if (!isDragging) return;
-      
+
       isDragging = false;
       panel.style.transition = '';
-      
+
       const deltaX = currentX - startX;
-      
+
       // Close if swiped more than 25% of panel width
       if (deltaX > 80) {
         setIsBacklinksOpen(false);
@@ -212,9 +214,9 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const memoizedMarkdown = useMemo(() => {
     return (
       <MemoizedMarkdown
-    content={selectedNote.content}
-    // Pass minimal notes for wikilink resolution to keep prop stable across content-only updates
-    notes={wikilinkNotes as any}
+        content={selectedNote.content}
+        // Pass minimal notes for wikilink resolution to keep prop stable across content-only updates
+        notes={wikilinkNotes as any}
         selectedNote={selectedNote}
         isEditing={false}
         editContent=""
@@ -242,7 +244,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         >
           {isBacklinksOpen ? <X size={20} /> : <Network size={20} />}
         </button>
-        
+
         {/* Outline Toggle Button */}
         {hasOutline && (
           <button
@@ -260,30 +262,58 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
       {isBacklinksOpen && (
         <div className="lg:hidden absolute inset-0 z-40">
           {/* Backdrop */}
-          <div 
+          <div
             ref={backlinksBackdropRef}
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsBacklinksOpen(false)}
           />
-          
+
           {/* Backlinks Panel */}
-          <div 
+          <div
             ref={backlinksRef}
             className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-l border-gray-700 shadow-xl"
           >
             {/* Swipe indicator */}
             <div className="absolute top-4 left-2 w-1 h-8 bg-gray-500/30 rounded-full"></div>
-            <div className="h-full pb-[env(safe-area-inset-bottom)]">
-              <BacklinksPanel 
-                selectedNote={selectedNote}
-                allNotes={notes}
-                isMobile={true}
-                onClose={() => setIsBacklinksOpen(false)}
-                onNavigateToNote={(noteId) => {
-                  handleNavigateToNote(noteId);
-                  setIsBacklinksOpen(false); // Close the mobile panel after navigation
-                }}
-              />
+            <div className="h-full pb-[env(safe-area-inset-bottom)] flex flex-col">
+              {/* simple segmented buttons */}
+              <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setRightSidebarTab('links')}
+                    className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'links'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                  >
+                    Links
+                  </button>
+                  <button
+                    onClick={() => setRightSidebarTab('calendar')}
+                    className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'calendar'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                  >
+                    Calendar
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {rightSidebarTab === 'links' ? (
+                  <BacklinksPanel
+                    selectedNote={selectedNote}
+                    allNotes={notes}
+                    isMobile={true}
+                    onClose={() => setIsBacklinksOpen(false)}
+                    onNavigateToNote={(noteId) => {
+                      handleNavigateToNote(noteId);
+                      setIsBacklinksOpen(false);
+                    }}
+                  />
+                ) : (
+                  <CalendarPanel />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -293,14 +323,14 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
       {hasOutline && isOutlineOpen && (
         <div className="lg:hidden absolute inset-0 z-40">
           {/* Backdrop */}
-          <div 
+          <div
             ref={backdropRef}
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsOutlineOpen(false)}
           />
-          
+
           {/* Outline Panel */}
-          <div 
+          <div
             ref={outlineRef}
             className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
           >
@@ -428,15 +458,46 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             {memoizedMarkdown}
           </div>
         </div>
-        
-        {/* Desktop Backlinks Sidebar */}
+
+        {/* Desktop Right Sidebar: Links | Calendar */}
         <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
-          <BacklinksPanel 
-            selectedNote={selectedNote}
-            allNotes={notes}
-            isMobile={false}
-            onNavigateToNote={handleNavigateToNote}
-          />
+          <div className="h-full flex flex-col">
+            <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setRightSidebarTab('links')}
+                  className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'links'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                >
+                  Links
+                </button>
+                <button
+                  onClick={() => setRightSidebarTab('calendar')}
+                  className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'calendar'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                >
+                  Calendar
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {rightSidebarTab === 'links' ? (
+                <BacklinksPanel
+                  selectedNote={selectedNote}
+                  allNotes={notes}
+                  isMobile={false}
+                  onNavigateToNote={handleNavigateToNote}
+                />
+              ) : (
+                <div className=''>
+                  <CalendarPanel />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
