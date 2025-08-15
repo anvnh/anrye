@@ -5,6 +5,11 @@ import { Image as ImageIcon, Eye, Download, Trash2 } from 'lucide-react';
 import { DriveImage } from './types';
 import { driveService } from '../../../lib/googleDrive';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import dynamic from 'next/dynamic';
+import { imageLoadingManager } from '../_utils';
+
+// Use the same Lightbox as NotePreview (client-only)
+const ImageLightbox = dynamic(() => import('./ImageLightbox'), { ssr: false });
 
 interface ImagesSectionProps {
   isSignedIn: boolean;
@@ -22,6 +27,7 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
   const [images, setImages] = useState<DriveImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<DriveImage | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [imageLoadRetries, setImageLoadRetries] = useState<Map<string, number>>(new Map());
@@ -177,12 +183,16 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
   const handleCloseModal = () => {
     setSelectedImage(null);
+  setLightboxUrl(null);
   };
 
-  // Handle ESC key to close modal
+  // Handle ESC key to close only the lightbox (not the gallery)
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && selectedImage) {
+        // Prevent the underlying Dialog from also handling ESC
+        event.stopPropagation();
+        event.preventDefault();
         handleCloseModal();
       }
     };
@@ -191,6 +201,24 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
       document.addEventListener('keydown', handleEscKey);
       return () => document.removeEventListener('keydown', handleEscKey);
     }
+  }, [selectedImage]);
+
+  // Resolve selected image to a loadable URL for Lightbox (handles Drive auth via manager)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!selectedImage) return;
+      try {
+        setLightboxUrl(null);
+        const url = await imageLoadingManager.loadImage(selectedImage.id, 10);
+        if (!cancelled) setLightboxUrl(url);
+      } catch (e) {
+        // Fallback to high-quality thumbnail if full-res fails
+        if (!cancelled) setLightboxUrl(`https://drive.google.com/thumbnail?id=${selectedImage.id}&sz=w1024`);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [selectedImage]);
 
   const handleDownload = async (image: DriveImage) => {
@@ -242,7 +270,18 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
 
       {/* Global Gallery Dialog */}
       <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
-        <DialogContent className="max-w-5xl max-h-[85vh] w-[min(100%,90rem)] p-0 overflow-hidden" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+        <DialogContent
+          className="max-w-5xl max-h-[85vh] w-[min(100%,90rem)] p-0 overflow-hidden"
+          style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}
+          onEscapeKeyDown={(e) => {
+            // If preview is open, keep the gallery dialog open
+            if (selectedImage) e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            // If preview is open, ignore outside clicks for the gallery dialog
+            if (selectedImage) e.preventDefault();
+          }}
+        >
           <DialogHeader className="p-4 border-b border-gray-600/50">
             <DialogTitle className="text-white flex items-center justify-between">
               <span>Images</span>
@@ -387,39 +426,14 @@ export const ImagesSection: React.FC<ImagesSectionProps> = ({
         </DialogContent>
       </Dialog>
 
-  {/* Image Preview Dialog */}
-      <Dialog open={!!selectedImage} onOpenChange={(open) => !open && handleCloseModal()}>
-        <DialogContent className="max-w-4xl max-h-[80vh] p-0" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
-          <DialogHeader className="p-4 border-b border-gray-600/50">
-            <DialogTitle className="text-white flex items-center justify-between">
-              <span>{selectedImage?.name}</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-hidden">
-            <img
-              src={`https://drive.google.com/uc?export=view&id=${selectedImage?.id}`}
-              alt={selectedImage?.name}
-              className="w-full h-full object-contain"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                // Fallback to thumbnail if full image fails
-                const target = e.target as HTMLImageElement;
-                target.src = `https://drive.google.com/thumbnail?id=${selectedImage?.id}&sz=w800`;
-              }}
-            />
-          </div>
-
-          {/* Image info footer */}
-          <div className="p-4 border-t border-gray-600/50 bg-gray-800/50">
-            <div className="text-sm text-gray-300">
-              <span>{formatFileSize(selectedImage?.size || 0)}</span>
-              <span className="mx-3">•</span>
-              <span>{selectedImage ? formatDate(selectedImage.modifiedTime) : ''}</span>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Image Preview Lightbox (same UX as NotePreview) */}
+    {selectedImage && lightboxUrl && (
+        <ImageLightbox
+      src={lightboxUrl}
+          alt={selectedImage.name}
+          onClose={handleCloseModal}
+        />
+      )}
     </>
   );
 };
