@@ -47,6 +47,7 @@
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
     "gsap": "^3.13.0",
     "jsonwebtoken": "^9.0.2",
     "katex": "^0.16.22",

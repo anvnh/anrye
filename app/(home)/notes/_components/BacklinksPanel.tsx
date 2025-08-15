@@ -28,69 +28,45 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
   // Compute links and apply search filtering
   const { backlinks, outgoingLinks, filteredBacklinks, filteredOutgoingLinks } = useMemo(() => {
     if (!selectedNote) {
-      return { 
-        backlinks: [], 
-        outgoingLinks: [], 
-        filteredBacklinks: [], 
-        filteredOutgoingLinks: [] 
-      };
+      return { backlinks: [], outgoingLinks: [], filteredBacklinks: [], filteredOutgoingLinks: [] };
     }
-    
+
     const allBacklinks = findBacklinks(selectedNote, allNotes);
     const allOutgoingLinks = findOutgoingLinks(selectedNote, allNotes);
-    
-    // Apply search filter if active
+
     const filterNotes = (notes: Note[]) => {
       if (!searchQuery.trim()) return notes;
       const query = searchQuery.toLowerCase();
-      return notes.filter(note => 
-        note.title.toLowerCase().includes(query) ||
-        note.path?.toLowerCase().includes(query)
+      return notes.filter(n =>
+        n.title.toLowerCase().includes(query) ||
+        (n.path?.toLowerCase().includes(query))
       );
     };
-    
-    const filterBacklinks = (backlinks: BacklinkInfo[]) => {
-      if (!searchQuery.trim()) return backlinks;
+
+    const filterBacklinksFn = (items: BacklinkInfo[]) => {
+      if (!searchQuery.trim()) return items;
       const query = searchQuery.toLowerCase();
-      return backlinks.filter(backlink => 
-        backlink.note.title.toLowerCase().includes(query) ||
-        backlink.note.path?.toLowerCase().includes(query) ||
-        backlink.occurrences.some(occ => occ.context.toLowerCase().includes(query))
+      return items.filter(b =>
+        b.note.title.toLowerCase().includes(query) ||
+        (b.note.path?.toLowerCase().includes(query))
       );
     };
-    
+
     return {
       backlinks: allBacklinks,
       outgoingLinks: allOutgoingLinks,
-      filteredBacklinks: filterBacklinks(allBacklinks),
+      filteredBacklinks: filterBacklinksFn(allBacklinks),
       filteredOutgoingLinks: filterNotes(allOutgoingLinks)
     };
   }, [selectedNote, allNotes, searchQuery]);
 
-  if (!selectedNote) {
-    return (
-      <div className="p-4 text-gray-400 text-center">
-        <Network size={48} className="mx-auto mb-2 opacity-50" />
-        <p>Select a note to see its connections</p>
-      </div>
-    );
-  }
-
+  // Helpers and layout preferences
+  const clearSearch = () => setSearchQuery('');
   const handleNoteClick = (noteId: string) => {
-    if (onNavigateToNote) {
-      onNavigateToNote(noteId);
-    }
+    onNavigateToNote?.(noteId);
   };
-
-  // Determine display counts and grid layout based on device type
-  const gridCols = isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-2';
   const compactMode = isMobile || (outgoingLinks.length + backlinks.length) > 10;
-
-  // Clear search function
-  const clearSearch = () => {
-    setSearchQuery('');
-    setIsSearchActive(false);
-  };
+  const gridCols = 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3';
 
   return (
     <div className="h-full flex flex-col">
@@ -120,7 +96,7 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
             )}
           </div>
         </div>
-        
+
         {/* Search Bar */}
         {isSearchActive && (
           <div className="relative">
@@ -142,11 +118,11 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
             )}
           </div>
         )}
-        
+
         {/* Connection Summary */}
         <div className="flex items-center justify-between text-sm text-gray-400 mt-3">
           <span>
-            {searchQuery ? 
+            {searchQuery ?
               `Found ${filteredOutgoingLinks.length + filteredBacklinks.length} matches` :
               `${outgoingLinks.length + backlinks.length} total connections`
             }
@@ -181,56 +157,53 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
                 </button>
               )}
             </div>
-            
-            {(searchQuery ? filteredOutgoingLinks : outgoingLinks).length > 0 ? (
-              <div className={`transition-all duration-300 ${isOutgoingCollapsed && !isMobile ? 'max-h-20 overflow-hidden' : ''}`}>
-                <div className={`${compactMode ? 'space-y-2' : `grid ${gridCols} gap-3`}`}>
-                  {(searchQuery ? filteredOutgoingLinks : outgoingLinks).map(note => (
-                    <div
-                      key={note.id}
-                      className={`group cursor-pointer ${compactMode ? 'p-2' : 'p-3'} bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-600/30 hover:border-blue-400/30 transition-all duration-200`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleNoteClick(note.id);
-                      }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <FileText size={compactMode ? 14 : 16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`text-white font-medium group-hover:text-blue-300 transition-colors ${compactMode ? 'text-sm' : ''} truncate`}>
-                            {note.title}
-                          </h4>
-                          {note.path && !compactMode && (
-                            <p className="text-xs text-gray-400 mt-1 truncate">
-                              {note.path}
-                            </p>
-                          )}
-                          {/* Connection strength indicator */}
-                          {!compactMode && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                              <span className="text-xs text-blue-400/70">Direct link</span>
-                            </div>
-                          )}
+
+            {isOutgoingCollapsed ? null : (
+              (searchQuery ? filteredOutgoingLinks : outgoingLinks).length > 0 ? (
+                <div className={`transition-opacity duration-200`}>
+                  <div className={`space-y-2`}>
+                    {(searchQuery ? filteredOutgoingLinks : outgoingLinks).map(note => (
+                      <div
+                        key={note.id}
+                        className={`group cursor-pointer ${compactMode ? 'p-2' : 'p-3'} bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-600/30 hover:border-blue-400/30 transition-all duration-200`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleNoteClick(note.id);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <FileText size={compactMode ? 14 : 16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-white font-medium group-hover:text-blue-300 transition-colors text-sm truncate`}>
+                              {note.title}
+                            </h4>
+                            {note.path && !compactMode && (
+                              <p className="text-xs text-gray-400 mt-1 truncate">
+                                {note.path}
+                              </p>
+                            )}
+                            {/* Connection strength indicator */}
+                            {!compactMode && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                                <span className="text-xs text-blue-400/70">Direct link</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                {isOutgoingCollapsed && !isMobile && outgoingLinks.length > 3 && (
-                  <div className="text-center mt-2">
-                    <span className="text-xs text-gray-500">+{outgoingLinks.length - 3} more notes</span>
+                    ))}
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">
-                {searchQuery ? 
-                  "No linked notes match your search." :
-                  "This note doesn't link to any other notes. Try adding some [[wikilinks]]!"
-                }
-              </p>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  {searchQuery ?
+                    "No linked notes match your search." :
+                    "This note doesn't link to any other notes. Try adding some [[wikilinks]]!"
+                  }
+                </p>
+              )
             )}
           </div>
 
@@ -253,81 +226,78 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
                 </button>
               )}
             </div>
-            
-            {(searchQuery ? filteredBacklinks : backlinks).length > 0 ? (
-              <div className={`transition-all duration-300 ${isBacklinksCollapsed && !isMobile ? 'max-h-24 overflow-hidden' : ''}`}>
-                <div className={`${compactMode ? 'space-y-2' : 'space-y-3'}`}>
-                  {(searchQuery ? filteredBacklinks : backlinks).map((backlink: BacklinkInfo) => (
-                    <div
-                      key={backlink.note.id}
-                      className={`group cursor-pointer ${compactMode ? 'p-2' : 'p-3'} bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-600/30 hover:border-green-400/30 transition-all duration-200`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleNoteClick(backlink.note.id);
-                      }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <FileText size={compactMode ? 14 : 16} className="text-green-400 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`text-white font-medium group-hover:text-green-300 transition-colors ${compactMode ? 'text-sm' : ''} truncate`}>
-                            {backlink.note.title}
-                          </h4>
-                          {backlink.note.path && !compactMode && (
-                            <p className="text-xs text-gray-400 mt-1 truncate">
-                              {backlink.note.path}
-                            </p>
-                          )}
-                          
-                          {/* Connection strength indicator */}
-                          {!compactMode && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <div className={`w-1 h-1 bg-green-400 rounded-full ${backlink.occurrences.length > 1 ? 'animate-pulse' : ''}`}></div>
-                              <span className="text-xs text-green-400/70">
-                                {backlink.occurrences.length} reference{backlink.occurrences.length > 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {/* Show context snippets */}
-                          {!compactMode && (
-                            <div className="mt-2 space-y-1">
-                              {backlink.occurrences.slice(0, isMobile ? 1 : 2).map((occurrence, idx) => (
-                                <div key={idx} className="text-xs text-gray-300 bg-gray-900/50 p-2 rounded border-l-2 border-green-400/30">
-                                  <span className="text-gray-500">Line {occurrence.line}:</span>
-                                  <div className="mt-1 font-mono leading-relaxed">
-                                    {occurrence.context.length > 80 && isMobile ? 
-                                      `${occurrence.context.substring(0, 80)}...` : 
-                                      occurrence.context
-                                    }
+
+            {isBacklinksCollapsed ? null : (
+              (searchQuery ? filteredBacklinks : backlinks).length > 0 ? (
+                <div className={`transition-opacity duration-200`}>
+                  <div className={`space-y-3`}>
+                    {(searchQuery ? filteredBacklinks : backlinks).map((backlink: BacklinkInfo) => (
+                      <div
+                        key={backlink.note.id}
+                        className={`group cursor-pointer ${compactMode ? 'p-2' : 'p-3'} bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-600/30 hover:border-green-400/30 transition-all duration-200`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleNoteClick(backlink.note.id);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <FileText size={compactMode ? 14 : 16} className="text-green-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-white font-medium group-hover:text-green-300 transition-colors ${compactMode ? 'text-sm' : ''} truncate`}>
+                              {backlink.note.title}
+                            </h4>
+                            {backlink.note.path && !compactMode && (
+                              <p className="text-xs text-gray-400 mt-1 truncate">
+                                {backlink.note.path}
+                              </p>
+                            )}
+
+                            {/* Connection strength indicator */}
+                            {!compactMode && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <div className={`w-1 h-1 bg-green-400 rounded-full ${backlink.occurrences.length > 1 ? 'animate-pulse' : ''}`}></div>
+                                <span className="text-xs text-green-400/70">
+                                  {backlink.occurrences.length} reference{backlink.occurrences.length > 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Show context snippets */}
+                            {!compactMode && (
+                              <div className="mt-2 space-y-1">
+                                {backlink.occurrences.slice(0, isMobile ? 1 : 2).map((occurrence, idx) => (
+                                  <div key={idx} className="text-xs text-gray-300 bg-gray-900/50 p-2 rounded border-l-2 border-green-400/30">
+                                    <span className="text-gray-500">Line {occurrence.line}:</span>
+                                    <div className="mt-1 font-mono leading-relaxed">
+                                      {occurrence.context.length > 80 && isMobile ?
+                                        `${occurrence.context.substring(0, 80)}...` :
+                                        occurrence.context
+                                      }
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                              {backlink.occurrences.length > (isMobile ? 1 : 2) && (
-                                <p className="text-xs text-gray-500 pl-2">
-                                  +{backlink.occurrences.length - (isMobile ? 1 : 2)} more occurrences
-                                </p>
-                              )}
-                            </div>
-                          )}
+                                ))}
+                                {backlink.occurrences.length > (isMobile ? 1 : 2) && (
+                                  <p className="text-xs text-gray-500 pl-2">
+                                    +{backlink.occurrences.length - (isMobile ? 1 : 2)} more occurrences
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                {isBacklinksCollapsed && !isMobile && backlinks.length > 3 && (
-                  <div className="text-center mt-2">
-                    <span className="text-xs text-gray-500">+{backlinks.length - 3} more backlinks</span>
+                    ))}
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">
-                {searchQuery ? 
-                  "No backlinks match your search." :
-                  `No notes link to this note yet. Share its title with [[${selectedNote.title}]] in other notes to create backlinks!`
-                }
-              </p>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  {searchQuery ?
+                    "No backlinks match your search." :
+                    `No notes link to this note yet. Share its title with [[${selectedNote?.title ?? ''}]] in other notes to create backlinks!`
+                  }
+                </p>
+              )
             )}
           </div>
 
@@ -355,23 +325,22 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({
                 {(outgoingLinks.length + backlinks.length) > 0 && (
                   <div className="mt-3 p-2 bg-gray-800/30 rounded border border-gray-700/30">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        (outgoingLinks.length + backlinks.length) > 5 ? 'bg-green-400' :
+                      <div className={`w-2 h-2 rounded-full ${(outgoingLinks.length + backlinks.length) > 5 ? 'bg-green-400' :
                         (outgoingLinks.length + backlinks.length) > 2 ? 'bg-yellow-400' :
-                        'bg-blue-400'
-                      }`}></div>
+                          'bg-blue-400'
+                        }`}></div>
                       <span className="text-xs font-medium">
                         {(outgoingLinks.length + backlinks.length) > 5 ? 'Highly connected' :
-                         (outgoingLinks.length + backlinks.length) > 2 ? 'Well connected' :
-                         'Lightly connected'}
+                          (outgoingLinks.length + backlinks.length) > 2 ? 'Well connected' :
+                            'Lightly connected'}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {(outgoingLinks.length + backlinks.length) > 5 ? 
+                      {(outgoingLinks.length + backlinks.length) > 5 ?
                         'This note is a central hub in your knowledge graph.' :
                         (outgoingLinks.length + backlinks.length) > 2 ?
-                        'This note has good integration with your knowledge base.' :
-                        'Consider adding more connections to strengthen this note\'s role.'
+                          'This note has good integration with your knowledge base.' :
+                          'Consider adding more connections to strengthen this note\'s role.'
                       }
                     </p>
                   </div>
