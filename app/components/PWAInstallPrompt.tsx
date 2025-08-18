@@ -16,8 +16,20 @@ interface BeforeInstallPromptEvent extends Event {
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const DISABLED_KEY = 'pwa_install_prompt_disabled';
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // If user previously dismissed, never show again
+    const permanentlyDisabled = localStorage.getItem(DISABLED_KEY) === '1';
+    if (permanentlyDisabled) return;
+
+    // Optional: respect previous snooze window
+    const snoozeUntilRaw = localStorage.getItem('pwa_install_prompt_dismissed_until');
+    const snoozeUntil = snoozeUntilRaw ? parseInt(snoozeUntilRaw, 10) : 0;
+    if (snoozeUntil && Date.now() < snoozeUntil) return;
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -26,8 +38,16 @@ export default function PWAInstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler);
 
+    // Hide prompt if app gets installed via other means
+    const onInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallPrompt(false);
+    };
+    window.addEventListener('appinstalled', onInstalled);
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
@@ -43,10 +63,11 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     if (typeof window !== 'undefined') {
-      const nextPromptTime = Date.now() + 10 * 24 * 60 * 60 * 1000; // 10 days in ms
-      localStorage.setItem('pwa_install_prompt_dismissed_until', nextPromptTime.toString());
+  // Permanently disable future prompts after dismiss
+  localStorage.setItem(DISABLED_KEY, '1');
     }
     setShowInstallPrompt(false);
+    setDeferredPrompt(null);
   };
 
   if (!showInstallPrompt) {
