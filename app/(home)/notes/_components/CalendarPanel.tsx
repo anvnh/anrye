@@ -65,6 +65,21 @@ const CalendarPanel: React.FC = () => {
   const HOUR_HEIGHT = 60; // px per hour (was 120)
   const PX_PER_MIN = HOUR_HEIGHT / 60; // derived pixels per minute
 
+  // Get timezone display name
+  const getTimezoneDisplay = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const hours = Math.abs(Math.floor(offset / 60));
+    const minutes = Math.abs(offset % 60);
+    const sign = offset <= 0 ? '+' : '-';
+    
+    if (minutes === 0) {
+      return `GMT ${sign}${hours}`;
+    } else {
+      return `GMT ${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+    }
+  };
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
     return () => clearInterval(t);
@@ -222,7 +237,7 @@ const CalendarPanel: React.FC = () => {
     };
     suppressPopoverClickRef.current = true;
     setSuppressCreate(true);
-  draggingRef.current = true;
+    draggingRef.current = true;
     e.preventDefault();
     e.stopPropagation();
   };
@@ -269,7 +284,7 @@ const CalendarPanel: React.FC = () => {
         applyOptimistic(st.id, safeStart, new Date(st.originalEnd));
       }
     };
-  const handleUp = async () => {
+    const handleUp = async () => {
       const st = dragState.current;
       dragState.current = null;
       if (!st) return;
@@ -330,7 +345,7 @@ const CalendarPanel: React.FC = () => {
       handleCreateQuick(day, hour);
     };
 
-  return (
+    return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/60">
           <div className="flex items-center gap-2">
@@ -349,7 +364,11 @@ const CalendarPanel: React.FC = () => {
 
         <div className="grid grid-cols-[60px_repeat(7,1fr)] flex-1 overflow-auto" ref={gridRef}>
           {/* Header row */}
-          <div className="sticky left-0 top-1 z-10 bg-main border-r border-gray-700/60" />
+          <div className="sticky left-0 top-0 z-10 bg-main border-r border-gray-700/60 flex items-center justify-center py-2">
+            <div className="text-xs text-gray-400 font-medium">
+              {getTimezoneDisplay()}
+            </div>
+          </div>
           {weekDays.map((d, idx) => (
             <div key={idx} className="text-center py-2 border-r border-gray-700/60 sticky top-0 bg-main z-10">
               <div className="flex flex-col items-center gap-1">
@@ -361,10 +380,14 @@ const CalendarPanel: React.FC = () => {
 
           {/* Time column body */}
           <div className="border-r border-gray-700/60 bg-main" style={{ height: HOUR_HEIGHT * 24 }}>
+            {/* Hour lines - aligned with calendar grid */}
             {HOURS.map(h => (
-              <div key={h} className="relative" style={{ height: HOUR_HEIGHT }}>
-                <div className="absolute -top-2 left-1 text-xs text-gray-400">{formatHour(h)}</div>
-                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700/60" />
+              <div key={h} className="absolute left-0 right-0 border-t border-gray-700/60" style={{ top: h * HOUR_HEIGHT }} />
+            ))}
+            {/* Hour labels - positioned to overlay the lines */}
+            {HOURS.map(h => (
+              <div key={h} className="absolute left-1 text-xs text-gray-400 bg-main px-1" style={{ top: h === 0 ? 4 : h * HOUR_HEIGHT - 8 }}>
+                {formatHour(h)}
               </div>
             ))}
           </div>

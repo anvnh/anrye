@@ -6,6 +6,7 @@ import { Share, Copy, Eye, Lock, Globe, User, CheckCircle2Icon, ChevronDownIcon,
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { TimePicker } from './TimePicker';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -681,27 +682,20 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                               date ? format(date, "yyyy-MM-dd'T'HH:mm:ss.SSS'+00:00'") : null
                             );
                           }}
-                          className="rounded-lg border-gray-600"
+                          className="rounded-lg border-gray-600 text-white [&_.rdp-button]:text-white [&_.rdp-button]:hover:bg-gray-700 [&_.rdp-button]:hover:text-white [&_.rdp-caption]:text-white [&_.rdp-weekday]:text-gray-300 [&_.rdp-day]:text-white [&_.rdp-day_button]:text-white [&_.rdp-day_button]:hover:bg-gray-700 [&_.rdp-day_button]:hover:text-white [&_.rdp-day_button[data-selected=true]]:bg-blue-600 [&_.rdp-day_button[data-selected=true]]:text-white"
                         />
                       </PopoverContent>
                     </Popover>
                   </div>
-                    <div className="flex gap-3">
-                    <Label htmlFor="time-picker" className="px-1 text-gray-300">
-                      Time
-                    </Label>
-                    <Input
-                      type="time"
-                      id="time-picker"
-                      step="1"
+                    <TimePicker
                       value={
                         shareSettings.selectedTime ||
                         format(new Date(), 'HH:mm:ss')
                       }
-                      onChange={e => updateShareSettings('selectedTime', e.target.value)}
-                      className="h-[26px] bg-secondary text-white border-gray-600 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                      onChange={(value) => updateShareSettings('selectedTime', value)}
+                      label="Time"
+                      className="flex-1"
                     />
-                    </div>
                 </div>
               )}
 
@@ -964,24 +958,17 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                             updateEditForm('expireAt', `${format(date, "yyyy-MM-dd")}T${time}`);
                           }
                         }}
-                        className="rounded-lg border-gray-600"
+                        className="rounded-lg border-gray-600 text-white [&_.rdp-button]:text-white [&_.rdp-button]:hover:bg-gray-700 [&_.rdp-button]:hover:text-white [&_.rdp-caption]:text-white [&_.rdp-weekday]:text-gray-300 [&_.rdp-day]:text-white [&_.rdp-day_button]:text-white [&_.rdp-day_button]:hover:bg-gray-700 [&_.rdp-day_button]:hover:text-white [&_.rdp-day_button[data-selected=true]]:bg-blue-600 [&_.rdp-day_button[data-selected=true]]:text-white"
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="flex gap-3">
-                  <Label htmlFor="edit-time-picker" className="px-1 text-gray-300">
-                    Time
-                  </Label>
-                  <Input
-                    type="time"
-                    id="edit-time-picker"
-                    step="1"
-                    value={editForm.selectedTime}
-                    onChange={e => updateEditForm('selectedTime', e.target.value)}
-                    className="h-[26px] bg-secondary text-white border-gray-600 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                  />
-                </div>
+                <TimePicker
+                  value={editForm.selectedTime}
+                  onChange={(value) => updateEditForm('selectedTime', value)}
+                  label="Time"
+                  className="flex-1"
+                />
               </div>
             )}
           </div>

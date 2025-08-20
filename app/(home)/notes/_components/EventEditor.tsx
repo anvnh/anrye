@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { TimePicker } from './TimePicker';
 
 type Props = {
   open: boolean;
@@ -89,7 +90,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
               <Label className="text-gray-300">Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start bg-main border-gray-700 text-white">
+                  <Button variant="outline" className="justify-start bg-main border-gray-700 text-white hover:bg-gray-700 hover:text-white">
                     {date.toLocaleDateString()}
                   </Button>
                 </PopoverTrigger>
@@ -99,19 +100,22 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
                     selected={date}
                     onSelect={(d) => d && setDate(d)}
                     initialFocus
+                    className="text-white [&_.rdp-button]:text-white [&_.rdp-button]:hover:bg-gray-700 [&_.rdp-button]:hover:text-white [&_.rdp-caption]:text-white [&_.rdp-weekday]:text-gray-300 [&_.rdp-day]:text-white [&_.rdp-day_button]:text-white [&_.rdp-day_button]:hover:bg-gray-700 [&_.rdp-day_button]:hover:text-white [&_.rdp-day_button[data-selected=true]]:bg-blue-600 [&_.rdp-day_button[data-selected=true]]:text-white"
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-gray-300">Start</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-main border-gray-700 text-white" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-300">End</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-main border-gray-700 text-white" />
-              </div>
+              <TimePicker
+                value={startTime}
+                onChange={setStartTime}
+                label="Start"
+              />
+              <TimePicker
+                value={endTime}
+                onChange={setEndTime}
+                label="End"
+              />
             </div>
           </div>
 
