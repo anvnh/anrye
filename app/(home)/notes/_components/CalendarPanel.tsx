@@ -5,6 +5,9 @@ import { Plus, RefreshCw } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, CalendarEvent } from '@/app/lib/googleCalendar';
 import { EventEditor, EVENT_COLORS } from './EventEditor';
 import { EventPopoverCard } from './EventPopoverCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { deleteRecurringScope } from '@/app/lib/googleCalendar';
 
 type ViewMode = 'week' | 'month';
 
@@ -41,6 +44,9 @@ const CalendarPanel: React.FC = () => {
   const [editorData, setEditorData] = useState<{ id?: string; start: Date; end: Date; title?: string; colorId?: string } | null>(null);
   const [now, setNow] = useState<Date>(new Date());
   const [openPopoverFor, setOpenPopoverFor] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'instance' | 'following' | 'all'>('instance');
+  const [deleting, setDeleting] = useState(false);
   const suppressCreateRef = useRef(false);
   const setSuppressCreate = useCallback((v: boolean) => { suppressCreateRef.current = v; }, []);
   const suppressCreate = useCallback(() => {
@@ -53,6 +59,11 @@ const CalendarPanel: React.FC = () => {
   // Track dragging and last drag end time to block stray clicks on day column
   const draggingRef = useRef(false);
   const lastDragAtRef = useRef(0);
+
+  // Calendar geometry: adjust here to change the visual spacing between hours
+  // Smaller HOUR_HEIGHT => more compact hour rows
+  const HOUR_HEIGHT = 60; // px per hour (was 120)
+  const PX_PER_MIN = HOUR_HEIGHT / 60; // derived pixels per minute
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
@@ -105,9 +116,39 @@ const CalendarPanel: React.FC = () => {
   }, []);
 
   const handleDelete = useCallback(async (ev: CalendarEvent) => {
+    // If recurring, open dialog to select scope
+    if (ev.recurringEventId || (ev.recurrence && ev.recurrence.length > 0)) {
+      setDeleteTarget(ev);
+      setDeleteMode('instance');
+      return;
+    }
     await deleteEvent(ev.id);
     setEvents(prev => prev.filter(e => e.id !== ev.id));
   }, []);
+
+  const confirmDelete = useCallback(async () => {
+    const ev = deleteTarget;
+    if (!ev) return;
+    setDeleting(true);
+    try {
+      if (ev.recurringEventId || (ev.recurrence && ev.recurrence.length > 0)) {
+        await deleteRecurringScope({
+          eventId: ev.id,
+          mode: deleteMode,
+          recurringEventId: ev.recurringEventId || null,
+          originalStartTime: ev.originalStartTime || null,
+        });
+        // After scope change, refetch since instances may shift
+        await fetchEvents();
+      } else {
+        await deleteEvent(ev.id);
+        setEvents(prev => prev.filter(e => e.id !== ev.id));
+      }
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, deleteMode, fetchEvents]);
 
   // Basic DnD/resize interactions implemented via mouse events
   const dragState = useRef<{
@@ -191,7 +232,7 @@ const CalendarPanel: React.FC = () => {
       const st = dragState.current;
       if (!st) return;
       const deltaY = e.clientY - st.startY;
-      const minutes = Math.round(deltaY / 2); // 2px per minute -> 120px = 60min
+      const minutes = Math.round(deltaY / PX_PER_MIN); // derive minutes from pixels
       st.lastDeltaMin = minutes;
       const MINUTES_DRAG_THRESHOLD = 2; // avoid treating tiny moves as drag
       if (st.type === 'pending-move') {
@@ -279,11 +320,9 @@ const CalendarPanel: React.FC = () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [applyOptimistic]);
+  }, [applyOptimistic, PX_PER_MIN]);
 
   const renderWeekGrid = () => {
-    const ROW_HEIGHT = 120; // px per hour
-    const PX_PER_MIN = ROW_HEIGHT / 60; // 2 px/min
 
     const onCreateAtOffset = (day: Date, offsetY: number) => {
       const minutes = Math.max(0, Math.min(24 * 60 - 60, Math.floor(offsetY / PX_PER_MIN))); // clamp, 1h length
@@ -291,7 +330,7 @@ const CalendarPanel: React.FC = () => {
       handleCreateQuick(day, hour);
     };
 
-    return (
+  return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/60">
           <div className="flex items-center gap-2">
@@ -321,9 +360,9 @@ const CalendarPanel: React.FC = () => {
           ))}
 
           {/* Time column body */}
-          <div className="border-r border-gray-700/60 bg-main" style={{ height: ROW_HEIGHT * 24 }}>
+          <div className="border-r border-gray-700/60 bg-main" style={{ height: HOUR_HEIGHT * 24 }}>
             {HOURS.map(h => (
-              <div key={h} className="relative" style={{ height: ROW_HEIGHT }}>
+              <div key={h} className="relative" style={{ height: HOUR_HEIGHT }}>
                 <div className="absolute -top-2 left-1 text-xs text-gray-400">{formatHour(h)}</div>
                 <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700/60" />
               </div>
@@ -332,7 +371,7 @@ const CalendarPanel: React.FC = () => {
 
           {/* Day columns */}
           {weekDays.map((d, idx) => (
-            <div key={idx} className="relative border-r border-gray-700/60" style={{ height: ROW_HEIGHT * 24 }}
+            <div key={idx} className="relative border-r border-gray-700/60" style={{ height: HOUR_HEIGHT * 24 }}
               onClick={(e) => {
                 if (suppressCreateRef.current) return;
                 // If a drag just ended, swallow this click to avoid creating a new event
@@ -342,7 +381,7 @@ const CalendarPanel: React.FC = () => {
               }}>
               {/* hour lines */}
               {HOURS.map(h => (
-                <div key={h} className="absolute left-0 right-0 border-t border-gray-700/40" style={{ top: h * ROW_HEIGHT }} />
+                <div key={h} className="absolute left-0 right-0 border-t border-gray-700/40" style={{ top: h * HOUR_HEIGHT }} />
               ))}
 
               {/* current time line */}
@@ -475,16 +514,60 @@ const CalendarPanel: React.FC = () => {
           initialEnd={editorData.end}
           initialTitle={editorData.title}
           initialColorId={editorData.colorId}
-          onSave={async ({ title, start, end, colorId }) => {
+          onSave={async ({ title, start, end, colorId, recurrence }) => {
             if (editorData.id) {
-              const updated = await updateEvent(editorData.id, { summary: title, start, end, colorId });
+              const updated = await updateEvent(editorData.id, { summary: title, start, end, colorId, ...(recurrence !== undefined ? { recurrence: recurrence || null } : {}) });
               setEvents(prev => prev.map(e => e.id === updated.id ? updated : e));
             } else {
-              const ev = await createEvent({ summary: title, start, end, colorId });
+              const ev = await createEvent({ summary: title, start, end, colorId, ...(recurrence ? { recurrence } : {}) });
               setEvents(prev => [...prev, ev]);
             }
           }}
         />
+      )}
+
+      {/* Delete recurring dialog */}
+      {deleteTarget && (
+        <Dialog open={true} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+          <DialogContent className="sm:max-w-[420px] bg-secondary text-white border-gray-700">
+            <DialogHeader>
+              <DialogTitle>Delete recurring event</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  className="accent-blue-500"
+                  checked={deleteMode === 'instance'}
+                  onChange={() => setDeleteMode('instance')}
+                />
+                <span>This event</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  className="accent-blue-500"
+                  checked={deleteMode === 'following'}
+                  onChange={() => setDeleteMode('following')}
+                />
+                <span>This and following events</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  className="accent-blue-500"
+                  checked={deleteMode === 'all'}
+                  onChange={() => setDeleteMode('all')}
+                />
+                <span>All events</span>
+              </label>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+              <Button onClick={confirmDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'OK'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

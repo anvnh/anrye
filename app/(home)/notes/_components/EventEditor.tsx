@@ -15,7 +15,7 @@ type Props = {
   initialEnd: Date;
   initialTitle?: string;
   initialColorId?: string;
-  onSave: (data: { title: string; start: Date; end: Date; colorId?: string }) => Promise<void> | void;
+  onSave: (data: { title: string; start: Date; end: Date; colorId?: string; recurrence?: string | null }) => Promise<void> | void;
 };
 
 // Google calendar color swatches (colorId -> hex). These are common defaults.
@@ -40,6 +40,8 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
   const [endTime, setEndTime] = useState(() => toTimeStr(initialEnd));
   const [colorId, setColorId] = useState<string | undefined>(initialColorId);
   const [saving, setSaving] = useState(false);
+  const [recurrence, setRecurrence] = useState<string | null>(null);
+  const [recurrenceCustomMode, setRecurrenceCustomMode] = useState(false);
 
   // Keep date synced if props change (when opening editor for a different event)
   React.useEffect(() => {
@@ -49,6 +51,8 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
     setStartTime(toTimeStr(initialStart));
     setEndTime(toTimeStr(initialEnd));
     setColorId(initialColorId);
+  setRecurrence(null);
+  setRecurrenceCustomMode(false);
   }, [open, initialStart, initialEnd, initialTitle, initialColorId]);
 
   const onSubmit = async () => {
@@ -60,7 +64,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
     }
     setSaving(true);
     try {
-      await onSave({ title: title.trim() || 'Untitled', start: s, end: e, colorId });
+      await onSave({ title: title.trim() || 'Untitled', start: s, end: e, colorId, recurrence });
       onClose();
     } finally {
       setSaving(false);
@@ -71,7 +75,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
     <Dialog open={open} onOpenChange={(o) => !o ? onClose() : undefined}>
     <DialogContent className="sm:max-w-[520px] bg-secondary text-white border-gray-700">
         <DialogHeader>
-      <DialogTitle className="text-white">Event</DialogTitle>
+  <DialogTitle className="text-white">Event</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -125,6 +129,53 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
               ))}
             </div>
           </div>
+
+          {/* Recurrence */}
+          <div className="space-y-2">
+            <Label className="text-gray-300">Repeat</Label>
+            <select
+              className="w-full bg-main border border-gray-700 rounded px-3 py-2 text-sm text-white"
+              value={recurrenceCustomMode ? '__custom__' : (recurrence || '')}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__custom__') {
+                  setRecurrenceCustomMode(true);
+                  setRecurrence('');
+                } else {
+                  setRecurrenceCustomMode(false);
+                  setRecurrence(v || null);
+                }
+              }}
+            >
+              <option value="">Does not repeat</option>
+              <option value="RRULE:FREQ=DAILY">Daily</option>
+              {(() => {
+                const weekday = initialStart.toLocaleDateString(undefined, { weekday: 'long' });
+                return <option value={rruleWeekly(initialStart)}>Weekly on {weekday.toLowerCase()}</option>;
+              })()}
+              {(() => {
+                const day = initialStart.getDate();
+                return <option value={`RRULE:FREQ=MONTHLY;BYMONTHDAY=${day}`}>Monthly on day {day}</option>;
+              })()}
+              {(() => {
+                const md = `${String(initialStart.getMonth() + 1).padStart(2, '0')}${String(initialStart.getDate()).padStart(2, '0')}`;
+                return <option value={`RRULE:FREQ=YEARLY;BYMONTHDAY=${initialStart.getDate()};BYMONTH=${initialStart.getMonth() + 1}`}>Annually on {initialStart.getDate()}/{initialStart.getMonth() + 1}</option>;
+              })()}
+              <option value="RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Every weekday (Mon–Fri)</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            {recurrenceCustomMode && (
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs">Enter RRULE (e.g., RRULE:FREQ=WEEKLY;BYDAY=TU)</Label>
+                <Input
+                  placeholder="RRULE:..."
+                  className="bg-main border-gray-700 text-white"
+                  value={recurrence ?? ''}
+                  onChange={(e) => setRecurrence(e.target.value || null)}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="gap-2">
@@ -150,3 +201,10 @@ function combine(date: Date, hhmm: string) {
 }
 
 export const EVENT_COLORS = COLOR_MAP;
+
+// Helpers for recurrence UI
+function rruleWeekly(d: Date) {
+  const map = ['SU','MO','TU','WE','TH','FR','SA'];
+  return `RRULE:FREQ=WEEKLY;BYDAY=${map[d.getDay()]}`;
+}
+
