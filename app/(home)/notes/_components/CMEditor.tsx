@@ -270,6 +270,21 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         view.dispatch({ selection: sel });
         view.focus();
       },
+      scrollToLine: (lineNumberZeroBased: number, smooth: boolean = true) => {
+        const { state } = view;
+        const lineNumber = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const line = state.doc.line(lineNumber);
+        const coords = view.coordsAtPos(line.from);
+        if (coords) {
+          const scrollDOM = (view as any).scrollDOM;
+          if (scrollDOM) {
+            scrollDOM.scrollTo({
+              top: coords.top - scrollDOM.clientHeight / 2,
+              behavior: smooth ? 'smooth' : 'auto'
+            });
+          }
+        }
+      },
       scrollDOM: (view as any).scrollDOM as HTMLElement,
       contentDOM: (view as any).contentDOM as HTMLElement,
     };
