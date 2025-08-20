@@ -12,11 +12,11 @@ interface TimePickerProps {
   className?: string;
 }
 
-export const TimePicker: React.FC<TimePickerProps> = ({ 
-  value, 
-  onChange, 
+export const TimePicker: React.FC<TimePickerProps> = ({
+  value,
+  onChange,
   label,
-  className = "" 
+  className = ""
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -32,14 +32,13 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           onBlur={() => setIsFocused(false)}
           className="bg-main border-gray-700 text-white pr-10 text-center hover:border-gray-600 focus:border-blue-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
         />
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <Clock 
-            size={16} 
-            className={`transition-colors ${
-              isFocused 
-                ? 'text-blue-500' 
-                : 'text-gray-400'
-            }`} 
+        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+          <Clock
+            size={16}
+            className={`transition-colors ${isFocused
+              ? 'text-blue-500'
+              : 'text-gray-400'
+              }`}
           />
         </div>
       </div>

@@ -716,20 +716,19 @@ export default function NotesPage() {
         <div className="fixed inset-0 z-[9999] bg-main">
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/60 bg-main">
-              <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold text-white">Calendar</h2>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setCalendarDate(prev => addDays(prev, -7))} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Prev</button>
-                  <button onClick={() => setCalendarDate(prev => addDays(prev, 7))} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Next</button>
-                  <button onClick={() => setCalendarDate(new Date())} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Today</button>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-700/60 bg-main">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Calendar</h2>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button onClick={() => setCalendarDate(prev => addDays(prev, -7))} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Prev</button>
+                  <button onClick={() => setCalendarDate(prev => addDays(prev, 7))} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Next</button>
+                  <button onClick={() => setCalendarDate(new Date())} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Today</button>
                 </div>
-                <span className="text-gray-300">|</span>
-                <span className="text-gray-300 font-medium">{calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                <span className="text-gray-300 font-medium text-sm sm:text-base">{calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
               </div>
               <button
                 onClick={() => setIsCalendarOpen(false)}
-                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
                 title="Close Calendar"
               >
                 <X size={20} />
