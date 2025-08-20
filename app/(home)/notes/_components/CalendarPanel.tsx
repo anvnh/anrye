@@ -42,10 +42,17 @@ const CalendarPanel: React.FC = () => {
   const [now, setNow] = useState<Date>(new Date());
   const [openPopoverFor, setOpenPopoverFor] = useState<string | null>(null);
   const suppressCreateRef = useRef(false);
+  const setSuppressCreate = useCallback((v: boolean) => { suppressCreateRef.current = v; }, []);
   const suppressCreate = useCallback(() => {
-    suppressCreateRef.current = true;
-    window.setTimeout(() => { suppressCreateRef.current = false; }, 250);
-  }, []);
+    // legacy quick suppression (kept for other clicky places)
+    setSuppressCreate(true);
+    window.setTimeout(() => { setSuppressCreate(false); }, 250);
+  }, [setSuppressCreate]);
+  // Suppress opening popover when a drag occurred
+  const suppressPopoverClickRef = useRef(false);
+  // Track dragging and last drag end time to block stray clicks on day column
+  const draggingRef = useRef(false);
+  const lastDragAtRef = useRef(0);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60 * 1000);
@@ -88,8 +95,8 @@ const CalendarPanel: React.FC = () => {
     start.setHours(hour, 0, 0, 0);
     const end = new Date(start);
     end.setHours(start.getHours() + 1);
-  setEditorData({ start, end, title: 'New event' });
-  setEditorOpen(true);
+    setEditorData({ start, end, title: 'New event' });
+    setEditorOpen(true);
   }, []);
 
   // Optimistic drag/resize: update UI on mousemove, call API once on mouseup
@@ -105,12 +112,31 @@ const CalendarPanel: React.FC = () => {
   // Basic DnD/resize interactions implemented via mouse events
   const dragState = useRef<{
     id: string;
-    type: 'move' | 'resize';
+    type: 'pending-move' | 'move' | 'resize-start' | 'resize-end';
     startY: number;
     originalStart: Date;
     originalEnd: Date;
     lastDeltaMin: number;
   } | null>(null);
+  const onMouseDownMovePotential = (e: React.MouseEvent, id: string) => {
+    // If starting on a resize handle, don't begin a move
+    if (e.target instanceof HTMLElement && e.target.closest('[data-role="resize-handle"]')) {
+      return;
+    }
+    const ev = events.find(x => x.id === id);
+    if (!ev) return;
+    dragState.current = {
+      id,
+      type: 'pending-move',
+      startY: e.clientY,
+      originalStart: new Date(ev.start),
+      originalEnd: new Date(ev.end),
+      lastDeltaMin: 0,
+    };
+    // Do not prevent default to allow click if no movement; do stop propagation to avoid day click
+    setSuppressCreate(true);
+    e.stopPropagation();
+  };
 
   const onMouseDownMoveHandle = (e: React.MouseEvent, id: string) => {
     const ev = events.find(x => x.id === id);
@@ -126,17 +152,36 @@ const CalendarPanel: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
   };
-  const onMouseDownResize = (e: React.MouseEvent, id: string) => {
+  const onMouseDownResizeEnd = (e: React.MouseEvent, id: string) => {
     const ev = events.find(x => x.id === id);
     if (!ev) return;
     dragState.current = {
       id,
-      type: 'resize',
+      type: 'resize-end',
       startY: e.clientY,
       originalStart: new Date(ev.start),
       originalEnd: new Date(ev.end),
       lastDeltaMin: 0,
     };
+    suppressPopoverClickRef.current = true;
+    setSuppressCreate(true);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const onMouseDownResizeStart = (e: React.MouseEvent, id: string) => {
+    const ev = events.find(x => x.id === id);
+    if (!ev) return;
+    dragState.current = {
+      id,
+      type: 'resize-start',
+      startY: e.clientY,
+      originalStart: new Date(ev.start),
+      originalEnd: new Date(ev.end),
+      lastDeltaMin: 0,
+    };
+    suppressPopoverClickRef.current = true;
+    setSuppressCreate(true);
+  draggingRef.current = true;
     e.preventDefault();
     e.stopPropagation();
   };
@@ -148,12 +193,23 @@ const CalendarPanel: React.FC = () => {
       const deltaY = e.clientY - st.startY;
       const minutes = Math.round(deltaY / 2); // 2px per minute -> 120px = 60min
       st.lastDeltaMin = minutes;
-      if (st.type === 'move') {
+      const MINUTES_DRAG_THRESHOLD = 2; // avoid treating tiny moves as drag
+      if (st.type === 'pending-move') {
+        if (Math.abs(minutes) >= MINUTES_DRAG_THRESHOLD) {
+          // upgrade to active move
+          st.type = 'move';
+          suppressPopoverClickRef.current = true;
+          draggingRef.current = true;
+          const nextStart = new Date(st.originalStart.getTime() + minutes * 60000);
+          const nextEnd = new Date(st.originalEnd.getTime() + minutes * 60000);
+          applyOptimistic(st.id, nextStart, nextEnd);
+        }
+      } else if (st.type === 'move') {
         const nextStart = new Date(st.originalStart.getTime() + minutes * 60000);
         const nextEnd = new Date(st.originalEnd.getTime() + minutes * 60000);
         applyOptimistic(st.id, nextStart, nextEnd);
-      } else {
-        // resize: adjust end, min 15 minutes
+      } else if (st.type === 'resize-end') {
+        // resize end: adjust end, min 15 minutes
         const minMinutes = 15;
         const rawEnd = new Date(st.originalEnd.getTime() + minutes * 60000);
         const duration = (rawEnd.getTime() - st.originalStart.getTime()) / 60000;
@@ -161,19 +217,36 @@ const CalendarPanel: React.FC = () => {
           ? new Date(st.originalStart.getTime() + minMinutes * 60000)
           : rawEnd;
         applyOptimistic(st.id, new Date(st.originalStart), safeEnd);
+      } else if (st.type === 'resize-start') {
+        // resize start: adjust start, min 15 minutes
+        const minMinutes = 15;
+        const rawStart = new Date(st.originalStart.getTime() + minutes * 60000);
+        const duration = (st.originalEnd.getTime() - rawStart.getTime()) / 60000;
+        const safeStart = duration < minMinutes
+          ? new Date(st.originalEnd.getTime() - minMinutes * 60000)
+          : rawStart;
+        applyOptimistic(st.id, safeStart, new Date(st.originalEnd));
       }
     };
-    const handleUp = async () => {
+  const handleUp = async () => {
       const st = dragState.current;
       dragState.current = null;
       if (!st) return;
       try {
-        if (st.type === 'move') {
+        if (st.type === 'pending-move') {
+          // treat as click; do nothing
+        } else if (st.type === 'move') {
           const start = new Date(st.originalStart.getTime() + st.lastDeltaMin * 60000);
           const end = new Date(st.originalEnd.getTime() + st.lastDeltaMin * 60000);
-          const updated = await updateEvent(st.id, { start, end });
-          setEvents(prev => prev.map(e => e.id === st.id ? updated : e));
-        } else {
+          if (st.lastDeltaMin !== 0) {
+            const updated = await updateEvent(st.id, { start, end });
+            setEvents(prev => prev.map(e => e.id === st.id ? updated : e));
+          }
+          // allow click events again after a tick
+          lastDragAtRef.current = Date.now();
+          draggingRef.current = false;
+          setTimeout(() => { suppressPopoverClickRef.current = false; setSuppressCreate(false); }, 300);
+        } else if (st.type === 'resize-end') {
           const minMinutes = 15;
           const rawEnd = new Date(st.originalEnd.getTime() + st.lastDeltaMin * 60000);
           const duration = (rawEnd.getTime() - st.originalStart.getTime()) / 60000;
@@ -182,8 +255,23 @@ const CalendarPanel: React.FC = () => {
             : rawEnd;
           const updated = await updateEvent(st.id, { end });
           setEvents(prev => prev.map(e => e.id === st.id ? updated : e));
+          lastDragAtRef.current = Date.now();
+          draggingRef.current = false;
+          setTimeout(() => { suppressPopoverClickRef.current = false; setSuppressCreate(false); }, 300);
+        } else if (st.type === 'resize-start') {
+          const minMinutes = 15;
+          const rawStart = new Date(st.originalStart.getTime() + st.lastDeltaMin * 60000);
+          const duration = (st.originalEnd.getTime() - rawStart.getTime()) / 60000;
+          const start = duration < minMinutes
+            ? new Date(st.originalEnd.getTime() - minMinutes * 60000)
+            : rawStart;
+          const updated = await updateEvent(st.id, { start });
+          setEvents(prev => prev.map(e => e.id === st.id ? updated : e));
+          lastDragAtRef.current = Date.now();
+          draggingRef.current = false;
+          setTimeout(() => { suppressPopoverClickRef.current = false; setSuppressCreate(false); }, 300);
         }
-      } catch {}
+      } catch { }
     };
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
@@ -212,7 +300,7 @@ const CalendarPanel: React.FC = () => {
             <button onClick={() => setCurrent(new Date())} className="px-2 py-1 bg-gray-700 rounded">Today</button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14}/> Refresh</button>
+            <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14} /> Refresh</button>
             <select value={view} onChange={e => setView(e.target.value as ViewMode)} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm">
               <option value="week">Week</option>
               <option value="month">Month</option>
@@ -222,7 +310,7 @@ const CalendarPanel: React.FC = () => {
 
         <div className="grid grid-cols-[60px_repeat(7,1fr)] flex-1 overflow-auto" ref={gridRef}>
           {/* Header row */}
-          <div className="sticky left-0 z-10 bg-main border-r border-gray-700/60" />
+          <div className="sticky left-0 top-1 z-10 bg-main border-r border-gray-700/60" />
           {weekDays.map((d, idx) => (
             <div key={idx} className="text-center py-2 border-r border-gray-700/60 sticky top-0 bg-main z-10">
               <div className="flex flex-col items-center gap-1">
@@ -245,11 +333,13 @@ const CalendarPanel: React.FC = () => {
           {/* Day columns */}
           {weekDays.map((d, idx) => (
             <div key={idx} className="relative border-r border-gray-700/60" style={{ height: ROW_HEIGHT * 24 }}
-                 onClick={(e) => {
-                   if (suppressCreateRef.current) return;
-                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                   onCreateAtOffset(d, e.clientY - rect.top);
-                 }}>
+              onClick={(e) => {
+                if (suppressCreateRef.current) return;
+                // If a drag just ended, swallow this click to avoid creating a new event
+                if (Date.now() - lastDragAtRef.current < 300) return;
+                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                onCreateAtOffset(d, e.clientY - rect.top);
+              }}>
               {/* hour lines */}
               {HOURS.map(h => (
                 <div key={h} className="absolute left-0 right-0 border-t border-gray-700/40" style={{ top: h * ROW_HEIGHT }} />
@@ -276,34 +366,49 @@ const CalendarPanel: React.FC = () => {
                 const height = Math.max(24, ((e.getTime() - s.getTime()) / 60000) * PX_PER_MIN);
                 return (
                   <div key={ev.id} className="absolute left-1 right-1"
-                       style={{ top, height }}>
+                    style={{ top, height }}>
                     <EventPopoverCard
                       open={openPopoverFor === ev.id}
                       onOpenChange={(o) => { if (!o) suppressCreate(); setOpenPopoverFor(o ? ev.id : null); }}
                       anchor={
                         <div
-                          className="text-white rounded p-2 shadow-md border cursor-pointer"
+                          className="relative h-full overflow-hidden text-white rounded p-2 shadow-md border cursor-pointer group"
                           style={{
                             backgroundColor: ev.colorId ? `${EVENT_COLORS[ev.colorId] || '#3b82f6'}cc` : '#3b82f6cc',
                             borderColor: ev.colorId ? (EVENT_COLORS[ev.colorId] || '#60a5fa') : '#60a5fa',
                           }}
-                          onClick={(e) => { suppressCreate(); e.stopPropagation(); }}
-                          onMouseDown={(e) => { suppressCreate(); e.stopPropagation(); }}
+                          onClick={(e) => {
+                            suppressCreate();
+                            if (suppressPopoverClickRef.current) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            } else {
+                              e.stopPropagation();
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            suppressCreate();
+                            onMouseDownMovePotential(e, ev.id);
+                          }}
                         >
-                          {/* Drag handle at top */}
+                          {/* Absolute top/bottom resize handles (thicker for easier hit, show resize cursor) */}
                           <div
-                            className="h-2 -mx-2 -mt-2 mb-1 cursor-grab"
-                            onMouseDown={(e) => onMouseDownMoveHandle(e, ev.id)}
-                            title="Drag to move"
+                            className="absolute left-0 right-0 top-0 h-3 cursor-ns-resize"
+                            onMouseDown={(e) => { onMouseDownResizeStart(e, ev.id); }}
+                            title="Drag to adjust start time"
+                            data-role="resize-handle"
+                          />
+                          <div
+                            className="absolute left-0 right-0 bottom-0 h-3 cursor-ns-resize"
+                            onMouseDown={(e) => { onMouseDownResizeEnd(e, ev.id); }}
+                            title="Drag to adjust end time"
+                            data-role="resize-handle"
                           />
 
                           <div className="flex items-center justify-between gap-2">
                             <div className="font-medium text-sm truncate">{ev.summary}</div>
                           </div>
                           <div className="text-[10px] opacity-80">{new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-
-                          {/* Resize handle at bottom */}
-                          <div className="h-2 w-full cursor-ns-resize mt-1 relative" onMouseDown={(e) => onMouseDownResize(e, ev.id)} />
                         </div>
                       }
                       title={ev.summary}
@@ -341,7 +446,7 @@ const CalendarPanel: React.FC = () => {
             <button onClick={() => setCurrent(new Date())} className="px-2 py-1 bg-gray-700 rounded">Today</button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14}/> Refresh</button>
+            <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14} /> Refresh</button>
             <select value={view} onChange={e => setView(e.target.value as ViewMode)} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm">
               <option value="week">Week</option>
               <option value="month">Month</option>
@@ -359,7 +464,7 @@ const CalendarPanel: React.FC = () => {
         <div className="px-3 py-1 text-xs text-gray-300">Syncing events...</div>
       )}
       {view === 'week' ? renderWeekGrid() : renderMonth()}
-  {/* Footer removed per request */}
+      {/* Footer removed per request */}
 
       {/* Editor Dialog */}
       {editorData && (
