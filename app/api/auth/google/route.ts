@@ -33,6 +33,8 @@ export async function GET(req: Request) {
     "profile",
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.readonly",
+    // Calendar scopes for read/write access
+    "https://www.googleapis.com/auth/calendar",
   ].join(" ");
 
   // Tham số OAuth (offline + consent để lấy refresh_token)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
+import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
@@ -34,6 +34,7 @@ interface NoteNavbarProps {
   isSidebarHidden: boolean;
   onToggleSidebar: () => void;
   onOpenImageManager: () => void;
+  onOpenCalendar: () => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -65,6 +66,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   isSidebarHidden,
   onToggleSidebar,
   onOpenImageManager,
+  onOpenCalendar,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
@@ -219,6 +221,18 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           <ImageIcon size={16} />
           <span className="hidden sm:inline">
             Images
+          </span>
+        </button>
+
+        {/* Calendar Button */}
+        <button
+          onClick={onOpenCalendar}
+          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+          title="Open Calendar"
+        >
+          <CalendarDays size={16} />
+          <span className="hidden sm:inline">
+            Calendar
           </span>
         </button>
 

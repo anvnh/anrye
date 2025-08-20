@@ -356,21 +356,14 @@ class GoogleDriveService {
 
   // Public method to manually refresh token
   public async refreshAccessToken(): Promise<boolean> {
-
     try {
-      // Try refresh token first
-      if (this.refreshToken) {
-        const success = await this.refreshWithRefreshToken();
-        if (success) {
-
-          return true;
-        }
-      }
-
-      // No fallback needed - force re-authentication
+      // Always try server-side cookie refresh first (works even without this.refreshToken)
+      const success = await this.refreshWithRefreshToken();
+      if (success) return true;
+      // Fallback: force re-authentication only when cookie refresh fails
       return await this.forceReAuthenticate();
     } catch (error) {
-      // Token refresh error
+      // Token refresh error -> last resort re-auth
       return await this.forceReAuthenticate();
     }
   }

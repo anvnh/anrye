@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Menu, PanelLeftOpen, Image as ImageIcon } from 'lucide-react';
+import { FileText, Menu, PanelLeftOpen, Image as ImageIcon, X } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
@@ -13,6 +13,7 @@ import { LoadingSpinner } from './_components/LoadingSpinner';
 import { ImageManager } from './_components/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PWALoadingState from '../../components/PWALoadingState';
+import CalendarPanel from './_components/CalendarPanel';
 
 // Import custom hooks
 import {
@@ -390,6 +391,9 @@ export default function NotesPage() {
     setNewNoteName('');
   };
 
+  // Calendar modal state
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   // Show enhanced loading state for PWA
   if (!isAuthInitialized || !isInitialized) {
     return (
@@ -485,6 +489,7 @@ export default function NotesPage() {
                 isSidebarHidden={isSidebarHidden}
                 onToggleSidebar={toggleSidebar}
                 onOpenImageManager={() => setIsImageManagerOpen(true)}
+                onOpenCalendar={() => setIsCalendarOpen(true)}
               />
 
               {/* Note Content */}
@@ -696,6 +701,32 @@ export default function NotesPage() {
           isSignedIn={isSignedIn}
           onClose={() => setIsImageManagerOpen(false)}
         />
+      )}
+
+      {/* Full Screen Calendar Overlay */}
+      {isCalendarOpen && (
+        <div className="fixed inset-0 z-[9999] bg-main">
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/60 bg-main">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Calendar</h2>
+                <p className="text-sm text-gray-300">View and edit your Google Calendar events</p>
+              </div>
+              <button
+                onClick={() => setIsCalendarOpen(false)}
+                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+                title="Close Calendar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {/* Calendar Content */}
+            <div className="flex-1 overflow-hidden">
+              <CalendarPanel />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,7 +7,6 @@ import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
 import BacklinksPanel from './BacklinksPanel';
-import CalendarPanel from './CalendarPanel';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -46,7 +45,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const backlinksRef = useRef<HTMLDivElement>(null);
   const backlinksBtnRef = useRef<HTMLButtonElement>(null);
   const backlinksBackdropRef = useRef<HTMLDivElement>(null);
-  const [rightSidebarTab, setRightSidebarTab] = useState<'links' | 'calendar'>('links');
+  // Right sidebar now only shows backlinks; calendar moved to modal
 
   // Check if the note has headings
   const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
@@ -277,42 +276,19 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             <div className="absolute top-4 left-2 w-1 h-8 bg-gray-500/30 rounded-full"></div>
             <div className="h-full pb-[env(safe-area-inset-bottom)] flex flex-col">
               {/* simple segmented buttons */}
-              <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setRightSidebarTab('links')}
-                    className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'links'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
-                  >
-                    Links
-                  </button>
-                  <button
-                    onClick={() => setRightSidebarTab('calendar')}
-                    className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'calendar'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
-                  >
-                    Calendar
-                  </button>
-                </div>
-              </div>
+              <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2 text-sm text-gray-300">Backlinks</div>
 
               <div className="flex-1 overflow-y-auto">
-                {rightSidebarTab === 'links' ? (
-                  <BacklinksPanel
-                    selectedNote={selectedNote}
-                    allNotes={notes}
-                    isMobile={true}
-                    onClose={() => setIsBacklinksOpen(false)}
-                    onNavigateToNote={(noteId) => {
-                      handleNavigateToNote(noteId);
-                      setIsBacklinksOpen(false);
-                    }}
-                  />
-                ) : (
-                  <CalendarPanel />
-                )}
+                <BacklinksPanel
+                  selectedNote={selectedNote}
+                  allNotes={notes}
+                  isMobile={true}
+                  onClose={() => setIsBacklinksOpen(false)}
+                  onNavigateToNote={(noteId) => {
+                    handleNavigateToNote(noteId);
+                    setIsBacklinksOpen(false);
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -459,43 +435,17 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
           </div>
         </div>
 
-        {/* Desktop Right Sidebar: Links | Calendar */}
+        {/* Desktop Right Sidebar: Backlinks only */}
         <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
           <div className="h-full flex flex-col">
-            <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setRightSidebarTab('links')}
-                  className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'links'
-                    ? 'bg-secondary text-white'
-                    : 'bg-main text-gray-300 hover:bg-gray-700'}`}
-                >
-                  Links
-                </button>
-                <button
-                  onClick={() => setRightSidebarTab('calendar')}
-                  className={`text-sm rounded-md py-1.5 ${rightSidebarTab === 'calendar'
-                    ? 'bg-secondary text-white'
-                    : 'bg-main text-gray-300 hover:bg-gray-700'}`}
-                >
-                  Calendar
-                </button>
-              </div>
-            </div>
-
+            <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2 text-sm text-gray-300">Backlinks</div>
             <div className="flex-1 overflow-y-auto">
-              {rightSidebarTab === 'links' ? (
-                <BacklinksPanel
-                  selectedNote={selectedNote}
-                  allNotes={notes}
-                  isMobile={false}
-                  onNavigateToNote={handleNavigateToNote}
-                />
-              ) : (
-                <div className=''>
-                  <CalendarPanel />
-                </div>
-              )}
+              <BacklinksPanel
+                selectedNote={selectedNote}
+                allNotes={notes}
+                isMobile={false}
+                onNavigateToNote={handleNavigateToNote}
+              />
             </div>
           </div>
         </div>
