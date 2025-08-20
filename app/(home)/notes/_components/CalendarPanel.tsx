@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Loader2 } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, CalendarEvent } from '@/app/lib/googleCalendar';
 import { EventEditor, EVENT_COLORS } from './EventEditor';
 import { EventPopoverCard } from './EventPopoverCard';
@@ -34,8 +34,27 @@ function sameDate(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-const CalendarPanel: React.FC = () => {
-  const [current, setCurrent] = useState<Date>(new Date());
+interface CalendarPanelProps {
+  onPrev?: () => void;
+  onNext?: () => void;
+  onToday?: () => void;
+  currentDate?: Date;
+}
+
+const CalendarPanel: React.FC<CalendarPanelProps> = ({ 
+  onPrev, 
+  onNext, 
+  onToday, 
+  currentDate 
+}) => {
+  const [current, setCurrent] = useState<Date>(currentDate || new Date());
+  
+  // Sync with parent's currentDate prop
+  useEffect(() => {
+    if (currentDate) {
+      setCurrent(currentDate);
+    }
+  }, [currentDate]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<ViewMode>('week');
@@ -87,6 +106,19 @@ const CalendarPanel: React.FC = () => {
 
   const weekStart = useMemo(() => startOfWeek(current), [current]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  // Navigation handlers (these are now handled by parent)
+  const handlePrev = () => {
+    if (onPrev) onPrev();
+  };
+
+  const handleNext = () => {
+    if (onNext) onNext();
+  };
+
+  const handleToday = () => {
+    if (onToday) onToday();
+  };
 
   const visibleRange = useMemo(() => {
     if (view === 'week') {
@@ -349,16 +381,18 @@ const CalendarPanel: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/60">
           <div className="flex items-center gap-2">
-            <button onClick={() => setCurrent(addDays(current, -7))} className="px-2 py-1 bg-gray-700 rounded">Prev</button>
-            <button onClick={() => setCurrent(addDays(current, 7))} className="px-2 py-1 bg-gray-700 rounded">Next</button>
-            <button onClick={() => setCurrent(new Date())} className="px-2 py-1 bg-gray-700 rounded">Today</button>
-          </div>
-          <div className="flex items-center gap-2">
             <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14} /> Refresh</button>
             <select value={view} onChange={e => setView(e.target.value as ViewMode)} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm">
               <option value="week">Week</option>
               <option value="month">Month</option>
             </select>
+          </div>
+          <div className="flex items-center gap-2">
+            {loading && (
+              <span title="Syncing events" aria-label="Syncing events">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-300" />
+              </span>
+            )}
           </div>
         </div>
 
@@ -513,6 +547,11 @@ const CalendarPanel: React.FC = () => {
               <option value="week">Week</option>
               <option value="month">Month</option>
             </select>
+            {loading && (
+              <span title="Syncing events" aria-label="Syncing events">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-300" />
+              </span>
+            )}
           </div>
         </div>
         <div className="text-sm opacity-80">Month view coming soon. Use Week view for full editing.</div>
@@ -522,9 +561,6 @@ const CalendarPanel: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col text-white bg-main">
-      {loading && (
-        <div className="px-3 py-1 text-xs text-gray-300">Syncing events...</div>
-      )}
       {view === 'week' ? renderWeekGrid() : renderMonth()}
       {/* Footer removed per request */}
 

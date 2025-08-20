@@ -27,13 +27,13 @@ export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChan
         <div className="p-3">
           {/* Actions row */}
           <div className="flex items-center justify-end gap-1">
-            <button className="p-1 rounded hover:bg-gray-700" onClick={onEdit} title="Chỉnh sửa">
+            <button className="p-1 rounded hover:bg-gray-700" onClick={onEdit} title="Edit">
               <Pencil size={16} />
             </button>
-            <button className="p-1 rounded hover:bg-gray-700" onClick={onDelete} title="Xóa">
+            <button className="p-1 rounded hover:bg-gray-700" onClick={onDelete} title="Delete">
               <Trash2 size={16} />
             </button>
-            <button className="p-1 rounded hover:bg-gray-700" onClick={() => onOpenChange(false)} title="Đóng">
+            <button className="p-1 rounded hover:bg-gray-700" onClick={() => onOpenChange(false)} title="Close">
               <X size={16} />
             </button>
           </div>

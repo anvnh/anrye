@@ -15,6 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import PWALoadingState from '../../components/PWALoadingState';
 import CalendarPanel from './_components/CalendarPanel';
 
+// Utility function for date manipulation
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 // Import custom hooks
 import {
   useNotesState,
@@ -393,6 +400,7 @@ export default function NotesPage() {
 
   // Calendar modal state
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Show enhanced loading state for PWA
   if (!isAuthInitialized || !isInitialized) {
@@ -709,9 +717,15 @@ export default function NotesPage() {
           <div className="h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/60 bg-main">
-              <div>
+              <div className="flex items-center gap-4">
                 <h2 className="text-xl font-semibold text-white">Calendar</h2>
-                <p className="text-sm text-gray-300">View and edit your Google Calendar events</p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setCalendarDate(prev => addDays(prev, -7))} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Prev</button>
+                  <button onClick={() => setCalendarDate(prev => addDays(prev, 7))} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Next</button>
+                  <button onClick={() => setCalendarDate(new Date())} className="px-3 py-1 bg-gray-700 rounded text-sm text-white hover:bg-gray-600 transition-colors">Today</button>
+                </div>
+                <span className="text-gray-300">|</span>
+                <span className="text-gray-300 font-medium">{calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
               </div>
               <button
                 onClick={() => setIsCalendarOpen(false)}
@@ -723,7 +737,12 @@ export default function NotesPage() {
             </div>
             {/* Calendar Content */}
             <div className="flex-1 overflow-hidden">
-              <CalendarPanel />
+              <CalendarPanel 
+                currentDate={calendarDate}
+                onPrev={() => setCalendarDate(prev => addDays(prev, -7))}
+                onNext={() => setCalendarDate(prev => addDays(prev, 7))}
+                onToday={() => setCalendarDate(new Date())}
+              />
             </div>
           </div>
         </div>
