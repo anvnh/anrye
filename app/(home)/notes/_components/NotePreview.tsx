@@ -438,7 +438,6 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         {/* Desktop Right Sidebar: Backlinks only */}
         <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
           <div className="h-full flex flex-col">
-            <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2 text-sm text-gray-300">Backlinks</div>
             <div className="flex-1 overflow-y-auto">
               <BacklinksPanel
                 selectedNote={selectedNote}

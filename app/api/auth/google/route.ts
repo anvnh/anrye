@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const appOrigin = url.origin; // http://localhost:3000 hoặc https://anrye.netlify.app
+  const appOrigin = url.origin;
   const redirectUri = `${appOrigin}/api/auth/google/callback`;
 
   // Get 'origin' (path to return after login), only allow internal paths

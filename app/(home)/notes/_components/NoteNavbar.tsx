@@ -308,10 +308,13 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             <>
               <button
                 onClick={handleSaveNote}
-                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-green-600 text-white hover:bg-green-700"
                 title="Save"
               >
-                <Save size={14} className="sm:w-4 sm:h-4" />
+                <Save size={16} />
+                <span className="hidden sm:inline">
+                  Save
+                </span>
               </button>
               <button
                 onClick={cancelEdit}
