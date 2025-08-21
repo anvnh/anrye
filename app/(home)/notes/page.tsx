@@ -49,6 +49,7 @@ import { MemoizedMarkdown } from './_utils/markdownRenderer';
 const MemoizedNoteContent = React.memo(({
   isEditing,
   isSplitMode,
+  isPreviewMode,
   editContent,
   setEditContent,
   notes,
@@ -66,6 +67,7 @@ const MemoizedNoteContent = React.memo(({
 }: {
   isEditing: boolean;
   isSplitMode: boolean;
+  isPreviewMode: boolean;
   editContent: string;
   setEditContent: (content: string) => void;
   notes: Note[];
@@ -93,6 +95,21 @@ const MemoizedNoteContent = React.memo(({
       );
     }
 
+    return (
+      <NotePreview
+        selectedNote={selectedNote}
+        notes={notes}
+        setNotes={setNotes}
+        setSelectedNote={setSelectedNote}
+        isSignedIn={isSignedIn}
+        driveService={driveService}
+        previewFontSize={previewFontSize}
+        codeBlockFontSize={codeBlockFontSize}
+      />
+    );
+  }
+
+  if (isPreviewMode) {
     return (
       <NotePreview
         selectedNote={selectedNote}
@@ -146,6 +163,7 @@ const MemoizedNoteContent = React.memo(({
   return (
     prevProps.isEditing === nextProps.isEditing &&
     prevProps.isSplitMode === nextProps.isSplitMode &&
+    prevProps.isPreviewMode === nextProps.isPreviewMode &&
     prevProps.editContent === nextProps.editContent &&
     // Re-render when selected note identity-relevant fields change
     prevProps.selectedNote?.id === nextProps.selectedNote?.id &&
@@ -182,6 +200,7 @@ export default function NotesPage() {
     isLoading, setIsLoading,
     syncProgress, setSyncProgress,
     isSplitMode, setIsSplitMode,
+    isPreviewMode, setIsPreviewMode,
     isMobileSidebarOpen, setIsMobileSidebarOpen,
     isSidebarHidden, setIsSidebarHidden,
     draggedItem, setDraggedItem,
@@ -498,6 +517,8 @@ export default function NotesPage() {
                 onToggleSidebar={toggleSidebar}
                 onOpenImageManager={() => setIsImageManagerOpen(true)}
                 onOpenCalendar={() => setIsCalendarOpen(true)}
+                isPreviewMode={isPreviewMode}
+                setIsPreviewMode={setIsPreviewMode}
               />
 
               {/* Note Content */}
@@ -510,24 +531,25 @@ export default function NotesPage() {
                   transition: 'font-family 0.2s, font-size 0.2s',
                 }}
               >
-                <MemoizedNoteContent
-                  isEditing={isEditing}
-                  isSplitMode={isSplitMode}
-                  editContent={editContent}
-                  setEditContent={setEditContent}
-                  notes={notes}
-                  selectedNote={selectedNote}
-                  setNotes={setNotes}
-                  setSelectedNote={setSelectedNote}
-                  isSignedIn={isSignedIn}
-                  driveService={driveService}
-                  tabSize={tabSize}
-                  fontSize={fontSize}
-                  previewFontSize={previewFontSize}
-                  codeBlockFontSize={codeBlockFontSize}
-                  setIsLoading={setIsLoading}
-                  setSyncProgress={setSyncProgress}
-                />
+                        <MemoizedNoteContent
+          isEditing={isEditing}
+          isSplitMode={isSplitMode}
+          isPreviewMode={isPreviewMode}
+          editContent={editContent}
+          setEditContent={setEditContent}
+          notes={notes}
+          selectedNote={selectedNote}
+          setNotes={setNotes}
+          setSelectedNote={setSelectedNote}
+          isSignedIn={isSignedIn}
+          driveService={driveService}
+          tabSize={tabSize}
+          fontSize={fontSize}
+          previewFontSize={previewFontSize}
+          codeBlockFontSize={codeBlockFontSize}
+          setIsLoading={setIsLoading}
+          setSyncProgress={setSyncProgress}
+        />
               </div>
             </>
           ) : (

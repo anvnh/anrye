@@ -25,6 +25,7 @@ export const useNotesState = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [isSplitMode, setIsSplitMode] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarHidden, setIsSidebarHidden] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -188,6 +189,8 @@ export const useNotesState = () => {
     setSyncProgress,
     isSplitMode,
     setIsSplitMode,
+    isPreviewMode,
+    setIsPreviewMode,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
     isSidebarHidden,

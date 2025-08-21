@@ -84,6 +84,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingNote, setDeletingNote] = useState<SharedNote | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  // Track when the native time picker is being interacted with
+  const [isTimePicking, setIsTimePicking] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -426,7 +428,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         localStorage.setItem('sharedNotes', JSON.stringify(sharedNotes));
       }
 
-      
+
     } catch (err) {
       console.error('Error updating shared note settings:', err);
     }
@@ -466,22 +468,38 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
   return (
     <>
-      <DropdownMenu
-        onOpenChange={handleOpenMenu}
-      >
+  <DropdownMenu onOpenChange={handleOpenMenu}>
         <DropdownMenuTrigger asChild>
           <button
             className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
             title="Share Note"
           >
-            <Share size={16} />
-            <span className="hidden sm:inline">Share</span>
+            <Share size={14} className='text-white' />
+            <span>Share</span>
           </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
           className="w-80 bg-secondary text-white border-gray-700 max-h-[80vh] overflow-y-auto"
           align="end"
+          // Keep menu open when interacting with nested popovers (calendar)
+          // or the native time picker overlay
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement | null;
+            // If we're in the middle of choosing time, don't close
+            if (isTimePicking) {
+              e.preventDefault();
+              return;
+            }
+            // If interacting with any shadcn/radix Popover content (calendar), don't close
+            if (target && target.closest('[data-slot="popover-content"]')) {
+              e.preventDefault();
+            }
+          }}
+          onCloseAutoFocus={(e) => {
+            // Prevent focus jank that can close the menu after clicking buttons
+            e.preventDefault();
+          }}
         >
 
 
@@ -500,7 +518,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                   <Share className="h-4 w-4" />
                   <span>Existing Shared Links ({sharedNotes.length})</span>
                 </DropdownMenuLabel>
-                
+
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {sharedNotes.map((note) => (
                     <div key={note.shortId} className="bg-secondary rounded p-3 border border-gray-600">
@@ -523,7 +541,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center gap-3 text-xs text-gray-300">
                             <div className="flex items-center gap-1">
                               {note.settings.readPermission === 'public' ? (
@@ -687,6 +705,10 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                       </PopoverContent>
                     </Popover>
                   </div>
+                  <div
+                    onFocusCapture={() => setIsTimePicking(true)}
+                    onBlurCapture={() => setTimeout(() => setIsTimePicking(false), 0)}
+                  >
                     <TimePicker
                       value={
                         shareSettings.selectedTime ||
@@ -696,6 +718,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                       label="Time"
                       className="flex-1"
                     />
+                  </div>
                 </div>
               )}
 
@@ -963,12 +986,17 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                     </PopoverContent>
                   </Popover>
                 </div>
-                <TimePicker
-                  value={editForm.selectedTime}
-                  onChange={(value) => updateEditForm('selectedTime', value)}
-                  label="Time"
-                  className="flex-1"
-                />
+                <div
+                  onFocusCapture={() => setIsTimePicking(true)}
+                  onBlurCapture={() => setTimeout(() => setIsTimePicking(false), 0)}
+                >
+                  <TimePicker
+                    value={editForm.selectedTime}
+                    onChange={(value) => updateEditForm('selectedTime', value)}
+                    label="Time"
+                    className="flex-1"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1006,8 +1034,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             >
               Cancel
             </Button>
-            <Button 
-              onClick={confirmDelete} 
+            <Button
+              onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700 text-white transition-colors"
             >
               Delete
@@ -1029,7 +1057,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
         </div>,
         document.body
       )}
-      
+
 
     </>
   );

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays } from 'lucide-react';
+import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays, MoreHorizontal, Eye } from 'lucide-react';
 import { ShareDropdown } from './ShareDropdown';
 import SettingsDropdown from './SettingsDropdown';
 import { Note } from './types';
 import { driveService } from '@/app/lib/googleDrive';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface NoteNavbarProps {
   selectedNote: Note;
@@ -35,6 +36,8 @@ interface NoteNavbarProps {
   onToggleSidebar: () => void;
   onOpenImageManager: () => void;
   onOpenCalendar: () => void;
+  isPreviewMode: boolean;
+  setIsPreviewMode: (v: boolean) => void;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -67,6 +70,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   onToggleSidebar,
   onOpenImageManager,
   onOpenCalendar,
+  isPreviewMode,
+  setIsPreviewMode,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
@@ -81,24 +86,24 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
     const diffInDays = Math.floor(diffInHours / 24);
     const diffInMonths = Math.floor(diffInDays / 30);
     const diffInYears = Math.floor(diffInDays / 365);
-    
+
     // Format the time as HH:MM
-    const timeString = date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    const timeString = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: false 
+      hour12: false
     });
-    
+
     // Format the date as dd/mm/yyyy
     const dateStringFormatted = date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
-    
+
     // Create time ago string with proper conversions
     let timeAgoString = '';
-    
+
     if (diffInYears > 0) {
       timeAgoString = `${diffInYears} year${diffInYears > 1 ? 's' : ''}`;
       if (diffInMonths % 12 > 0) {
@@ -127,7 +132,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
     } else {
       timeAgoString = `${diffInSeconds} second${diffInSeconds > 1 ? 's' : ''}`;
     }
-    
+
     return `${timeAgoString} ago at ${timeString} - ${dateStringFormatted}`;
   };
 
@@ -141,7 +146,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
     try {
       // Save note locally first
       saveNote();
-      
+
       // Note: The rename logic is now handled in the saveNote function
     } catch (error) {
       console.error('Error saving note:', error);
@@ -149,167 +154,272 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   };
 
   return (
-  <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
-    <div className="flex items-center justify-between gap-2 sm:gap-4">
-      <div className="flex items-center min-w-0 flex-1">
-        {/* Mobile Sidebar Toggle */}
-        <button
-          onClick={onToggleMobileSidebar}
-          className="lg:hidden p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
-          title="Toggle sidebar"
-        >
-          <Menu size={18} className="sm:w-5 sm:h-5" />
-        </button>
-
-        {/* Desktop Sidebar Toggle - Only show when sidebar is hidden */}
-        {isSidebarHidden && (
+    <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center min-w-0 flex-1">
+          {/* Mobile Sidebar Toggle */}
           <button
-            onClick={onToggleSidebar}
-            className="hidden lg:flex p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
-            title="Show sidebar"
+            onClick={onToggleMobileSidebar}
+            className="lg:hidden p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
+            title="Toggle sidebar"
           >
-            <PanelLeftOpen size={18} className="sm:w-5 sm:h-5" />
+            <Menu size={18} className="sm:w-5 sm:h-5" />
           </button>
-        )}
-        
-        {isEditing ? (
-          <div className="flex-1 min-w-0">
-            <div className="overflow-x-auto max-w-full">
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white inline-block"
-                style={{
-                  width: `${inputWidth}ch`
-                }}
-              />
+
+          {/* Desktop Sidebar Toggle - Only show when sidebar is hidden */}
+          {isSidebarHidden && (
+            <button
+              onClick={onToggleSidebar}
+              className="hidden lg:flex p-1 sm:p-2 mr-2 sm:mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
+              title="Show sidebar"
+            >
+              <PanelLeftOpen size={18} className="sm:w-5 sm:h-5" />
+            </button>
+          )}
+
+          {isEditing ? (
+            <div className="flex-1 min-w-0">
+              <div className="overflow-x-auto max-w-full">
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-lg sm:text-xl font-semibold bg-transparent text-white border-b border-gray-600 focus:outline-none focus:border-white inline-block"
+                  style={{
+                    width: `${inputWidth}ch`
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
-          <h1 className="text-lg sm:text-md font-semibold text-white truncate min-w-0" title={selectedNote.title}>
-            {selectedNote.title}
-          </h1>
-        )}
-      </div>
+          ) : (
+            <h1 className="text-lg sm:text-md font-semibold text-white truncate min-w-0" title={selectedNote.title}>
+              {selectedNote.title}
+            </h1>
+          )}
+        </div>
 
-      <div
-        className={
-          `flex items-center gap-1 sm:gap-2 shrink justify-end
-           ${isEditing ? 'max-w-[60vw]' : 'max-w-none'}
-           min-w-0 flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap`
-        }
-      >
-        {/* Close Note Button */}
-        <button
-          onClick={onCloseNote}
-          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
-          title="Close Note"
-        >
-          <XCircle size={16} />
-          <span className="hidden sm:inline">
-            Close
-          </span>
-        </button>
-
-        {/* Image Manager Button */}
-        <button
-          onClick={onOpenImageManager}
-          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
-          title="Manage Images"
-        >
-          <ImageIcon size={16} />
-          <span className="hidden sm:inline">
-            Images
-          </span>
-        </button>
-
-        {/* Calendar Button */}
-        <button
-          onClick={onOpenCalendar}
-          className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
-          title="Open Calendar"
-        >
-          <CalendarDays size={16} />
-          <span className="hidden sm:inline">
-            Calendar
-          </span>
-        </button>
-
-        {/* Share Button */}
-        <ShareDropdown
-          noteId={selectedNote.id}
-          noteTitle={selectedNote.title}
-          noteContent={selectedNote.content}
-        />
-
-        {/* Split Mode Toggle - Hidden on mobile */}
-        {isEditing && (
+        {/* Desktop Buttons - Hidden on mobile */}
+        <div className="hidden lg:flex items-center gap-1 sm:gap-2 shrink justify-end min-w-0 flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap">
+          {/* Close Note Button */}
           <button
-            onClick={() => setIsSplitMode(!isSplitMode)}
-            className={`hidden lg:flex px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isSplitMode
-              ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30'
-              : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+\\)`}
+            onClick={onCloseNote}
+            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            title="Close Note"
           >
-            <Split size={14} className="lg:w-4 lg:h-4" />
-            <span>
-              Split View
+            <span className="hidden sm:inline">
+              Close Note
             </span>
           </button>
-        )}
 
-        {/* Settings Dropdown */}
-        <SettingsDropdown
-          tabSize={tabSize}
-          setTabSize={setTabSize}
-          currentTheme={currentTheme}
-          setCurrentTheme={setCurrentTheme}
-          themeOptions={themeOptions}
-          fontFamily={fontFamily}
-          setFontFamily={setFontFamily}
-          fontSize={fontSize}
-          setFontSize={setFontSize}
-          previewFontSize={previewFontSize}
-          setPreviewFontSize={setPreviewFontSize}
-          codeBlockFontSize={codeBlockFontSize}
-          setCodeBlockFontSize={setCodeBlockFontSize}
-        />
-
-        {isEditing ? (
-          <>
-            <button
-              onClick={handleSaveNote}
-              className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
-              title="Save"
-            >
-              <Save size={14} className="sm:w-4 sm:h-4" />
-            </button>
-            <button
-              onClick={cancelEdit}
-              className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
-              title="Exit Edit"
-            >
-              <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
-            </button>
-          </>
-        ) : (
+          {/* Image Manager Button */}
           <button
-            onClick={startEdit}
-            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
-            title="Edit"
+            onClick={onOpenImageManager}
+            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            title="Manage Images"
           >
-            <Edit size={14} className="sm:w-4 sm:h-4" />
+            <ImageIcon size={16} />
+            <span className="hidden sm:inline">
+              Images
+            </span>
           </button>
-        )}
+
+          {/* Calendar Button */}
+          <button
+            onClick={onOpenCalendar}
+            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            title="Open Calendar"
+          >
+            <CalendarDays size={16} />
+            <span className="hidden sm:inline">
+              Calendar
+            </span>
+          </button>
+
+          {/* Share Button */}
+          <ShareDropdown
+            noteId={selectedNote.id}
+            noteTitle={selectedNote.title}
+            noteContent={selectedNote.content}
+          />
+
+          {/* Preview Mode Toggle - Only show when editing */}
+          {isEditing && (
+            <button
+              onClick={() => {
+                if (!isPreviewMode) {
+                  // Enter preview mode: turn off split mode
+                  setIsPreviewMode(true);
+                  setIsSplitMode(false);
+                } else {
+                  // Exit preview mode
+                  setIsPreviewMode(false);
+                }
+              }}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isPreviewMode
+                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-400/30'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
+              title={`${isPreviewMode ? 'Exit' : 'Enter'} Preview Mode`}
+            >
+              <div className='flex items-center gap-1'>
+                <Eye size={14} className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  Preview
+                </span>
+              </div>
+            </button>
+          )}
+
+          {/* Split Mode Toggle - Hidden on mobile */}
+          {isEditing && (
+            <button
+              onClick={() => setIsSplitMode(!isSplitMode)}
+              className={`hidden lg:flex px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isSplitMode
+                ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
+              title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+\\)`}
+            >
+              <Split size={14} className="lg:w-4 lg:h-4" />
+              <span>
+                Split View
+              </span>
+            </button>
+          )}
+
+          {/* Settings Dropdown */}
+          <SettingsDropdown
+            tabSize={tabSize}
+            setTabSize={setTabSize}
+            currentTheme={currentTheme}
+            setCurrentTheme={setCurrentTheme}
+            themeOptions={themeOptions}
+            fontFamily={fontFamily}
+            setFontFamily={setFontFamily}
+            fontSize={fontSize}
+            setFontSize={setFontSize}
+            previewFontSize={previewFontSize}
+            setPreviewFontSize={setPreviewFontSize}
+            codeBlockFontSize={codeBlockFontSize}
+            setCodeBlockFontSize={setCodeBlockFontSize}
+          />
+
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleSaveNote}
+                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
+                title="Save"
+              >
+                <Save size={14} className="sm:w-4 sm:h-4" />
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
+                title="Exit Edit"
+              >
+                <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={startEdit}
+              className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+              title="Edit"
+            >
+              <Edit size={14} className="sm:w-4 sm:h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Dropdown Menu */}
+        <div className="lg:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors">
+                <MoreHorizontal size={20} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-secondary border-gray-700 text-white">
+              <DropdownMenuItem onClick={onCloseNote} className="flex items-center gap-2 cursor-pointer mb-1">
+                <XCircle size={16} />
+                Close Note
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenImageManager} className="flex items-center gap-2 cursor-pointer mb-1">
+                <ImageIcon size={16} />
+                Manage Images
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenCalendar} className="flex items-center gap-2 cursor-pointer mb-1">
+                <CalendarDays size={16} />
+                Calendar
+              </DropdownMenuItem>
+              {isEditing && (
+                <DropdownMenuItem onClick={() => {
+                  if (!isPreviewMode) {
+                    // Enter preview mode: turn off split mode
+                    setIsPreviewMode(true);
+                    setIsSplitMode(false);
+                  } else {
+                    // Exit preview mode
+                    setIsPreviewMode(false);
+                  }
+                }} className="flex items-center gap-2 cursor-pointer">
+                  <Eye size={16} />
+                  {isPreviewMode ? 'Exit Preview' : 'Preview'}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                <ShareDropdown
+                  noteId={selectedNote.id}
+                  noteTitle={selectedNote.title}
+                  noteContent={selectedNote.content}
+                />
+              </DropdownMenuItem>
+              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                <SettingsDropdown
+                  tabSize={tabSize}
+                  setTabSize={setTabSize}
+                  currentTheme={currentTheme}
+                  setCurrentTheme={setCurrentTheme}
+                  themeOptions={themeOptions}
+                  fontFamily={fontFamily}
+                  setFontFamily={setFontFamily}
+                  fontSize={fontSize}
+                  setFontSize={setFontSize}
+                  previewFontSize={previewFontSize}
+                  setPreviewFontSize={setPreviewFontSize}
+                  codeBlockFontSize={codeBlockFontSize}
+                  setCodeBlockFontSize={setCodeBlockFontSize}
+                />
+              </DropdownMenuItem>
+
+              {isEditing ? (
+                <>
+                  <DropdownMenuItem onClick={handleSaveNote} className="flex items-center gap-2 cursor-pointer text-white">
+                    <Save size={16} />
+                    Save
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={cancelEdit} className="flex items-center gap-2 cursor-pointer">
+                    <ArrowLeft size={16} />
+                    Exit Edit
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem onClick={startEdit} className="flex items-center gap-2 cursor-pointer text-white">
+                  <Edit size={16} />
+                  Edit
+                </DropdownMenuItem>
+              )}
+
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+      <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
+        <span className="hidden sm:inline">Last updated: </span>
+        {formatLastUpdated(selectedNote.updatedAt)}
+      </p>
     </div>
-    <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
-      <span className="hidden sm:inline">Last updated: </span>
-      {formatLastUpdated(selectedNote.updatedAt)}
-    </p>
-  </div>
   );
 }
 

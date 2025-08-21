@@ -77,7 +77,8 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
           className="px-3 py-1 rounded-md text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 flex items-center gap-1"
           title="Settings"
         >
-          <Settings2Icon size={17} />
+          <Settings2Icon size={17} className="text-white" />
+          Settings
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto bg-[#31363F] border-gray-600 text-gray-300">
