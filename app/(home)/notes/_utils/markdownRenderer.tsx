@@ -716,7 +716,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             </div>
           ),
           thead: ({ children, ...props }) => (
-            <thead className="bg-gray-900/40" {...props}>
+            <thead className="bg-gray-900/40 border-b border-white/30" {...props}>
               {children}
             </thead>
           ),
