@@ -110,6 +110,16 @@ const MemoizedNoteContent = React.memo(({
   }
 
   if (isPreviewMode) {
+    if (!selectedNote) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FileText size={64} className="text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-300 text-lg">Select a note to start reading</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <NotePreview
         selectedNote={selectedNote}
@@ -120,6 +130,7 @@ const MemoizedNoteContent = React.memo(({
         driveService={driveService}
         previewFontSize={previewFontSize}
         codeBlockFontSize={codeBlockFontSize}
+        overrideContent={editContent}
       />
     );
   }
@@ -312,7 +323,7 @@ export default function NotesPage() {
   // Use custom hooks for side effects
   useKeyboardShortcuts(
     isEditing, isSplitMode, selectedNote, setIsEditing, setIsSplitMode,
-    setIsCreatingNote, deleteNote, createNoteFromCurrentContent
+    setIsCreatingNote, deleteNote, createNoteFromCurrentContent, saveNote
   );
 
   useSidebarResize(isResizing, setIsResizing, setSidebarWidth);
@@ -421,6 +432,46 @@ export default function NotesPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
 
+  // Unsaved changes confirmation state
+  const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
+  const [pendingNoteToSelect, setPendingNoteToSelect] = useState<Note | null>(null);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!selectedNote) return false;
+    const contentChanged = editContent !== (selectedNote.content || '');
+    const titleChanged = editTitle !== (selectedNote.title || '');
+    return isEditing && (contentChanged || titleChanged);
+  }, [isEditing, selectedNote, editContent, editTitle]);
+
+  const performSwitchToNote = (note: Note) => {
+    setSelectedNote(note);
+    setIsEditing(false);
+    setIsSplitMode(false);
+    setIsPreviewMode(false);
+    setEditTitle(note.title);
+    setEditContent(note.content);
+  };
+
+  const requestSelectNote = (note: Note) => {
+    if (!note) return;
+    if (hasUnsavedChanges) {
+      setPendingNoteToSelect(note);
+      setIsUnsavedDialogOpen(true);
+      return;
+    }
+    performSwitchToNote(note);
+  };
+
+  // A guarded setter compatible with Dispatch signature used by children
+  const guardedSetSelectedNote: React.Dispatch<React.SetStateAction<Note | null>> = (value) => {
+    const next = typeof value === 'function' ? (value as (prev: Note | null) => Note | null)(selectedNote) : value;
+    if (next) {
+      requestSelectNote(next);
+    } else {
+      setSelectedNote(null);
+    }
+  };
+
   // Show enhanced loading state for PWA
   if (!isAuthInitialized || !isInitialized) {
     return (
@@ -453,7 +504,7 @@ export default function NotesPage() {
           isSidebarHidden={isSidebarHidden}
           isImagesSectionExpanded={isImagesSectionExpanded}
           onToggleFolder={toggleFolder}
-          onSelectNote={setSelectedNote}
+          onSelectNote={requestSelectNote}
           onSetSelectedPath={setSelectedPath}
           onSetIsCreatingFolder={setIsCreatingFolder}
           onSetIsCreatingNote={setIsCreatingNote}
@@ -484,6 +535,49 @@ export default function NotesPage() {
 
         {/* Main content area */}
         <div className={`flex-1 min-h-0 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}>
+          {/* Unsaved changes dialog */}
+          <Dialog open={isUnsavedDialogOpen} onOpenChange={setIsUnsavedDialogOpen}>
+            <DialogContent className="bg-main border-gray-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Unsaved changes</DialogTitle>
+                <DialogDescription className="text-gray-300">
+                  You have unsaved changes in the current note. Do you want to save before switching?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <button
+                  className="px-3 py-1 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+                  onClick={async () => {
+                    await saveNote();
+                    setIsUnsavedDialogOpen(false);
+                    if (pendingNoteToSelect) performSwitchToNote(pendingNoteToSelect);
+                    setPendingNoteToSelect(null);
+                  }}
+                >
+                  Yes, save and switch
+                </button>
+                <button
+                  className="px-3 py-1 rounded-md text-sm font-medium bg-gray-600 text-white hover:bg-gray-700"
+                  onClick={() => {
+                    setIsUnsavedDialogOpen(false);
+                    if (pendingNoteToSelect) performSwitchToNote(pendingNoteToSelect);
+                    setPendingNoteToSelect(null);
+                  }}
+                >
+                  No, discard changes
+                </button>
+                <button
+                  className="px-3 py-1 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+                  onClick={() => {
+                    setIsUnsavedDialogOpen(false);
+                    setPendingNoteToSelect(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           {selectedNote ? (
             <>
               {/* Note Header */}

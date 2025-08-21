@@ -8,10 +8,20 @@ export const useKeyboardShortcuts = (
   setIsSplitMode: (split: boolean) => void,
   setIsCreatingNote: (creating: boolean) => void,
   deleteNote: (noteId: string) => void,
-  createNoteFromCurrentContent: () => void
+  createNoteFromCurrentContent: () => void,
+  saveNote: () => void,
 ) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+
+      // Ctrl/Cmd + S to save note (only when editing)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (isEditing) {
+          saveNote();
+        }
+      }
+
       // Ctrl/Cmd + E to toggle edit mode
       if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();

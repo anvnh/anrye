@@ -19,6 +19,8 @@ interface NotePreviewProps {
   };
   previewFontSize?: string;
   codeBlockFontSize?: string;
+  // Optional live content used when previewing unsaved edits
+  overrideContent?: string;
 }
 
 // Utility function to check if content has headings
@@ -35,7 +37,8 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   isSignedIn,
   driveService,
   previewFontSize = '16px',
-  codeBlockFontSize = '14px'
+  codeBlockFontSize = '14px',
+  overrideContent
 }) => {
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
   const [isBacklinksOpen, setIsBacklinksOpen] = useState(false);
@@ -47,8 +50,11 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const backlinksBackdropRef = useRef<HTMLDivElement>(null);
   // Right sidebar now only shows backlinks; calendar moved to modal
 
+  // Determine which content should be rendered (unsaved edits if provided)
+  const contentToRender = overrideContent ?? selectedNote.content;
+
   // Check if the note has headings
-  const hasOutline = useMemo(() => hasHeadings(selectedNote.content), [selectedNote.content]);
+  const hasOutline = useMemo(() => hasHeadings(contentToRender), [contentToRender]);
 
   // Handle wikilink navigation
   const handleNavigateToNote = useCallback((noteId: string) => {
@@ -213,7 +219,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const memoizedMarkdown = useMemo(() => {
     return (
       <MemoizedMarkdown
-        content={selectedNote.content}
+        content={contentToRender}
         // Pass minimal notes for wikilink resolution to keep prop stable across content-only updates
         notes={wikilinkNotes as any}
         selectedNote={selectedNote}
@@ -228,7 +234,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         codeBlockFontSize={codeBlockFontSize}
       />
     );
-  }, [selectedNote, wikilinkNotes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote, codeBlockFontSize]);
+  }, [selectedNote, wikilinkNotes, setNotes, setSelectedNote, isSignedIn, driveService, handleNavigateToNote, codeBlockFontSize, contentToRender]);
 
   return (
     <div className="relative h-full">
@@ -311,7 +317,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
           >
             <div className="h-full pb-[env(safe-area-inset-bottom)]">
-              <NoteOutlineSidebar content={selectedNote.content} />
+              <NoteOutlineSidebar content={contentToRender} />
             </div>
           </div>
         </div>
@@ -322,7 +328,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
         {/* Desktop Outline Sidebar */}
         {hasOutline && (
           <div className="w-60 flex-shrink-0 hidden lg:block">
-            <NoteOutlineSidebar content={selectedNote.content} />
+            <NoteOutlineSidebar content={contentToRender} />
           </div>
         )}
 
