@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import { Note } from '../_components/types';
 import Prism from 'prismjs';
 import { visit } from 'unist-util-visit';
@@ -137,6 +138,8 @@ const remarkCallouts = () => {
     });
   };
 };
+
+
 
 // Function to preprocess content and convert wikilinks to markdown with data attributes
 const preprocessWikilinks = (content: string, notes: Note[] = []): string => {
@@ -396,7 +399,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkCallouts]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
         skipHtml={false}
         components={{
           h1: ({ children, ...props }) => {
@@ -709,7 +712,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             <em className="italic text-gray-300" {...props}>{children}</em>
           ),
           table: ({ children, ...props }) => (
-            <div className="overflow-x-auto my-4">
+            <div className="md-table overflow-x-auto my-4">
               <table className="min-w-full rounded-2xl border-collapse border border-white/30" {...props}>
                 {children}
               </table>

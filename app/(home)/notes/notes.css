@@ -137,3 +137,56 @@ textarea:focus {
 .markdown-content {
   contain: layout style;
 }
+
+/* Markdown table: per-column width control without breaking layout
+   Usage in Markdown (raw HTML wrapper allowed because skipHtml=false):
+   <div class="md-table" style="--col-1: 140px; --col-3: 320px">
+     | A | B | C |
+     | - | - | - |
+     | ... |
+   </div>
+   Only specified columns get fixed widths; horizontal scroll still works. */
+.md-table table th:nth-child(1),
+.md-table table td:nth-child(1) { width: var(--col-1, auto); min-width: var(--col-1, auto); }
+.md-table table th:nth-child(2),
+.md-table table td:nth-child(2) { width: var(--col-2, auto); min-width: var(--col-2, auto); }
+.md-table table th:nth-child(3),
+.md-table table td:nth-child(3) { width: var(--col-3, auto); min-width: var(--col-3, auto); }
+.md-table table th:nth-child(4),
+.md-table table td:nth-child(4) { width: var(--col-4, auto); min-width: var(--col-4, auto); }
+.md-table table th:nth-child(5),
+.md-table table td:nth-child(5) { width: var(--col-5, auto); min-width: var(--col-5, auto); }
+.md-table table th:nth-child(6),
+.md-table table td:nth-child(6) { width: var(--col-6, auto); min-width: var(--col-6, auto); }
+.md-table table th:nth-child(7),
+.md-table table td:nth-child(7) { width: var(--col-7, auto); min-width: var(--col-7, auto); }
+.md-table table th:nth-child(8),
+.md-table table td:nth-child(8) { width: var(--col-8, auto); min-width: var(--col-8, auto); }
+.md-table table th:nth-child(9),
+.md-table table td:nth-child(9) { width: var(--col-9, auto); min-width: var(--col-9, auto); }
+.md-table table th:nth-child(10),
+.md-table table td:nth-child(10) { width: var(--col-10, auto); min-width: var(--col-10, auto); }
+.md-table table th:nth-child(11),
+.md-table table td:nth-child(11) { width: var(--col-11, auto); min-width: var(--col-11, auto); }
+.md-table table th:nth-child(12),
+.md-table table td:nth-child(12) { width: var(--col-12, auto); min-width: var(--col-12, auto); }
+.md-table table th:nth-child(13),
+.md-table table td:nth-child(13) { width: var(--col-13, auto); min-width: var(--col-13, auto); }
+.md-table table th:nth-child(14),
+.md-table table td:nth-child(14) { width: var(--col-14, auto); min-width: var(--col-14, auto); }
+.md-table table th:nth-child(15),
+.md-table table td:nth-child(15) { width: var(--col-15, auto); min-width: var(--col-15, auto); }
+.md-table table th:nth-child(16),
+.md-table table td:nth-child(16) { width: var(--col-16, auto); min-width: var(--col-16, auto); }
+.md-table table th:nth-child(17),
+.md-table table td:nth-child(17) { width: var(--col-17, auto); min-width: var(--col-17, auto); }
+.md-table table th:nth-child(18),
+.md-table table td:nth-child(18) { width: var(--col-18, auto); min-width: var(--col-18, auto); }
+.md-table table th:nth-child(19),
+.md-table table td:nth-child(19) { width: var(--col-19, auto); min-width: var(--col-19, auto); }
+.md-table table th:nth-child(20),
+.md-table table td:nth-child(20) { width: var(--col-20, auto); min-width: var(--col-20, auto); }
+
+/* Keep long content from forcing cell expansion when widths are set */
+.md-table table th,
+.md-table table td { white-space: nowrap; }

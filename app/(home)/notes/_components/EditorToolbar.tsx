@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CMEditorApi } from './CMEditor';
 import { 
   Bold, 
@@ -34,6 +34,17 @@ import {
   ArrowUpFromLine,
   ArrowDownFromLine
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 
 interface EditorToolbarProps {
   editContent: string;
@@ -55,6 +66,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onTableAction
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [widthDialogOpen, setWidthDialogOpen] = useState(false);
+  const [widthInput, setWidthInput] = useState('');
   
 
   // Translate vertical wheel to horizontal scroll for the toolbar
@@ -192,6 +205,85 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       document.execCommand('redo');
     }
   }, [textareaRef, cmApiRef]);
+
+  // Helpers for table detection and manipulation
+  const getDocHelpers = () => {
+    const api = cmApiRef?.current;
+    const getDoc = () => api ? api.getDocText() : (textareaRef?.current ? textareaRef.current.value : editContent);
+    const setDoc = (text: string) => {
+      if (api) { api.setDocText(text); api.focus(); return; }
+      if (textareaRef?.current) { setEditContent(text); requestAnimationFrame(() => textareaRef.current?.focus()); return; }
+      setEditContent(text);
+    };
+    const getCursor = () => {
+      if (api) { const { from } = api.getSelectionOffsets(); return from; }
+      if (textareaRef?.current) { return textareaRef.current.selectionStart; }
+      return 0;
+    };
+    return { getDoc, setDoc, getCursor };
+  };
+
+  const findTableBounds = (text: string, cursor: number) => {
+    const lines = text.split('\n');
+    let char = 0, lineIdx = 0;
+    for (let i = 0; i < lines.length; i++) { const len = lines[i].length + 1; if (char + len > cursor) { lineIdx = i; break; } char += len; }
+    const isTableLine = (s: string) => /\|/.test(s) && !/^```/.test(s);
+    let startLine = lineIdx;
+    while (startLine > 0 && isTableLine(lines[startLine])) startLine--;
+    if (!isTableLine(lines[startLine])) startLine++;
+    let endLine = lineIdx;
+    while (endLine < lines.length - 1 && isTableLine(lines[endLine])) endLine++;
+    if (!isTableLine(lines[endLine])) endLine--;
+    if (startLine > endLine) return null;
+    return { lines, startLine, endLine };
+  };
+
+  const parseExistingWrapperVars = (openLine: string): Record<number, string> => {
+    const map: Record<number, string> = {};
+    const m = openLine.match(/style=\"([^\"]*)\"/);
+    if (m) {
+      const style = m[1];
+      const re = /--col-(\d+)\s*:\s*([^;]+)\s*;?/g;
+      let g: RegExpExecArray | null;
+      while ((g = re.exec(style))) {
+        map[Number(g[1])] = g[2];
+      }
+    }
+    return map;
+  };
+
+  const normalizeValue = (raw: string) => {
+    const v = raw.trim();
+    if (!v) return '';
+    if (/^\d+$/.test(v)) return `${v}px`;
+    return v;
+  };
+
+  const parseWidthInput = (input: string): Record<number, string> => {
+    const map: Record<number, string> = {};
+    const parts = input.split(',');
+    for (const p of parts) {
+      const seg = p.trim();
+      if (!seg) continue;
+      let m = seg.match(/^(?:col\s*)?(\d+)\s*[:=]\s*(.+)$/i);
+      if (!m) continue;
+      const col = Number(m[1]);
+      const val = normalizeValue(m[2]);
+      if (col > 0 && val) map[col] = val;
+    }
+    return map;
+  };
+
+  const mergeStyleMap = (a: Record<number, string>, b: Record<number, string>): Record<number, string> => {
+    const out: Record<number, string> = { ...a };
+    for (const k of Object.keys(b)) out[Number(k)] = b[Number(k)];
+    return out;
+  };
+
+  const styleMapToAttr = (map: Record<number, string>) => {
+    const keys = Object.keys(map).map(n => Number(n)).sort((x, y) => x - y);
+    return keys.map(k => `--col-${k}: ${map[k]}`).join('; ');
+  };
 
   return (
     <div
@@ -612,11 +704,42 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Clipboard size={16} />
         </button>
         <button
-          onClick={() => insertAtCursor('\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n')}
+          onClick={() => {
+            const template = '\n<div class="md-table" style="--col-1: 160px">\n\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n\n</div>\n';
+            insertAtCursor(template);
+          }}
           className="p-2 hover:bg-gray-700 rounded transition-colors"
-          title="Insert Table"
+          title="Insert Table (wrapped)"
         >
           <Table size={16} />
+        </button>
+        <button
+          onClick={() => {
+            // Prefill from existing wrapper if present
+            const { getDoc, getCursor } = getDocHelpers();
+            const text = getDoc();
+            const pos = getCursor();
+            const tb = findTableBounds(text, pos);
+            let prefill = '';
+            if (tb) {
+              const { lines, startLine, endLine } = tb;
+              // look for wrapper open tag above
+              let openIdx = startLine - 1;
+              while (openIdx >= 0 && lines[openIdx].trim() === '') openIdx--;
+              const hasOpen = openIdx >= 0 && /<div\s+class=["']md-table["']/.test(lines[openIdx]);
+              if (hasOpen) {
+                const map = parseExistingWrapperVars(lines[openIdx]);
+                const parts = Object.keys(map).sort((a, b) => Number(a) - Number(b)).map(k => `col ${k}: ${map[Number(k)]}`);
+                prefill = parts.join(', ');
+              }
+            }
+            setWidthInput(prefill);
+            setWidthDialogOpen(true);
+          }}
+          className="p-2 hover:bg-gray-700 rounded transition-colors"
+          title="Set Table Column Widths"
+        >
+          <span className="inline-block text-xs font-semibold px-1">W</span>
         </button>
         <button
           onClick={() => insertAtCursor('\n---\n')}
@@ -751,6 +874,86 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         </>
       )}
+      {/* Width Dialog */}
+      <AlertDialog open={widthDialogOpen} onOpenChange={setWidthDialogOpen}>
+        <AlertDialogContent className="bg-main border-gray-700 text-gray-200">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Set table column widths</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Ví dụ: <code>col 2: 300px, col 5: 200px</code>. Chỉ các cột bạn nêu mới áp dụng.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            <Input
+              value={widthInput}
+              onChange={(e) => setWidthInput(e.target.value)}
+              placeholder="col 2: 300px, col 5: 200px"
+              className="bg-gray-800 border-gray-700 text-gray-100 placeholder:text-gray-400"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setWidthDialogOpen(false)}
+              className="!bg-gray-700 !hover:bg-gray-600 !text-gray-200 !border-gray-600 !hover:border-gray-500"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const specMap = parseWidthInput(widthInput);
+                const { getDoc, setDoc, getCursor } = getDocHelpers();
+                const text = getDoc();
+                const pos = getCursor();
+                const tb = findTableBounds(text, pos);
+                if (!tb) {
+                  // no table, insert simple wrapped table with vars
+                  const style = styleMapToAttr(specMap);
+                  const template = `\n<div class=\"md-table\"${style ? ` style=\"${style}\"` : ''}>\n\n| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n\n</div>\n`;
+                  const before = text.slice(0, pos);
+                  const after = text.slice(pos);
+                  setDoc(before + template + after);
+                  setWidthDialogOpen(false);
+                  return;
+                }
+                const { lines, startLine, endLine } = tb;
+                // Detect wrapper
+                let openIdx = startLine - 1;
+                while (openIdx >= 0 && lines[openIdx].trim() === '') openIdx--;
+                const hasOpen = openIdx >= 0 && /<div\s+class=["']md-table["']/.test(lines[openIdx]);
+                let closeIdx = endLine + 1;
+                while (closeIdx < lines.length && lines[closeIdx].trim() === '') closeIdx++;
+                const hasClose = closeIdx < lines.length && /<\/div>/.test(lines[closeIdx]);
+
+                if (hasOpen && hasClose) {
+                  const existing = parseExistingWrapperVars(lines[openIdx]);
+                  const merged = mergeStyleMap(existing, specMap);
+                  const style = styleMapToAttr(merged);
+                  if (/style=/.test(lines[openIdx])) {
+                    lines[openIdx] = lines[openIdx].replace(/style=\"[^\"]*\"/, `style=\"${style}\"`);
+                  } else {
+                    lines[openIdx] = lines[openIdx].replace(/>\s*$/, ` style=\"${style}\">`);
+                  }
+                } else {
+                  // Inject wrapper with style and blank lines
+                  const style = styleMapToAttr(specMap);
+                  const open = `<div class=\"md-table\"${style ? ` style=\"${style}\"` : ''}>`;
+                  const close = `</div>`;
+                  lines.splice(startLine, 0, open);
+                  lines.splice(startLine + 1, 0, '');
+                  const shiftedEnd = endLine + 2;
+                  lines.splice(shiftedEnd + 1, 0, '');
+                  lines.splice(shiftedEnd + 2, 0, close);
+                }
+                setDoc(lines.join('\n'));
+                setWidthDialogOpen(false);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700"
+            >
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }; 
