@@ -491,7 +491,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className={`h-full min-h-0 flex flex-col ${notesTheme === 'dark' ? 'notes-dark' : 'notes-light'}`}>
+    <div className={`h-screen min-h-0 flex flex-col ${notesTheme === 'dark' ? 'notes-dark' : 'notes-light'}`}>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* File Explorer Sidebar */}
         <NoteSidebar

@@ -770,7 +770,7 @@ text-gray-400 hover:text-gray-300
               </div>
             </div>
 
-            <div className="flex-1 h-full min-h-0 overflow-y-scroll p-4 space-y-1">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1" style={{ height: 'calc(100vh - 120px)' }}>
               {/* Image and sort section */}
               <div className='flex w-full items-center justify-between mb-4'>
                 {/* Images Section */}
@@ -833,6 +833,7 @@ text-gray-400 hover:text-gray-300
                   </DropdownMenu>
                 </div>
               </div>
+        
 
               {/* File Tree */}
               {renderFileTree()}
