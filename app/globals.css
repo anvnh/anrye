@@ -56,12 +56,391 @@ body {
 
 /* Custom theme colors to avoid hydration issues */
 .bg-main {
-  background-color: #222831 !important;
+  /* background-color: #222831 !important; */
+  background-color: #121212 !important;
 }
 
 .bg-secondary {
   background-color: #31363F !important;
 }
+
+.bg-sidebar {
+  background-color: #15171b !important;
+}
+
+.bg-icon-notenavbar {
+  background-color: #3C3C3C !important;
+}
+
+.bg-icon-notenavbar:hover {
+  background-color: #505050 !important;
+}
+
+.bg-icon-notenavbar-active {
+  background-color: #636363 !important;
+}
+
+.bg-icon-notenavbar-light {
+  background-color: #E5E7EB !important;
+}
+
+.bg-icon-notenavbar-light:hover {
+  background-color: #D1D5DB !important;
+}
+
+/* Dark: Calendar button backgrounds */
+.bg-calendar-button {
+  background-color: #2A2F37 !important;
+}
+
+.bg-calendar-button:hover {
+  background-color: #3A414C !important;
+}
+
+/* Light: Calendar button backgrounds */
+.light-bg-calendar-button {
+  background-color: #F3F4F6 !important;
+}
+
+.light-bg-calendar-button:hover {
+  background-color: #E5E7EB !important;
+}
+
+/* Notes route light/dark theming */
+.notes-dark {
+  background-color: #17191d;
+  color: #e5e7eb;
+}
+
+.notes-light {
+  background-color: #f7f7f8;
+  color: #111827;
+}
+
+.notes-surface {
+  background-color: inherit;
+}
+
+.notes-header {
+  /* background-color: rgb(49, 54, 63); */
+  background-color: #18181B;
+}
+
+/* Sidebar container */
+.notes-sidebar {
+  background-color: #18181B;
+}
+
+.notes-light .notes-sidebar {
+  background-color: #ffffff;
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .notes-header {
+  background-color: #ffffff;
+  border-color: #e5e7eb !important;
+}
+
+/* Typography overrides for light mode */
+.notes-light .text-white,
+.notes-light .text-gray-300,
+.notes-light .text-gray-400 {
+  color: #111827 !important;
+}
+
+.notes-light .text-gray-500 {
+  color: #374151 !important;
+}
+
+.notes-light .text-blue-400 {
+  color: #2563eb !important;
+}
+
+.notes-light .text-green-400 {
+  color: #16a34a !important;
+}
+
+.notes-light .text-yellow-400 {
+  color: #d97706 !important;
+}
+
+/* Hover backgrounds and selected states in sidebar for light mode */
+.notes-light .hover\:bg-gray-700\/60:hover {
+  background-color: rgba(17, 24, 39, 0.06) !important;
+}
+
+.notes-light .hover\:bg-gray-700\/80:hover {
+  background-color: rgba(17, 24, 39, 0.08) !important;
+}
+
+.notes-light .bg-gray-700\/80 {
+  background-color: rgba(17, 24, 39, 0.08) !important;
+}
+
+.notes-light .ring-gray-500\/30 {
+  --tw-ring-color: rgba(17, 24, 39, 0.2) !important;
+}
+
+.notes-light .border-gray-600,
+.notes-light .border-gray-600\/50 {
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .bg-main {
+  background-color: #ffffff !important;
+}
+
+.notes-light .bg-secondary {
+  background-color: #f9fafb !important;
+}
+
+.notes-light .text-primary {
+  color: #111827 !important;
+}
+
+/* Note navbar specific button/icon styling for light mode */
+.notes-light .note-navbar button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600) {
+  background-color: #e5e7eb;
+  /* gray-200 */
+  color: #111827;
+  /* gray-900 */
+}
+
+.notes-light .note-navbar button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600):hover {
+  background-color: #d1d5db;
+  /* gray-300 */
+}
+
+.notes-light .note-navbar .text-white {
+  color: #1f2937 !important;
+}
+
+.notes-light .note-navbar svg {
+  color: #1f2937;
+}
+
+/* Preserve accent buttons in navbar */
+.notes-light .note-navbar .bg-blue-600,
+.notes-light .note-navbar .bg-green-600,
+.notes-light .note-navbar .bg-red-600 {
+  color: #ffffff !important;
+}
+
+.notes-light .note-navbar .bg-blue-600 svg,
+.notes-light .note-navbar .bg-green-600 svg,
+.notes-light .note-navbar .bg-red-600 svg {
+  color: #ffffff !important;
+}
+
+.notes-light .note-navbar .bg-green-600:hover {
+  background-color: #16a34a !important;
+}
+
+.notes-light .note-navbar .bg-blue-600:hover {
+  background-color: #2563eb !important;
+}
+
+.notes-light .note-navbar .bg-red-600:hover {
+  background-color: #dc2626 !important;
+}
+
+/* Image Manager light-mode theme */
+.notes-light .image-manager-overlay {
+  background-color: rgba(17, 24, 39, 0.2) !important;
+}
+
+.notes-light .image-manager {
+  background-color: #ffffff !important;
+  color: #111827;
+}
+
+.notes-light .image-manager-header {
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .image-manager-header h2 {
+  color: #111827 !important;
+}
+
+.notes-light .image-manager-header .text-primary {
+  color: #1f2937 !important;
+}
+
+.notes-light .image-manager-header .hover\:bg-gray-700:hover {
+  background-color: #e5e7eb !important;
+}
+
+.notes-light .im-panel {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .im-panel h3 {
+  color: #111827 !important;
+}
+
+.notes-light .im-panel .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.notes-light .im-card {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .im-card .text-white {
+  color: #111827 !important;
+}
+
+.notes-light .im-card .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.notes-light .im-card .bg-gray-700 {
+  background-color: #e5e7eb !important;
+}
+
+.notes-light .im-card .hover\:bg-red-600:hover {
+  background-color: #fee2e2 !important;
+}
+
+.notes-light .im-card .text-red-400 {
+  color: #dc2626 !important;
+}
+
+.notes-light .image-manager .border-gray-600 {
+  border-color: #e5e7eb !important;
+}
+
+.notes-light .image-manager .bg-gray-800 {
+  background-color: #f3f4f6 !important;
+}
+
+.notes-light .image-manager .text-gray-300 {
+  color: #374151 !important;
+}
+
+.notes-light .image-manager .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.bg-dropdown-navbar {
+  background-color: #1F2937;
+}
+
+/* Share Dropdown light-mode theme */
+.share-dropdown--light {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+.share-dropdown--light .bg-secondary {
+  background-color: #ffffff !important;
+}
+
+.share-dropdown--light .text-white {
+  color: #111827 !important;
+}
+
+.share-dropdown--light .text-gray-300 {
+  color: #374151 !important;
+}
+
+.share-dropdown--light .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.share-dropdown--light .border-gray-700,
+.share-dropdown--light .border-gray-600 {
+  border-color: #e5e7eb !important;
+}
+
+.share-dropdown--light select,
+.share-dropdown--light button,
+.share-dropdown--light input {
+  color: #111827 !important;
+}
+
+.share-dropdown--light .bg-gray-700,
+.share-dropdown--light .bg-gray-600 {
+  background-color: #e5e7eb !important;
+}
+
+.share-dropdown--light .hover\:bg-gray-700:hover,
+.share-dropdown--light .hover\:bg-gray-600:hover {
+  background-color: #d1d5db !important;
+}
+
+.share-dropdown--light .bg-gradient-main {
+  background: linear-gradient(to right, #e5e7eb, #f3f4f6) !important;
+  color: #111827 !important;
+}
+
+/* Button light mode overrides */
+.button-light {
+  background-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.button-light:hover {
+  background-color: #d1d5db !important;
+}
+
+/* Settings dropdown light-mode theme */
+.settings-dropdown--light {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+.settings-dropdown--light .text-gray-300 {
+  color: #374151 !important;
+}
+
+.settings-dropdown--light .border-gray-600 {
+  border-color: #e5e7eb !important;
+}
+
+/* Target the specific background color using attribute selector */
+.settings-dropdown--light[style*="background-color: rgb(49, 54, 63)"],
+.settings-dropdown--light[style*="background-color: #31363F"] {
+  background-color: #ffffff !important;
+}
+
+/* Alternative: Add a specific class and target it */
+.settings-dropdown--light.settings-dropdown {
+  background-color: #ffffff !important;
+}
+
+/* Code block tweaks in notes light mode */
+.notes-light .code-block-stable pre {
+  border-radius: 0.5rem !important;
+  /* Keep rounded corners */
+  overflow: hidden;
+  /* Clip inner background to radius */
+}
+
+/* Select content light mode */
+.select-content-light {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.select-content-light [data-radix-select-item] {
+  color: #111827 !important;
+}
+
+.select-content-light [data-radix-select-item]:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.select-content-light [data-radix-select-item][data-state="checked"] {
+  background-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+/* Remove hard-coded color overrides so theme files control code colors */
 
 .text-primary {
   color: #EEEEEE !important;
@@ -392,7 +771,7 @@ html {
   justify-content: center !important;
 }
 
-[data-nextjs-dialog-overlay] > div {
+[data-nextjs-dialog-overlay]>div {
   position: relative !important;
   max-width: 90vw !important;
   max-height: 90vh !important;
@@ -466,7 +845,7 @@ html {
   overflow: visible !important;
 }
 
-[data-nextjs-dialog-overlay] > div {
+[data-nextjs-dialog-overlay]>div {
   position: relative !important;
   max-width: 90vw !important;
   max-height: 90vh !important;
@@ -492,7 +871,7 @@ html {
   overflow: visible !important;
 }
 
-#__next-error-overlay > div {
+#__next-error-overlay>div {
   position: relative !important;
   max-width: 90vw !important;
   max-height: 90vh !important;
@@ -593,6 +972,7 @@ html {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
@@ -639,6 +1019,7 @@ html {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

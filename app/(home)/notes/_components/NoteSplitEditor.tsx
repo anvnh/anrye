@@ -28,6 +28,7 @@ interface NoteSplitEditorProps {
   codeBlockFontSize?: string;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
+  notesTheme?: 'light' | 'dark';
 }
 
 export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
@@ -45,7 +46,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     previewFontSize = '16px',
     codeBlockFontSize = '14px',
     setIsLoading,
-    setSyncProgress
+    setSyncProgress,
+    notesTheme = 'dark'
   }
 ) => {
 
@@ -881,9 +883,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
     };
 
     const io = new IntersectionObserver((entries) => {
-  // Only drive editor from preview when user is scrolling preview
-  if (scrollOwnerRef.current !== 'preview') return;
-  if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
+      // Only drive editor from preview when user is scrolling preview
+      if (scrollOwnerRef.current !== 'preview') return;
+      if (isSyncingRef.current && lastSourceRef.current !== 'preview') return;
 
       const topEl = pickTopVisibleBlock(entries);
       if (!topEl) return;
@@ -895,7 +897,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
       // debounce with RAF to avoid jitter
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-  // Set syncing flag to prevent recursive sync
+        // Set syncing flag to prevent recursive sync
         isSyncingRef.current = true;
         lastSourceRef.current = 'preview';
         scrollEditorToStartLine(startLine);
@@ -1012,7 +1014,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
       <div
         className="flex flex-col min-h-0"
         style={{
-          backgroundColor: '#222831',
+          backgroundColor: notesTheme === 'light' ? '#ffffff' : 'bg-main',
           width: `${100 - leftPaneWidth}%`
         }}
       >
@@ -1026,17 +1028,16 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
           onKeyDown={() => setScrollOwner('preview')}
           style={{
             scrollBehavior: 'auto',
-            // Performance optimizations
             willChange: 'scroll-position',
             contain: 'content',
-            backgroundColor: '#222831'
+            backgroundColor: notesTheme === 'light' ? '#ffffff' : 'bg-main'
           }}
         >
-          <div className="prose prose-invert max-w-none w-full m-0 p-0" style={{ fontSize: previewFontSize }}>
+          <div className={`prose max-w-none w-full m-0 p-0 ${notesTheme === 'light' ? 'prose-gray' : 'prose-invert'}`} style={{ fontSize: previewFontSize }}>
             <style jsx>{`
               /* Enhanced KaTeX mobile responsiveness */
               .katex { 
-                color: #e5e7eb !important;
+                color: ${notesTheme === 'light' ? '#111827' : '#e5e7eb'} !important;
                 font-size: 1.1em !important;
                 max-width: 100% !important;
                 word-wrap: break-word !important;
@@ -1095,17 +1096,31 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
                 word-wrap: break-word;
                 max-width: 100%;
               }
-              /* Dark theme adjustments for KaTeX */
+              
+              /* KaTeX theme adjustments */
               .katex .accent {
-                color: #e5e7eb !important;
+                color: ${notesTheme === 'light' ? '#111827' : '#e5e7eb'} !important;
               }
               .katex .mord {
-                color: #e5e7eb !important;
+                color: ${notesTheme === 'light' ? '#111827' : '#e5e7eb'} !important;
               }
+              .katex .mbin, .katex .mrel {
+                color: ${notesTheme === 'light' ? '#2563eb' : '#6b7595'} !important;
+              }
+              .katex .mopen, .katex .mclose {
+                color: ${notesTheme === 'light' ? '#d97706' : '#fbbf24'} !important;
+              }
+              .katex .mfrac > span {
+                border-color: ${notesTheme === 'light' ? '#d1d5db' : '#6b7595'} !important;
+              }
+              .katex .sqrt > .sqrt-line {
+                border-top-color: ${notesTheme === 'light' ? '#d1d5db' : '#6b7595'} !important;
+              }
+              
               /* Scroll optimization */
               .preview-content {
                 scroll-behavior: auto !important;
-                background-color: #222831 !important;
+                background-color: ${notesTheme === 'light' ? '#ffffff' : '#222831'} !important;
                 overscroll-behavior: contain;
                 contain: content;
               }
@@ -1113,24 +1128,62 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
                 scroll-behavior: auto !important;
                 background-color: #31363F !important;
               }
+              
               /* Force equal width split */
               .prose {
                 width: 100% !important;
                 max-width: none !important;
               }
-              .katex .mbin, .katex .mrel {
-                color: #6b7595 !important;
+              
+              /* Light mode prose styles */
+              .prose-gray h1, .prose-gray h2, .prose-gray h3, .prose-gray h4, .prose-gray h5, .prose-gray h6 {
+                color: #111827 !important;
               }
-              .katex .mopen, .katex .mclose {
-                color: #fbbf24 !important;
+              .prose-gray p {
+                color: #374151 !important;
               }
-              .katex .mfrac > span {
-                border-color: #6b7595 !important;
+              .prose-gray strong {
+                color: #111827 !important;
               }
-              .katex .sqrt > .sqrt-line {
-                border-top-color: #6b7595 !important;
+              .prose-gray blockquote {
+                border-left-color: #e5e7eb !important;
+                color: #6b7280 !important;
+                background-color: #f9fafb !important;
+                padding: 0.75rem 1rem !important;
+                border-radius: 0.375rem !important;
               }
-              /* Enhanced dark theme matching website colors */
+              .prose-gray code {
+                color: #dc2626 !important;
+                background-color: #f3f4f6 !important;
+                padding: 0.125rem 0.25rem !important;
+                border-radius: 0.25rem !important;
+              }
+              /* Allow theme CSS to style code blocks in light mode */
+              /* .prose-gray pre and pre code colors are intentionally not overridden */
+              .prose-gray a {
+                color: #2563eb !important;
+              }
+              .prose-gray a:hover {
+                color: #1d4ed8 !important;
+              }
+              .prose-gray ul li::marker,
+              .prose-gray ol li::marker {
+                color: #6b7280 !important;
+              }
+              .prose-gray table {
+                border-color: #e5e7eb !important;
+              }
+              .prose-gray thead th {
+                background-color: #f9fafb !important;
+                border-bottom-color: #e5e7eb !important;
+                color: #111827 !important;
+              }
+              .prose-gray tbody td {
+                border-bottom-color: #e5e7eb !important;
+                color: #374151 !important;
+              }
+              
+              /* Dark mode prose styles (existing) */
               .prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert h5, .prose-invert h6 {
                 color: #EEEEEE !important;
               }
@@ -1153,10 +1206,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
                 padding: 0.125rem 0.25rem !important;
                 border-radius: 0.25rem !important;
               }
-              .prose-invert pre {
-                background-color: #31363F !important;
-                border: 1px solid #6b7595 !important;
-              }
+              /* Allow theme CSS to style code blocks in dark mode as well */
               .prose-invert a {
                 color: #6b7595 !important;
               }

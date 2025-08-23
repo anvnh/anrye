@@ -10,11 +10,9 @@ export default function NotesLayout({
 }) {
   const { isAuthenticated } = useAuth();
 
-  // This component assumes authentication is handled by middleware
-  // If user reaches here, they should be authenticated
   return (
     <div className="h-screen flex flex-col bg-main overflow-hidden">
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         {children}
       </main>
     </div>

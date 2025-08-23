@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { TimePicker } from './TimePicker';
+import { useThemeSettings } from '../_hooks';
 
 type Props = {
   open: boolean;
@@ -20,18 +21,33 @@ type Props = {
 };
 
 // Google calendar color swatches (colorId -> hex). These are common defaults.
-const COLOR_MAP: Record<string, string> = {
-  '1': '#a4bdfc',
-  '2': '#7AE7BF',
-  '3': '#DBADFF',
-  '4': '#FF887C',
-  '5': '#FBD75B',
-  '6': '#FFB878',
-  '7': '#46D6DB',
-  '8': '#E1E1E1',
-  '9': '#5484ED',
-  '10': '#51B749',
-  '11': '#DC2127',
+export const DARK_COLOR_MAP: Record<string, string> = {
+  '1': '#89B4FA', // Blue
+  '2': '#A6E3A1', // Green
+  '3': '#CBA6F7', // Purple
+  '4': '#F38BA8', // Red
+  '5': '#F9E2AF', // Yellow
+  '6': '#FAB387', // Orange/Peach
+  '7': '#94E2D5', // Teal
+  '8': '#A6ADC8', // Slate/Gray
+  '9': '#74C7EC', // Sapphire (secondary blue)
+  '10': '#8BD5A0', // Emerald (deep green)
+  '11': '#E78284', // Darker red
+};
+
+// Light mode colors (pastel versions of the same colors)
+export const LIGHT_COLOR_MAP: Record<string, string> = {
+  '1': '#DEE9FF', // Blue
+  '2': '#E6F6E9', // Green
+  '3': '#F0E7FF', // Purple
+  '4': '#FFE1E7', // Red (soft)
+  '5': '#FFF2C9', // Yellow (readable)
+  '6': '#FFE6D4', // Orange/Peach
+  '7': '#DDF7F2', // Teal
+  '8': '#EEF1F8', // Slate/Gray (clearer than #F5F5F5)
+  '9': '#D9F2FF', // Sapphire
+  '10': '#E1F7E8', // Emerald
+  '11': '#FFDAD6', // Dark Red (distinct from 4)
 };
 
 export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, initialEnd, initialTitle = '', initialColorId, onSave }) => {
@@ -43,6 +59,9 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
   const [saving, setSaving] = useState(false);
   const [recurrence, setRecurrence] = useState<string | null>(null);
   const [recurrenceCustomMode, setRecurrenceCustomMode] = useState(false);
+  const { notesTheme } = useThemeSettings();
+
+  const COLOR_MAP = notesTheme === 'light' ? LIGHT_COLOR_MAP : DARK_COLOR_MAP;
 
   // Keep date synced if props change (when opening editor for a different event)
   React.useEffect(() => {
@@ -52,15 +71,15 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
     setStartTime(toTimeStr(initialStart));
     setEndTime(toTimeStr(initialEnd));
     setColorId(initialColorId);
-  setRecurrence(null);
-  setRecurrenceCustomMode(false);
+    setRecurrence(null);
+    setRecurrenceCustomMode(false);
   }, [open, initialStart, initialEnd, initialTitle, initialColorId]);
 
   const onSubmit = async () => {
     const s = combine(date, startTime);
     const e = combine(date, endTime);
     if (e <= s) {
-  alert('End time must be after start time.');
+      alert('End time must be after start time.');
       return;
     }
     setSaving(true);
@@ -74,15 +93,28 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o ? onClose() : undefined}>
-    <DialogContent className="sm:max-w-[520px] bg-secondary text-white border-gray-700">
+      <DialogContent className={`sm:max-w-[520px] backdrop-blur-2xl 
+        ${notesTheme === 'light'
+          ? 'bg-gray-800/10 border-none text-black'
+          : 'bg-main/95 text-white'
+        }`}>
         <DialogHeader>
-  <DialogTitle className="text-white">Event</DialogTitle>
+          <DialogTitle className="text-white">
+            Event
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label className="text-gray-300">Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Event title" className="bg-main border-gray-700 text-white" />
+            <Label className="text-gray-300">
+              Title
+            </Label>
+            <Input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Event title"
+              className={`bg-main text-white ${notesTheme === 'light' ? 'bg-white text-black' : ''}`}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -90,7 +122,10 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
               <Label className="text-gray-300">Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start bg-main border-gray-700 text-white hover:bg-gray-700 hover:text-white">
+                  <Button
+                    variant="outline"
+                    className={`justify-start bg-main text-white ${notesTheme === 'light' ? 'bg-white text-black/75' : ''} `}
+                  >
                     {date.toLocaleDateString()}
                   </Button>
                 </PopoverTrigger>
@@ -100,7 +135,16 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
                     selected={date}
                     onSelect={(d) => d && setDate(d)}
                     initialFocus
-                    className="text-white [&_.rdp-button]:text-white [&_.rdp-button]:hover:bg-gray-700 [&_.rdp-button]:hover:text-white [&_.rdp-caption]:text-white [&_.rdp-weekday]:text-gray-300 [&_.rdp-day]:text-white [&_.rdp-day_button]:text-white [&_.rdp-day_button]:hover:bg-gray-700 [&_.rdp-day_button]:hover:text-white [&_.rdp-day_button[data-selected=true]]:bg-blue-600 [&_.rdp-day_button[data-selected=true]]:text-white"
+                    className={`
+                      text-white 
+                      [&_.rdp-button]:text-white [&_.rdp-button]:hover:bg-gray-700 
+                      [&_.rdp-button]:hover:text-white [&_.rdp-caption]:text-white 
+                      [&_.rdp-weekday]:text-gray-300 [&_.rdp-day]:text-white 
+                      [&_.rdp-day_button]:text-white [&_.rdp-day_button]:hover:bg-gray-700 
+                      [&_.rdp-day_button]:hover:text-white 
+                      [&_.rdp-day_button[data-selected=true]]:bg-blue-600 
+                      [&_.rdp-day_button[data-selected=true]]:text-white
+                    `}
                   />
                 </PopoverContent>
               </Popover>
@@ -138,7 +182,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
           <div className="space-y-2">
             <Label className="text-gray-300">Repeat</Label>
             <select
-              className="w-full bg-main border border-gray-700 rounded px-3 py-2 text-sm text-white"
+              className={`w-full ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'} rounded px-3 py-2 text-sm`}
               value={recurrenceCustomMode ? '__custom__' : (recurrence || '')}
               onChange={(e) => {
                 const v = e.target.value;
@@ -151,7 +195,9 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
                 }
               }}
             >
-              <option value="">Does not repeat</option>
+              <option value="">
+                Does not repeat
+              </option>
               <option value="RRULE:FREQ=DAILY">Daily</option>
               {(() => {
                 const weekday = initialStart.toLocaleDateString(undefined, { weekday: 'long' });
@@ -183,8 +229,14 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={onSubmit} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving} className={`${notesTheme === 'light' ? 'text-white' : ''}`}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onSubmit}
+            className={`${notesTheme === 'light' ? 'light-bg-calendar-button text-black/75' : 'bg-calendar-button text-white'} `}
+            disabled={saving}>{saving ? 'Saving…' : 'Save'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -204,11 +256,15 @@ function combine(date: Date, hhmm: string) {
   return d;
 }
 
-export const EVENT_COLORS = COLOR_MAP;
+export const getEventColors = (theme: 'light' | 'dark') => {
+  return theme === 'light' ? LIGHT_COLOR_MAP : DARK_COLOR_MAP;
+};
+
+export const EVENT_COLORS = DARK_COLOR_MAP; // Fallback
 
 // Helpers for recurrence UI
 function rruleWeekly(d: Date) {
-  const map = ['SU','MO','TU','WE','TH','FR','SA'];
+  const map = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   return `RRULE:FREQ=WEEKLY;BYDAY=${map[d.getDay()]}`;
 }
 

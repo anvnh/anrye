@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useThemeSettings } from '../_hooks';
 
 interface TimePickerProps {
   value: string;
@@ -19,10 +20,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   className = ""
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const { notesTheme } = useThemeSettings();
 
   return (
     <div className={`space-y-2 ${className}`}>
-      {label && <Label className="text-gray-300">{label}</Label>}
+      {label && <Label className={notesTheme === 'light' ? 'text-white' : 'text-gray-300'}>{label}</Label>}
       <div className="relative">
         <Input
           type="time"
@@ -30,7 +32,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="bg-main border-gray-700 text-white pr-10 text-center hover:border-gray-600 focus:border-blue-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+          className={`bg-main text-white ${notesTheme === 'light' ? 'bg-white text-black' : ''} pr-10 text-center hover:border-gray-600 focus:border-blue-500 transition-colors [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none`}
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
           <Clock

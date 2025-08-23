@@ -63,7 +63,8 @@ const MemoizedNoteContent = React.memo(({
   previewFontSize,
   codeBlockFontSize,
   setIsLoading,
-  setSyncProgress
+  setSyncProgress,
+  notesTheme
 }: {
   isEditing: boolean;
   isSplitMode: boolean;
@@ -82,6 +83,7 @@ const MemoizedNoteContent = React.memo(({
   codeBlockFontSize: string;
   setIsLoading: (loading: boolean) => void;
   setSyncProgress: (progress: number) => void;
+  notesTheme: 'light' | 'dark';
 }) => {
   if (!isEditing) {
     if (!selectedNote) {
@@ -152,6 +154,7 @@ const MemoizedNoteContent = React.memo(({
         codeBlockFontSize={codeBlockFontSize}
         setIsLoading={setIsLoading}
         setSyncProgress={setSyncProgress}
+        notesTheme={notesTheme}
       />
     );
   }
@@ -233,6 +236,7 @@ export default function NotesPage() {
 
   const {
     currentTheme, setCurrentTheme,
+    notesTheme, setNotesTheme,
     tabSize, setTabSize,
     themeOptions,
   } = useThemeSettings();
@@ -487,7 +491,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col" style={{ backgroundColor: '#222831' }}>
+    <div className={`h-full min-h-0 flex flex-col ${notesTheme === 'dark' ? 'notes-dark' : 'notes-light'}`}>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* File Explorer Sidebar */}
         <NoteSidebar
@@ -593,6 +597,8 @@ export default function NotesPage() {
                 currentTheme={currentTheme}
                 setCurrentTheme={setCurrentTheme}
                 themeOptions={themeOptions}
+                notesTheme={notesTheme}
+                setNotesTheme={setNotesTheme}
                 fontFamily={fontFamily}
                 setFontFamily={setFontFamily}
                 fontSize={fontSize}
@@ -617,39 +623,39 @@ export default function NotesPage() {
 
               {/* Note Content */}
               <div
-                className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl"
+                className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl notes-surface"
                 style={{
-                  backgroundColor: '#222831',
                   fontFamily: fontFamily,
                   fontSize: fontSize,
                   transition: 'font-family 0.2s, font-size 0.2s',
                 }}
               >
-                        <MemoizedNoteContent
-          isEditing={isEditing}
-          isSplitMode={isSplitMode}
-          isPreviewMode={isPreviewMode}
-          editContent={editContent}
-          setEditContent={setEditContent}
-          notes={notes}
-          selectedNote={selectedNote}
-          setNotes={setNotes}
-          setSelectedNote={setSelectedNote}
-          isSignedIn={isSignedIn}
-          driveService={driveService}
-          tabSize={tabSize}
-          fontSize={fontSize}
-          previewFontSize={previewFontSize}
-          codeBlockFontSize={codeBlockFontSize}
-          setIsLoading={setIsLoading}
-          setSyncProgress={setSyncProgress}
-        />
+                <MemoizedNoteContent
+                  isEditing={isEditing}
+                  isSplitMode={isSplitMode}
+                  isPreviewMode={isPreviewMode}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                  notes={notes}
+                  selectedNote={selectedNote}
+                  setNotes={setNotes}
+                  setSelectedNote={setSelectedNote}
+                  isSignedIn={isSignedIn}
+                  driveService={driveService}
+                  tabSize={tabSize}
+                  fontSize={fontSize}
+                  previewFontSize={previewFontSize}
+                  codeBlockFontSize={codeBlockFontSize}
+                  setIsLoading={setIsLoading}
+                  setSyncProgress={setSyncProgress}
+                  notesTheme={notesTheme}
+                />
               </div>
             </>
           ) : (
             <>
               {/* Mobile Header for No Note Selected */}
-              <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+              <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0 notes-header">
                 <div className="flex items-center">
                   <button
                     onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -662,7 +668,7 @@ export default function NotesPage() {
                 </div>
               </div>
 
-              <div className="flex-1 flex items-center justify-center relative" style={{ backgroundColor: '#222831' }}>
+              <div className="flex-1 flex items-center justify-center relative notes-surface">
                 {/* Floating sidebar toggle button */}
                 {isSidebarHidden && (
                   <button
@@ -836,15 +842,30 @@ export default function NotesPage() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
                 <h2 className="text-lg sm:text-xl font-semibold text-white">Calendar</h2>
                 <div className="flex items-center gap-1 sm:gap-2">
-                  <button onClick={() => setCalendarDate(prev => addDays(prev, -7))} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Prev</button>
-                  <button onClick={() => setCalendarDate(prev => addDays(prev, 7))} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Next</button>
-                  <button onClick={() => setCalendarDate(new Date())} className="px-2 sm:px-3 py-1 bg-gray-700 rounded text-xs sm:text-sm text-white hover:bg-gray-600 transition-colors">Today</button>
+                  <button
+                    onClick={() => setCalendarDate(prev => addDays(prev, -7))}
+                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => setCalendarDate(prev => addDays(prev, 7))}
+                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
+                  >
+                    Next
+                  </button>
+                  <button
+                    onClick={() => setCalendarDate(new Date())}
+                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
+                  >
+                    Today
+                  </button>
                 </div>
                 <span className="text-gray-300 font-medium text-sm sm:text-base">{calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
               </div>
               <button
                 onClick={() => setIsCalendarOpen(false)}
-                className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex-shrink-0"
+                className={`p-2 rounded-lg text-gray-300 hover:text-white transition-colors flex-shrink-0 bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
                 title="Close Calendar"
               >
                 <X size={20} />
@@ -852,7 +873,7 @@ export default function NotesPage() {
             </div>
             {/* Calendar Content */}
             <div className="flex-1 overflow-hidden">
-              <CalendarPanel 
+              <CalendarPanel
                 currentDate={calendarDate}
                 onPrev={() => setCalendarDate(prev => addDays(prev, -7))}
                 onNext={() => setCalendarDate(prev => addDays(prev, 7))}
@@ -861,7 +882,8 @@ export default function NotesPage() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }

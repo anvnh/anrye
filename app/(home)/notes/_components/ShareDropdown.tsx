@@ -41,6 +41,7 @@ interface ShareDropdownProps {
   noteId: string;
   noteTitle: string;
   noteContent: string;
+  notesTheme?: 'light' | 'dark';
 }
 
 interface ShareSettings {
@@ -62,7 +63,7 @@ interface SharedNote {
   expireAt: string | null;
 }
 
-export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownProps) {
+export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: ShareDropdownProps) {
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     sharingUrl: '',
     readPermission: 'public',
@@ -468,19 +469,23 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
   return (
     <>
-  <DropdownMenu onOpenChange={handleOpenMenu}>
+      <DropdownMenu onOpenChange={handleOpenMenu}>
         <DropdownMenuTrigger asChild>
           <button
-            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 text-white bg-icon-notenavbar
+              ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
             title="Share Note"
           >
-            <Share size={14} className='text-white' />
-            <span>Share</span>
+            <Share size={14} className={`${notesTheme === 'light' ? 'text-black' : 'text-white'}`} />
+            <span className={`${notesTheme === 'light' ? 'text-black/70' : 'text-white'}`}>Share</span>
           </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
-          className="w-80 bg-secondary text-white border-gray-700 max-h-[80vh] overflow-y-auto"
+          className={`
+            w-[320px] bg-dropdown-navbar/95 backdrop-blur-md text-white border-gray-700 
+            max-h-[75vh] overflow-y-auto ${notesTheme === 'light' ? 'share-dropdown-light' : ''}
+          `}
           align="end"
           // Keep menu open when interacting with nested popovers (calendar)
           // or the native time picker overlay
@@ -514,18 +519,20 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
           ) : sharedNotes.length > 0 ? (
             <>
               <div className="px-3 py-3">
-                <DropdownMenuLabel className="text-sm text-gray-300 px-0 mb-3 flex items-center gap-2">
+                <DropdownMenuLabel
+                  className={`text-sm text-gray-300 px-0 mb-3 flex items-center gap-2 ${notesTheme === 'light' ? 'text-black/90' : ''}`}
+                >
                   <Share className="h-4 w-4" />
                   <span>Existing Shared Links ({sharedNotes.length})</span>
                 </DropdownMenuLabel>
 
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {sharedNotes.map((note) => (
-                    <div key={note.shortId} className="bg-secondary rounded p-3 border border-gray-600">
+                    <div key={note.shortId} className={`bg-main/90 backdrop-blur-md rounded p-3 border border-gray-400/50`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-mono text-gray-300 bg-gray-700 px-2 py-1 rounded">
+                            <span className={`text-xs font-mono ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'} bg-transparent px-2 py-1 rounded`}>
                               {note.shortId}
                             </span>
                             {isExpired(note.expireAt || null) && (
@@ -546,13 +553,13 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                             <div className="flex items-center gap-1">
                               {note.settings.readPermission === 'public' ? (
                                 <>
-                                  <Globe className="h-3 w-3" />
-                                  <span>Public</span>
+                                  <Globe className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
+                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>Public</span>
                                 </>
                               ) : (
                                 <>
-                                  <Lock className="h-3 w-3" />
-                                  <span>Protected</span>
+                                  <Lock className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
+                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>Protected</span>
                                 </>
                               )}
                             </div>
@@ -566,8 +573,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
                             {!note.expireAt && (
                               <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>Never</span>
+                                <Calendar className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
+                                <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>Never</span>
                               </div>
                             )}
                           </div>
@@ -576,22 +583,22 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleCopyExistingLink(note.shortId)}
-                            className="p-1.5 text-xs rounded hover:bg-gray-600 transition-colors"
+                            className={`p-1.5 text-xs rounded ${notesTheme === 'light' ? 'hover:bg-gray-300' : 'hover:bg-gray-600'} transition-colors`}
                             title="Copy link"
                           >
-                            <Copy className="h-3 w-3 text-gray-300" />
+                            <Copy className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
                           </button>
                           <button
                             onClick={() => handleEditNote(note)}
-                            className="p-1.5 text-xs rounded hover:bg-gray-600 transition-colors"
+                            className={`p-1.5 text-xs rounded ${notesTheme === 'light' ? 'hover:bg-gray-300' : 'hover:bg-gray-600'} transition-colors`}
                             title="Edit"
                             disabled={isExpired(note.expireAt || null)}
                           >
-                            <Edit3 className="h-3 w-3 text-gray-300" />
+                            <Edit3 className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
                           </button>
                           <button
                             onClick={() => handleDeleteNote(note)}
-                            className="p-1.5 text-xs rounded hover:bg-gray-600 text-red-400 hover:text-red-300 transition-colors"
+                            className={`p-1.5 text-xs rounded ${notesTheme === 'light' ? 'hover:bg-gray-300' : 'hover:bg-gray-600'} text-red-500 hover:text-red-300 transition-colors`}
                             title="Delete"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -637,8 +644,10 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
           {/* Create New Share Section */}
           <div className="px-3 py-3">
-            <DropdownMenuLabel className="text-sm text-gray-300 px-0 mb-2 flex items-center gap-2">
-              <h3 className="text-sm text-gray-300 px-0">
+            <DropdownMenuLabel
+              className="text-sm px-0 mb-2 flex items-center gap-2"
+            >
+              <h3 className={`text-sm px-0 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
                 Create New Share
               </h3>
             </DropdownMenuLabel>
@@ -655,24 +664,21 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                     updateShareSettings('expireAt', d.toISOString().slice(0, 16));
                   }
                 }}
-                className="px-2 py-1 rounded bg-secondary text-white text-[15px] border-none outline-none mb-2"
+                className={`px-2 py-1 rounded bg-main/90 backdrop-blur-md text-[15px] border-none outline-none mb-2 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}
               >
-                <option value="forever">Forever</option>
-                <option value="custom">Choose date/time</option>
+                <option value="forever" className={`${notesTheme === 'light' ? 'text-black/90 bg-white' : 'text-gray-300 bg-secondary'}`}>Forever</option>
+                <option value="custom" className={`${notesTheme === 'light' ? 'text-black/90 bg-white' : 'text-gray-300 bg-secondary'}`}>Choose date/time</option>
               </select>
 
               {shareSettings.expireAt !== null && (
                 <div className="flex flex-col gap-3">
                   <div className="flex gap-3">
-                    <Label htmlFor="date-picker" className="px-1 text-gray-300">
-                      Date
-                    </Label>
                     <Popover>
-                      <PopoverTrigger asChild className='h-[26px]'>
+                      <PopoverTrigger asChild className='h-[36px]'>
                         <Button
                           variant="outline"
                           id="date-picker"
-                          className="w-auto justify-between font-normal bg-secondary text-white border-gray-600 hover:bg-gray-600 hover:text-white"
+                          className={`w-auto justify-between font-normal bg-secondary text-white border-none ${notesTheme === 'light' ? 'bg-transparent text-black' : 'bg-transparent text-white hover:bg-transparent hover:text-white'}`}
                         >
                           {shareSettings.expireAt
                             ? format(new Date(shareSettings.expireAt), 'PPP')
@@ -680,7 +686,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                           <ChevronDownIcon className="h-4 w-4" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto overflow-hidden p-0 bg-secondary text-white border-gray-600" align="start">
+                      <PopoverContent className={`w-auto overflow-hidden p-0 bg-secondary text-white border-gray-600 ${notesTheme === 'light' ? 'share-dropdown-light' : ''}`} align="start">
                         <CalendarComponent
                           mode="single"
                           selected={shareSettings.expireAt
@@ -715,7 +721,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                         format(new Date(), 'HH:mm:ss')
                       }
                       onChange={(value) => updateShareSettings('selectedTime', value)}
-                      label="Time"
                       className="flex-1"
                     />
                   </div>
@@ -729,7 +734,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
           {/* Note Permission Section */}
           <div className="px-3 py-3">
-            <DropdownMenuLabel className="text-sm text-gray-300 px-0 flex items-center gap-2 mb-3">
+            <DropdownMenuLabel className={`text-sm  ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'} px-0 flex items-center gap-2 mb-3`}>
               <Lock size={16} />
               Note Permission
             </DropdownMenuLabel>
@@ -737,7 +742,9 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             {/* Read Permissions */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-white">Read</span>
+                <span className={`text-sm font-medium ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
+                  Read
+                </span>
               </div>
               <div className="space-y-1">
                 <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
@@ -749,8 +756,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                     onChange={(e) => updateShareSettings('readPermission', e.target.value)}
                     className="text-blue-600"
                   />
-                  <Globe size={14} />
-                  <span>
+                  <Globe size={14} className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
+                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
                     Public
                   </span>
                 </label>
@@ -763,9 +770,9 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                     onChange={(e) => updateShareSettings('readPermission', e.target.value)}
                     className="text-blue-600"
                   />
-                  <User size={14} />
-                  <span>
-                    Required password
+                  <User size={14} className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
+                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
+                    Password Required
                   </span>
                 </label>
               </div>
@@ -800,15 +807,15 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
 
           {/* Sharing URL Section */}
           <div className="px-3 py-3">
-            <DropdownMenuLabel className="text-sm text-gray-300 px-0 mb-2">
+            <DropdownMenuLabel className={`text-sm ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'} px-0 mb-2`}>
               Sharing URL
             </DropdownMenuLabel>
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex-1 flex items-center bg-gray-700 rounded">
-                <span className="px-3 py-2 text-xs text-gray-400 bg-gray-600 rounded-l border-r border-gray-500">
+              <div className={`flex-1 flex items-center rounded`}>
+                <span className={`px-3 py-2 text-xs ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'} rounded-l border-r border-gray-500`}>
                   {getShortUrl()}
                 </span>
-                <span className='text-[13px] px-3 font-light text-gray-400'>
+                <span className={`text-[13px] px-3 font-light ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
                   /view
                 </span>
               </div>
@@ -816,7 +823,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
                 onClick={handleCopyLink}
                 className={`px-3 py-2 text-xs rounded transition-colors ${copied
                   ? 'bg-green-600 text-white'
-                  : 'bg-gray-600 hover:bg-gray-500 text-white'
+                  : `${notesTheme === 'light' ? 'bg-icon-notenavbar-light text-black' : 'bg-icon-notenavbar text-white'}`
                   }`}
               >
                 {copied ? 'Copied!' : 'Copy'}
@@ -825,7 +832,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             <div className="flex justify-end">
               <button
                 onClick={handleChangeLink}
-                className="px-3 py-1 text-xs rounded transition-colors bg-gray-800 hover:bg-gray-800/30 text-white"
+                className={`px-3 py-1 text-xs rounded transition-colors ${notesTheme === 'light' ? 'bg-icon-notenavbar-light text-black' : 'bg-icon-notenavbar text-white'} hover:bg-icon-notenavbar/30`}
                 title="Generate new sharing link"
               >
                 Change Link
@@ -841,7 +848,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
               onClick={handleCopyLink}
               className={`w-full cursor-pointer px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 
                 ${copied ? 'bg-green-600 text-white'
-                  : 'bg-gradient-main'
+                  : `${notesTheme === 'light' ? 'bg-icon-notenavbar-light text-black' : 'bg-icon-notenavbar text-white'}`
                 }`
               }
             >
@@ -850,11 +857,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             </button>
           </div>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu >
 
       {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="bg-secondary border-gray-600 text-white">
+      < Dialog open={showEditDialog} onOpenChange={setShowEditDialog} >
+        <DialogContent className={`bg-secondary border-gray-600 text-white ${notesTheme === 'light' ? 'share-dropdown--light' : ''}`}>
           <DialogHeader>
             <DialogTitle className="text-white">
               Edit Shared Link
@@ -1014,11 +1021,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-secondary border-gray-600 text-white">
+      < Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog} >
+        <DialogContent className={`bg-main border-none text-white ${notesTheme === 'light' ? 'share-dropdown--light' : ''}`}>
           <DialogHeader>
             <DialogTitle className="text-white">Delete Shared Link</DialogTitle>
             <DialogDescription className="text-gray-300">
@@ -1042,21 +1049,23 @@ export function ShareDropdown({ noteId, noteTitle, noteContent }: ShareDropdownP
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Link Copy Notification (render in portal to avoid transform/overflow issues) */}
-      {showAlert && typeof window !== 'undefined' && createPortal(
-        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
-          <Alert variant="default" className="alert-custom w-80 pointer-events-auto">
-            <CheckCircle2Icon className="h-5 w-5" />
-            <AlertTitle>Link copied!</AlertTitle>
-            <AlertDescription>
-              The sharing link has been copied to your clipboard.
-            </AlertDescription>
-          </Alert>
-        </div>,
-        document.body
-      )}
+      {
+        showAlert && typeof window !== 'undefined' && createPortal(
+          <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+            <Alert variant="default" className="alert-custom w-80 pointer-events-auto">
+              <CheckCircle2Icon className="h-5 w-5" />
+              <AlertTitle>Link copied!</AlertTitle>
+              <AlertDescription>
+                The sharing link has been copied to your clipboard.
+              </AlertDescription>
+            </Alert>
+          </div>,
+          document.body
+        )
+      }
 
 
     </>

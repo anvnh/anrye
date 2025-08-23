@@ -3,6 +3,7 @@
 import React from 'react';
 import { Pencil, Trash2, X, Link2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useThemeSettings } from '../_hooks';
 
 export type EventPopoverProps = {
   open: boolean;
@@ -17,33 +18,56 @@ export type EventPopoverProps = {
 };
 
 export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChange, anchor, title, start, end, colorHex = '#3b82f6', onEdit, onDelete }) => {
+  const { notesTheme } = useThemeSettings();
   const dateStr = formatDateRange(start, end);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         {anchor}
       </PopoverTrigger>
-      <PopoverContent side="right" align="start" className="w-[320px] p-0 bg-secondary border-gray-700 text-white">
+      <PopoverContent
+        side="right"
+        align="start"
+        className={`w-[320px] p-0 bg-main/95 backdrop-blur-2xl border-none`}
+      >
         <div className="p-3">
           {/* Actions row */}
           <div className="flex items-center justify-end gap-1">
-            <button className="p-1 rounded hover:bg-gray-700" onClick={onEdit} title="Edit">
+            <button
+              className={`p-1 rounded hover:bg-gray-700 ${notesTheme === 'light' ? 'text-black hover:bg-gray-900/20' : 'text-white'}`}
+              onClick={onEdit}
+              title="Edit"
+            >
               <Pencil size={16} />
             </button>
-            <button className="p-1 rounded hover:bg-gray-700" onClick={onDelete} title="Delete">
+            <button
+              className={`p-1 rounded hover:bg-gray-700 ${notesTheme === 'light' ? 'text-black hover:bg-gray-900/20' : 'text-white'}`}
+              onClick={onDelete}
+              title="Delete"
+            >
               <Trash2 size={16} />
             </button>
-            <button className="p-1 rounded hover:bg-gray-700" onClick={() => onOpenChange(false)} title="Close">
+            <button
+              className={`p-1 rounded hover:bg-gray-700 ${notesTheme === 'light' ? 'text-black hover:bg-gray-900/20' : 'text-white'}`}
+              onClick={() => onOpenChange(false)}
+              title="Close"
+            >
               <X size={16} />
             </button>
           </div>
 
           {/* Title */}
           <div className="mt-1 flex items-start gap-2">
-            <span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ backgroundColor: colorHex }} />
+            <span
+              className="mt-1 inline-block h-3 w-3 rounded-full" style={{ backgroundColor: colorHex }}
+            />
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-base truncate">{title || 'Untitled'}</div>
-              <div className="text-sm text-gray-300 mt-0.5">{dateStr}</div>
+              <div className={`font-semibold text-base truncate ${notesTheme === 'light' ? 'text-black' : 'text-white'}`}>
+                {title || 'Untitled'}
+              </div>
+              <div className={`text-sm text-gray-300 mt-0.5 ${notesTheme === 'light' ? 'text-gray-900' : ''}`}>
+                {dateStr}
+              </div>
             </div>
           </div>
 

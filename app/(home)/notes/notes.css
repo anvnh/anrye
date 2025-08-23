@@ -32,6 +32,8 @@ textarea:focus {
 /* Prose and KaTeX tweaks that were inlined in components */
 .prose { overflow-x: hidden; }
 .prose * { max-width: 100%; box-sizing: border-box; }
+/* Avoid double vertical spacing: wrapper already provides margin (my-4) */
+.prose pre { margin-top: 0 !important; margin-bottom: 0 !important; }
 
 /* Nested list marker styles in preview (override Tailwind list-* classes) */
 .prose ul { list-style-type: disc !important; }

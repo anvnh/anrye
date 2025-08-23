@@ -3,11 +3,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RefreshCw, Loader2 } from 'lucide-react';
 import { listEvents, createEvent, updateEvent, deleteEvent, CalendarEvent } from '@/app/lib/googleCalendar';
-import { EventEditor, EVENT_COLORS } from './EventEditor';
+import { EventEditor, EVENT_COLORS, getEventColors } from './EventEditor';
 import { EventPopoverCard } from './EventPopoverCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { deleteRecurringScope } from '@/app/lib/googleCalendar';
+import { useThemeSettings } from '../_hooks';
 
 type ViewMode = 'week' | 'month';
 
@@ -41,14 +42,16 @@ interface CalendarPanelProps {
   currentDate?: Date;
 }
 
-const CalendarPanel: React.FC<CalendarPanelProps> = ({ 
-  onPrev, 
-  onNext, 
-  onToday, 
-  currentDate 
+const CalendarPanel: React.FC<CalendarPanelProps> = ({
+  onPrev,
+  onNext,
+  onToday,
+  currentDate
 }) => {
+  const { notesTheme } = useThemeSettings();
+  const EVENT_COLORS = getEventColors(notesTheme);
   const [current, setCurrent] = useState<Date>(currentDate || new Date());
-  
+
   // Sync with parent's currentDate prop
   useEffect(() => {
     if (currentDate) {
@@ -91,7 +94,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
     const hours = Math.abs(Math.floor(offset / 60));
     const minutes = Math.abs(offset % 60);
     const sign = offset <= 0 ? '+' : '-';
-    
+
     if (minutes === 0) {
       return `GMT ${sign}${hours}`;
     } else {
@@ -106,19 +109,6 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
 
   const weekStart = useMemo(() => startOfWeek(current), [current]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
-
-  // Navigation handlers (these are now handled by parent)
-  const handlePrev = () => {
-    if (onPrev) onPrev();
-  };
-
-  const handleNext = () => {
-    if (onNext) onNext();
-  };
-
-  const handleToday = () => {
-    if (onToday) onToday();
-  };
 
   const visibleRange = useMemo(() => {
     if (view === 'week') {
@@ -381,10 +371,16 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/60">
           <div className="flex items-center gap-2">
-            <button onClick={fetchEvents} className="px-2 py-1 bg-gray-700 rounded flex items-center gap-1"><RefreshCw size={14} /> Refresh</button>
-            <select value={view} onChange={e => setView(e.target.value as ViewMode)} className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm">
+            <button onClick={fetchEvents} className={`px-2 py-1 bg-calendar-button rounded flex items-center gap-1 ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''} `}>
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+            <select
+              value={view}
+              onChange={e => setView(e.target.value as ViewMode)}
+              className={`bg-calendar-button border rounded px-2 py-1 text-sm border-[rgba(255,255,255,0.12)] ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
+            >
               <option value="week">Week</option>
-              <option value="month">Month</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -468,7 +464,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
                       onOpenChange={(o) => { if (!o) suppressCreate(); setOpenPopoverFor(o ? ev.id : null); }}
                       anchor={
                         <div
-                          className="relative h-full overflow-hidden text-white rounded p-2 shadow-md border cursor-pointer group"
+                          className="mx-2 relative h-full overflow-hidden text-white rounded p-2 shadow-md border cursor-pointer group transition-all duration-200 backdrop-blur-md"
                           style={{
                             backgroundColor: ev.colorId ? `${EVENT_COLORS[ev.colorId] || '#3b82f6'}cc` : '#3b82f6cc',
                             borderColor: ev.colorId ? (EVENT_COLORS[ev.colorId] || '#60a5fa') : '#60a5fa',

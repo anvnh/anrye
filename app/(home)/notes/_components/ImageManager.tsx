@@ -195,10 +195,10 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#31363F] rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 backdrop-blur-md bg-opacity-50 flex items-center justify-center z-50 image-manager-overlay">
+      <div className="bg-main/95 backdrop-blur-md rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden image-manager">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-600">
+        <div className="flex items-center justify-between p-6 border-b border-gray-600 image-manager-header">
           <div className="flex items-center gap-3">
             <ImageIcon className="text-primary" size={24} />
             <h2 className="text-xl font-semibold text-white">Image Manager</h2>
@@ -214,7 +214,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           {/* Statistics */}
-          <div className="mb-6 p-4 bg-gray-800 rounded-lg">
+          <div className="mb-6 p-4 bg-secondary rounded-lg im-panel">
             <h3 className="text-lg font-semibold text-white mb-3">Image Statistics</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
@@ -269,7 +269,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {selectedNoteImages.map((image, index) => (
-                    <div key={index} className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                    <div key={index} className="bg-gray-800 rounded-lg p-4 border border-gray-600 im-card">
                       <div className="flex items-start justify-between mb-2">
                         <Tooltip>
                           <TooltipTrigger asChild>

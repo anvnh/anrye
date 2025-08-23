@@ -8,6 +8,15 @@ export const useThemeSettings = () => {
     return 'mocha';
   });
 
+  // Light/Dark theme for Notes UI
+  const [notesTheme, setNotesTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('notes-theme');
+      return (stored === 'light' || stored === 'dark') ? stored : 'dark';
+    }
+    return 'dark';
+  });
+
   const [tabSize, setTabSize] = useState(2);
 
   // Theme list
@@ -35,9 +44,18 @@ export const useThemeSettings = () => {
     }
   }, [currentTheme]);
 
+  // Persist notes UI theme
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('notes-theme', notesTheme);
+    }
+  }, [notesTheme]);
+
   return {
     currentTheme,
     setCurrentTheme,
+    notesTheme,
+    setNotesTheme,
     tabSize,
     setTabSize,
     themeOptions,

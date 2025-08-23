@@ -571,17 +571,16 @@ export default function NoteSidebar({
         <ContextMenuTrigger asChild>
           <div
             className={`
-border-r border-gray-600/50 flex flex-col overflow-hidden relative z-50
-${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
-lg:relative lg:translate-x-0
-${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
-${isSidebarHidden ? 'lg:hidden' : ''}
-shadow-xl
-transition-all duration-300 ease-in-out
-`}
+            h-full border-r border-gray-600/50 flex flex-col min-h-0 relative z-50 notes-sidebar
+            ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
+            lg:relative lg:translate-x-0
+            ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
+            ${isSidebarHidden ? 'lg:hidden' : ''}
+            shadow-xl
+            transition-all duration-300 ease-in-out
+            `}
             style={{
-              width: `${sidebarWidth}px`,
-              backgroundColor: '#31363F'
+              width: `${sidebarWidth}px`
             }}
           >
             <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0">
@@ -771,8 +770,7 @@ text-gray-400 hover:text-gray-300
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-1">
-
+            <div className="flex-1 h-full min-h-0 overflow-y-scroll p-4 space-y-1">
               {/* Image and sort section */}
               <div className='flex w-full items-center justify-between mb-4'>
                 {/* Images Section */}

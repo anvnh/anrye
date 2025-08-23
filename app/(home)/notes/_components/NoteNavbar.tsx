@@ -18,6 +18,8 @@ interface NoteNavbarProps {
   currentTheme: string;
   setCurrentTheme: (t: string) => void;
   themeOptions: { value: string; label: string }[];
+  notesTheme: 'light' | 'dark';
+  setNotesTheme: (t: 'light' | 'dark') => void;
   fontFamily: string;
   setFontFamily: (f: string) => void;
   fontSize: string;
@@ -52,6 +54,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   currentTheme,
   setCurrentTheme,
   themeOptions,
+  notesTheme,
+  setNotesTheme,
   fontFamily,
   setFontFamily,
   fontSize,
@@ -154,7 +158,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   };
 
   return (
-    <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ backgroundColor: '#31363F' }}>
+    <div className="border-b border-gray-600 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0 notes-header note-navbar">
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center min-w-0 flex-1">
           {/* Mobile Sidebar Toggle */}
@@ -203,7 +207,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           {/* Close Note Button */}
           <button
             onClick={onCloseNote}
-            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-icon-notenavbar text-white
+              ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
             title="Close Note"
           >
             <span className="hidden sm:inline">
@@ -214,7 +219,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           {/* Image Manager Button */}
           <button
             onClick={onOpenImageManager}
-            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-icon-notenavbar text-white
+              ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
             title="Manage Images"
           >
             <ImageIcon size={16} />
@@ -226,7 +232,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           {/* Calendar Button */}
           <button
             onClick={onOpenCalendar}
-            className="px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-gray-600 text-white hover:bg-gray-700"
+            className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-icon-notenavbar text-white
+              ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
             title="Open Calendar"
           >
             <CalendarDays size={16} />
@@ -240,6 +247,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             noteId={selectedNote.id}
             noteTitle={selectedNote.title}
             noteContent={selectedNote.content}
+            notesTheme={notesTheme}
           />
 
           {/* Preview Mode Toggle - Only show when editing */}
@@ -255,9 +263,10 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                   setIsPreviewMode(false);
                 }
               }}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isPreviewMode
-                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-400/30'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 
+                ${isPreviewMode
+                  ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-400/30'
+                  : 'bg-icon-notenavbar-active text-white'
                 }`}
               title={`${isPreviewMode ? 'Exit' : 'Enter'} Preview Mode`}
             >
@@ -274,9 +283,10 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           {isEditing && (
             <button
               onClick={() => setIsSplitMode(!isSplitMode)}
-              className={`hidden lg:flex px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 ${isSplitMode
-                ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400/30'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
+              className={`hidden lg:flex px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 items-center gap-1 
+              ${isSplitMode
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-icon-notenavbar-active text-white'
                 }`}
               title={`${isSplitMode ? 'Exit' : 'Enter'} Split Mode (Ctrl+\\)`}
             >
@@ -294,6 +304,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             currentTheme={currentTheme}
             setCurrentTheme={setCurrentTheme}
             themeOptions={themeOptions}
+            notesTheme={notesTheme}
+            setNotesTheme={setNotesTheme}
             fontFamily={fontFamily}
             setFontFamily={setFontFamily}
             fontSize={fontSize}
@@ -318,7 +330,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
               </button>
               <button
                 onClick={cancelEdit}
-                className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center"
+                className={`px-2 py-1 text-white rounded flex items-center bg-icon-notenavbar
+                ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
                 title="Exit Edit"
               >
                 <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
@@ -327,7 +340,10 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           ) : (
             <button
               onClick={startEdit}
-              className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+              className={
+                `px-2 py-1 bg-icon-notenavbar text-white rounded flex items-center 
+                ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''
+                }`}
               title="Edit"
             >
               <Edit size={14} className="sm:w-4 sm:h-4" />
@@ -343,7 +359,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                 <MoreHorizontal size={20} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-secondary border-gray-700 text-white">
+            <DropdownMenuContent align="end" className={`w-56 bg-secondary border-gray-700 ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}>
               <DropdownMenuItem onClick={onCloseNote} className="flex items-center gap-2 cursor-pointer mb-1">
                 <XCircle size={16} />
                 Close Note
@@ -366,7 +382,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                     // Exit preview mode
                     setIsPreviewMode(false);
                   }
-                }} className="flex items-center gap-2 cursor-pointer">
+                }} className={`flex items-center gap-2 cursor-pointer`}>
                   <Eye size={16} />
                   {isPreviewMode ? 'Exit Preview' : 'Preview'}
                 </DropdownMenuItem>
@@ -376,6 +392,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                   noteId={selectedNote.id}
                   noteTitle={selectedNote.title}
                   noteContent={selectedNote.content}
+                  notesTheme={notesTheme}
                 />
               </DropdownMenuItem>
               <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
@@ -385,6 +402,8 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                   currentTheme={currentTheme}
                   setCurrentTheme={setCurrentTheme}
                   themeOptions={themeOptions}
+                  notesTheme={notesTheme}
+                  setNotesTheme={setNotesTheme}
                   fontFamily={fontFamily}
                   setFontFamily={setFontFamily}
                   fontSize={fontSize}
@@ -400,7 +419,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                 <>
                   <DropdownMenuItem onClick={handleSaveNote} className="flex items-center gap-2 cursor-pointer text-white">
                     <Save size={16} />
-                    Save
+                    <span className={`${notesTheme === 'light' ? 'text-black' : 'text-white'}`}>
+                      Save
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={cancelEdit} className="flex items-center gap-2 cursor-pointer">
                     <ArrowLeft size={16} />
@@ -408,7 +429,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                   </DropdownMenuItem>
                 </>
               ) : (
-                <DropdownMenuItem onClick={startEdit} className="flex items-center gap-2 cursor-pointer text-white">
+                <DropdownMenuItem onClick={startEdit} className={`flex items-center gap-2 cursor-pointer ${notesTheme === 'light' ? 'text-black' : 'text-white'}`}>
                   <Edit size={16} />
                   Edit
                 </DropdownMenuItem>
