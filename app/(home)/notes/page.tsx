@@ -535,6 +535,7 @@ export default function NotesPage() {
             window.location.href = `/api/auth/google?origin=${origin}`;
           }}
           onSignOut={signOut}
+          notesTheme={notesTheme}
         />
 
         {/* Main content area */}

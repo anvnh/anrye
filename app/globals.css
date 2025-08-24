@@ -68,6 +68,29 @@ body {
   background-color: #15171b !important;
 }
 
+.bg-sidebar-activefile {
+  background-color: #2A2F37 !important;
+}
+
+.light-bg-sidebar-activefile {
+  background-color: #F3F4F6 !important;
+}
+
+[data-radix-popper-content-wrapper] .hover\:bg-transparent:hover {
+  background-color: #2A2F37 !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+
+[data-radix-popper-content-wrapper] .hover\:text-white:hover {
+  color: white !important;
+}
+
+.bg-sidebar-context-menu {
+  background-color: transparent !important;
+  backdrop-filter: blur(30px);
+}
+
 .bg-icon-notenavbar {
   background-color: #3C3C3C !important;
 }

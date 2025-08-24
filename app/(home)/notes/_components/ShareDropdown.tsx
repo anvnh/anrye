@@ -250,7 +250,11 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
       const link = `${window.location.origin}/shared/${shortId}`;
       await navigator.clipboard.writeText(link);
       setCopiedLink(shortId);
-      setTimeout(() => setCopiedLink(null), 2000);
+      setShowAlert(true);
+      setTimeout(() => {
+        setCopiedLink(null);
+        setShowAlert(false);
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
@@ -484,7 +488,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
         <DropdownMenuContent
           className={`
             w-[320px] bg-dropdown-navbar/95 backdrop-blur-md text-white border-gray-700 
-            max-h-[75vh] overflow-y-auto ${notesTheme === 'light' ? 'share-dropdown-light' : ''}
+            max-h-[75vh] overflow-y-auto ${notesTheme === 'light' ? 'share-dropdown--light' : ''}
           `}
           align="end"
           // Keep menu open when interacting with nested popovers (calendar)
@@ -554,12 +558,16 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
                               {note.settings.readPermission === 'public' ? (
                                 <>
                                   <Globe className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
-                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>Public</span>
+                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
+                                    Public
+                                  </span>
                                 </>
                               ) : (
                                 <>
                                   <Lock className={`h-3 w-3 ${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`} />
-                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>Protected</span>
+                                  <span className={`${notesTheme === 'light' ? 'text-black/90' : 'text-gray-300'}`}>
+                                    Protected
+                                  </span>
                                 </>
                               )}
                             </div>
@@ -779,9 +787,9 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
 
               {/* Show password when password-required is selected */}
               {shareSettings.readPermission === 'password-required' && shareSettings.readPassword && (
-                <div className="mt-2 p-2 bg-gray-600 rounded text-xs">
+                <div className="mt-2 p-2 bg-transparent rounded text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-300">
+                    <span className="text-gray-300 font-bold text-md">
                       Password:
                     </span>
                     <div className="flex items-center gap-2">
@@ -1055,7 +1063,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
       {
         showAlert && typeof window !== 'undefined' && createPortal(
           <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
-            <Alert variant="default" className="alert-custom w-80 pointer-events-auto">
+            <Alert variant="default" className="alert-custom w-80 pointer-events-auto bg-sidebar">
               <CheckCircle2Icon className="h-5 w-5" />
               <AlertTitle>Link copied!</AlertTitle>
               <AlertDescription>
@@ -1066,7 +1074,6 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
           document.body
         )
       }
-
 
     </>
   );

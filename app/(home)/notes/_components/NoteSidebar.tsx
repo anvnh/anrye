@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star } from 'lucide-react';
+import { useDebounce } from '@/app/lib/hooks/useDebounce';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -23,7 +24,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function NoteSidebar({
   notes,
@@ -60,12 +60,19 @@ export default function NoteSidebar({
   onForceSync,
   onClearCacheAndSync,
   onSignIn,
-  onSignOut
+  onSignOut,
+  notesTheme,
 }: NoteSidebarProps) {
 
   // Add state for mobile menu collapsible
   const [isMobileMenuExpanded, setIsMobileMenuExpanded] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Debounced search query for better performance
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
 
   type FolderSort = 'az' | 'za';
   type FileSort = 'az' | 'za' | 'newest' | 'oldest';
@@ -108,6 +115,147 @@ export default function NoteSidebar({
   });
 
   const isTimeSorting = timeSort !== 'none';
+  const isSearching = !!debouncedSearchQuery.trim();
+
+  // Helper function for better search matching
+  const searchScore = useMemo(() => {
+    return (text: string, query: string): number => {
+      if (!text || !query) return 0;
+
+      const textLower = text.toLowerCase();
+      const queryLower = query.toLowerCase();
+
+      // Exact match gets highest score
+      if (textLower === queryLower) return 100;
+
+      // Starts with query gets high score
+      if (textLower.startsWith(queryLower)) return 90;
+
+      // Contains as whole word gets medium-high score
+      try {
+        const wordBoundaryRegex = new RegExp(`\\b${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        if (wordBoundaryRegex.test(textLower)) return 80;
+      } catch {
+        // Fallback if regex is invalid
+      }
+
+      // Contains query gets medium score
+      if (textLower.includes(queryLower)) return 70;
+
+      // Fuzzy match for partial matches
+      const words = queryLower.split(/\s+/).filter(Boolean);
+      let matchedWords = 0;
+
+      for (const word of words) {
+        if (textLower.includes(word)) {
+          matchedWords++;
+        }
+      }
+
+      if (matchedWords > 0) {
+        return 50 + (matchedWords / words.length) * 20;
+      }
+
+      return 0;
+    };
+  }, []);
+
+  // Filter notes and folders based on search query with scoring
+  const filteredData = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return { notes, folders };
+    }
+
+    const query = debouncedSearchQuery.trim();
+    const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+
+    // Enhanced note filtering with multiple criteria
+    const noteResults = notes.map(note => {
+      let maxScore = 0;
+
+      // Search in title (highest priority)
+      const titleScore = searchScore(note.title, query);
+      maxScore = Math.max(maxScore, titleScore);
+
+      // Search in file path
+      const pathScore = searchScore(note.path || '', query) * 0.8; // Slightly lower priority
+      maxScore = Math.max(maxScore, pathScore);
+
+      // Search in content (lower priority for performance)
+      const contentScore = searchScore(note.content || '', query) * 0.6;
+      maxScore = Math.max(maxScore, contentScore);
+
+      // Bonus for matching multiple words
+      if (queryWords.length > 1) {
+        const allWordsInTitle = queryWords.every(word =>
+          note.title.toLowerCase().includes(word)
+        );
+        if (allWordsInTitle) {
+          maxScore += 10;
+        }
+      }
+
+      return { note, score: maxScore };
+    }).filter(result => result.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(result => result.note);
+
+    // Enhanced folder filtering
+    const folderResults = folders.map(folder => {
+      let maxScore = 0;
+
+      // Search in folder name
+      const nameScore = searchScore(folder.name, query);
+      maxScore = Math.max(maxScore, nameScore);
+
+      // Search in folder path
+      const pathScore = searchScore(folder.path || '', query) * 0.8;
+      maxScore = Math.max(maxScore, pathScore);
+
+      return { folder, score: maxScore };
+    }).filter(result => result.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(result => result.folder);
+
+    // Ensure all ancestors of matched notes and folders are included so tree traversal can reach matches
+    const folderByPath = new Map<string, Folder>();
+    for (const f of folders) {
+      folderByPath.set(f.path, f);
+    }
+
+    const includeFolderPaths = new Set<string>();
+
+    const addAncestors = (path: string | undefined | null) => {
+      if (!path) return;
+      const parts = path.split('/').filter(Boolean);
+      let acc = '';
+      for (const p of parts) {
+        acc = acc ? `${acc}/${p}` : p;
+        includeFolderPaths.add(acc);
+      }
+    };
+
+    // Ancestors for matched notes
+    for (const n of noteResults) {
+      addAncestors(n.path || '');
+    }
+    // Ancestors for matched folders
+    for (const f of folderResults) {
+      addAncestors(f.path || '');
+    }
+
+    // Merge: matched folders + ancestor folders
+    const ancestorFolders: Folder[] = Array.from(includeFolderPaths)
+      .map(p => folderByPath.get(p))
+      .filter((f): f is Folder => Boolean(f));
+
+    const finalFoldersMap = new Map<string, Folder>();
+    for (const f of folderResults) finalFoldersMap.set(f.id, f);
+    for (const f of ancestorFolders) finalFoldersMap.set(f.id, f);
+    const finalFolders = Array.from(finalFoldersMap.values());
+
+    return { notes: noteResults, folders: finalFolders };
+  }, [notes, folders, debouncedSearchQuery]);
 
   // Pinned state (ids for folders and notes)
   const [pinnedFolderIds, setPinnedFolderIds] = useState<Set<string>>(() => {
@@ -193,12 +341,24 @@ export default function NoteSidebar({
     setIsMoveDialogOpen(false);
   };
 
-  const getNotesInPath = (path: string) => {
-    return notes.filter(note => note.path === path);
+  // const getNotesInPath = (path: string) => {
+  //   return notes.filter(note => note.path === path);
+  // };
+  const getNotesInPath = (path: string, notesToFilter = notes) => {
+    return notesToFilter.filter(note => note.path === path);
   };
 
-  const getSubfolders = (parentPath: string) => {
-    return folders.filter(folder => {
+  // const getSubfolders = (parentPath: string) => {
+  //   return folders.filter(folder => {
+  //     if (parentPath === '') {
+  //       return folder.parentId === 'root' && folder.id !== 'root';
+  //     }
+  //     return folder.path.startsWith(parentPath + '/') &&
+  //       folder.path.split('/').length === parentPath.split('/').length + 1;
+  //   });
+  // };
+  const getSubfolders = (parentPath: string, foldersToFilter = folders) => {
+    return foldersToFilter.filter(folder => {
       if (parentPath === '') {
         return folder.parentId === 'root' && folder.id !== 'root';
       }
@@ -236,8 +396,10 @@ export default function NoteSidebar({
   }, [notes]);
 
   const renderFileTree = (parentPath: string = '', level: number = 0) => {
-    const subfolders = getSubfolders(parentPath);
-    const notesInPath = getNotesInPath(parentPath);
+    const { notes: filteredNotes, folders: filteredFolders } = filteredData;
+
+    const subfolders = getSubfolders(parentPath, filteredFolders);
+    const notesInPath = getNotesInPath(parentPath, filteredNotes);
 
     const sortedSubfolders = [...subfolders];
     const sortedNotes = [...notesInPath];
@@ -354,16 +516,16 @@ export default function NoteSidebar({
                   </div>
                 </div>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+              <ContextMenuContent className="w-48 bg-sidebar-context-menu border-gray-600 text-gray-300 rounded-lg shadow-xl">
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => togglePin(folder, 'folder')}
                 >
                   <Star size={16} className="mr-2" />
                   {pinnedFolderIds.has(folder.id) ? 'Unpin' : 'Pin'}
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => {
                     onSetSelectedPath(folder.path);
                     onSetIsCreatingFolder(true);
@@ -373,7 +535,7 @@ export default function NoteSidebar({
                   New Folder
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => {
                     onSetSelectedPath(folder.path);
                     onSetIsCreatingNote(true);
@@ -385,7 +547,7 @@ export default function NoteSidebar({
                 {folder.id !== 'root' && (
                   <>
                     <ContextMenuItem
-                      className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                      className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                       onClick={() => handleMobileMove(folder, 'folder')}
                     >
                       <Move size={16} className="mr-2" />
@@ -393,7 +555,7 @@ export default function NoteSidebar({
                     </ContextMenuItem>
                     <ContextMenuSeparator className="bg-gray-600 mx-1" />
                     <ContextMenuItem
-                      className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                      className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                       onClick={() => onRenameFolder(folder.id, folder.name)}
                     >
                       <Type size={16} className="mr-2" />
@@ -411,7 +573,7 @@ export default function NoteSidebar({
                 )}
               </ContextMenuContent>
             </ContextMenu>
-            {folder.expanded && renderFileTree(folder.path, level + 1)}
+            {(isSearching || folder.expanded) && renderFileTree(folder.path, level + 1)}
           </div>
         ))}
 
@@ -424,7 +586,7 @@ export default function NoteSidebar({
                   className={`
                     flex items-center py-2 rounded-lg cursor-pointer group transition-all duration-200 ease-in-out
                     hover:bg-gray-700/60 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
-                    ${selectedNote?.id === note.id ? 'bg-gray-700/80 shadow-lg ring-1 ring-gray-500/30' : ''}
+                    ${selectedNote?.id === note.id ? `${notesTheme === 'light' ? 'light-bg-sidebar-activefile' : 'bg-sidebar-activefile'} shadow-lg ring-1 ring-gray-500/30` : ''}
                     ${level > 0 ? 'ml-2' : ''}
                   `}
                   onClick={() => {
@@ -461,16 +623,16 @@ export default function NoteSidebar({
                   </div>
                 </div>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+              <ContextMenuContent className="w-48 bg-sidebar-context-menu border-gray-600 text-gray-300 rounded-lg shadow-xl">
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => togglePin(note, 'note')}
                 >
                   <Star size={16} className="mr-2" />
                   {pinnedNoteIds.has(note.id) ? 'Unpin' : 'Pin'}
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => {
                     onSelectNote(note);
                     // Close mobile sidebar when opening note
@@ -483,14 +645,14 @@ export default function NoteSidebar({
                   Open Note
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => handleMobileMove(note, 'note')}
                 >
                   <Move size={16} className="mr-2" />
                   Move to
                 </ContextMenuItem>
                 <ContextMenuItem
-                  className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
                   onClick={() => onRenameNote(note.id, note.title)}
                 >
                   <Type size={16} className="mr-2" />
@@ -546,7 +708,7 @@ export default function NoteSidebar({
       )}
 
       {/* Floating Sync Progress Indicator for Mobile */}
-      {isLoading && !isMobileSidebarOpen && (
+      {isLoading && (!isMobileSidebarOpen || isSidebarHidden) && (
         <div className="fixed top-16 right-4 z-50 lg:hidden">
           <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-600/50 rounded-lg p-3 shadow-xl">
             <div className="flex items-center gap-2 mb-2">
@@ -590,11 +752,11 @@ export default function NoteSidebar({
                   <button
                     onClick={onToggleSidebar}
                     className={`
-hidden lg:flex items-center justify-center
-w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
-hover:bg-gray-600/60 hover:scale-105 active:scale-95
-text-gray-400 hover:text-gray-300
-`}
+                    hidden lg:flex items-center justify-center
+                    w-8 h-8 rounded-lg transition-all duration-200 ease-in-out
+                    hover:bg-gray-600/60 hover:scale-105 active:scale-95
+                    text-gray-400 hover:text-gray-300
+                    `}
                     title={isSidebarHidden ? "Show sidebar" : "Hide sidebar"}
                   >
                     {isSidebarHidden ? (
@@ -674,6 +836,44 @@ text-gray-400 hover:text-gray-300
                   )}
 
                 </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative mb-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search notes and folders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    className={`
+                      w-full pl-3 py-2.5 text-sm rounded-lg border-none transition-all duration-200
+                      bg-transparent backdrop-blur-sm text-white
+                      focus:outline-none focus:ring-2
+                    `}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Search Results Count */}
+                {searchQuery && (
+                  <div className="mt-2 text-xs text-gray-400">
+                    {debouncedSearchQuery === searchQuery ? (
+                      <>Found {filteredData.notes.length} notes, {filteredData.folders.length} folders</>
+                    ) : (
+                      <>Searching...</>
+                    )}
+                  </div>
+                )}
               </div>
 
               {!isSignedIn && (
@@ -770,7 +970,7 @@ text-gray-400 hover:text-gray-300
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1" style={{ height: 'calc(100vh - 120px)' }}>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1" style={{ height: 'calc(100vh - 170px)' }}>
               {/* Image and sort section */}
               <div className='flex w-full items-center justify-between mb-4'>
                 {/* Images Section */}
@@ -833,16 +1033,16 @@ text-gray-400 hover:text-gray-300
                   </DropdownMenu>
                 </div>
               </div>
-        
+
 
               {/* File Tree */}
               {renderFileTree()}
             </div>
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48 bg-[#31363F] border-gray-600 text-gray-300 rounded-lg shadow-xl">
+        <ContextMenuContent className="w-48 bg-sidebar-context-menu border-gray-600 text-gray-300 rounded-lg shadow-xl">
           <ContextMenuItem
-            className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+            className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
             onClick={() => {
               onSetSelectedPath('');
               onSetIsCreatingFolder(true);
@@ -852,7 +1052,7 @@ text-gray-400 hover:text-gray-300
             New Folder
           </ContextMenuItem>
           <ContextMenuItem
-            className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white rounded-md mx-1 my-0.5"
+            className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
             onClick={() => {
               onSetSelectedPath('');
               onSetIsCreatingNote(true);

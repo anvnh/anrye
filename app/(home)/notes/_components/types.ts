@@ -74,4 +74,5 @@ export interface NoteSidebarProps {
   onClearCacheAndSync?: () => void;
   onSignIn?: () => void;
   onSignOut?: () => void;
+  notesTheme: 'light' | 'dark';
 }

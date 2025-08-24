@@ -74,12 +74,21 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
   codeBlockFontSize,
   setCodeBlockFontSize,
 }) => {
+
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (!open) triggerRef.current?.blur();
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button
+          ref={triggerRef}
           className={`px-3 py-1 rounded-md text-sm font-medium bg-icon-notenavbar text-white flex items-center gap-1
-              ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
+            ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}
+            focus:outline-none focus:ring-0 focus:ring-offset-0`}
           title="Settings"
         >
           <Settings2Icon size={17} className={`${notesTheme === 'light' ? 'text-black' : 'text-white'}`} />
