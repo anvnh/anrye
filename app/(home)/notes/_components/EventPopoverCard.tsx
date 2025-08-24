@@ -4,6 +4,8 @@ import React from 'react';
 import { Pencil, Trash2, X, Link2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useThemeSettings } from '../_hooks';
+import { getEvent } from '@/app/lib/googleCalendar';
+import { summarizeRRuleLong } from './EventEditor';
 
 export type EventPopoverProps = {
   open: boolean;
@@ -13,13 +15,33 @@ export type EventPopoverProps = {
   start: Date;
   end: Date;
   colorHex?: string;
+  recurrence?: string[] | undefined | null;
+  recurringEventId?: string | undefined | null;
   onEdit: () => void;
   onDelete: () => void;
 };
 
-export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChange, anchor, title, start, end, colorHex = '#3b82f6', onEdit, onDelete }) => {
+export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChange, anchor, title, start, end, colorHex = '#3b82f6', onEdit, onDelete, recurrence, recurringEventId }) => {
   const { notesTheme } = useThemeSettings();
-  const dateStr = formatDateRange(start, end);
+  const dateStr = formatDateRange(start, end, 'en-US');
+  const [rrule, setRRule] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Prefer provided recurrence; otherwise fetch from master if this is an instance
+    const fromProp = (recurrence || []).find(r => r && r.toUpperCase().startsWith('RRULE')) || null;
+    if (fromProp) {
+      setRRule(fromProp);
+      return;
+    }
+    if (recurringEventId) {
+      getEvent(recurringEventId).then(master => {
+        const r = (master.recurrence || []).find(x => x && x.toUpperCase().startsWith('RRULE')) || null;
+        if (r) setRRule(r);
+      }).catch(() => {});
+    }
+  }, [recurrence, recurringEventId]);
+
+  const recurrenceStr = rrule ? summarizeRRuleLong(rrule, start) : '';
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -62,12 +84,27 @@ export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChan
               className="mt-1 inline-block h-3 w-3 rounded-full" style={{ backgroundColor: colorHex }}
             />
             <div className="flex-1 min-w-0">
-              <div className={`font-semibold text-base truncate ${notesTheme === 'light' ? 'text-black' : 'text-white'}`}>
+              <div 
+                className={`font-semibold cursor-pointer text-base ${notesTheme === 'light' ? 'text-black' : 'text-white'}`}
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: '1.2'
+                }}
+                title={title || 'Untitled'}
+              >
                 {title || 'Untitled'}
               </div>
               <div className={`text-sm text-gray-300 mt-0.5 ${notesTheme === 'light' ? 'text-gray-900' : ''}`}>
                 {dateStr}
               </div>
+              {rrule && (
+                <div className={`text-sm mt-0.5 ${notesTheme === 'light' ? 'text-gray-900' : 'text-gray-300'}`}>
+                  {recurrenceStr}
+                </div>
+              )}
             </div>
           </div>
 
@@ -81,9 +118,8 @@ export const EventPopoverCard: React.FC<EventPopoverProps> = ({ open, onOpenChan
   );
 };
 
-function formatDateRange(start: Date, end: Date) {
+function formatDateRange(start: Date, end: Date, locale: string | undefined) {
   try {
-    const locale = undefined; // browser locale
     const day = start.toLocaleDateString(locale, { weekday: 'long' });
     const date = start.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
     const time = `${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;

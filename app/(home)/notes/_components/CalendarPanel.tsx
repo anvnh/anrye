@@ -63,7 +63,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
   const [view, setView] = useState<ViewMode>('week');
   const gridRef = useRef<HTMLDivElement>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editorData, setEditorData] = useState<{ id?: string; start: Date; end: Date; title?: string; colorId?: string } | null>(null);
+  const [editorData, setEditorData] = useState<{ id?: string; start: Date; end: Date; title?: string; colorId?: string; recurrence?: string | null } | null>(null);
   const [now, setNow] = useState<Date>(new Date());
   const [openPopoverFor, setOpenPopoverFor] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
@@ -143,7 +143,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
     start.setHours(hour, 0, 0, 0);
     const end = new Date(start);
     end.setHours(start.getHours() + 1);
-    setEditorData({ start, end, title: 'New event' });
+    setEditorData({ start, end, title: 'New event', recurrence: null });
     setEditorOpen(true);
   }, []);
 
@@ -214,6 +214,17 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
     // Do not prevent default to allow click if no movement; do stop propagation to avoid day click
     setSuppressCreate(true);
     e.stopPropagation();
+  };
+
+  const getMaxLines = (height: number) => {
+    // Subtract padding (p-2 = 8px top + 8px bottom = 16px)
+    // Subtract time (about 12px for text-[10px])
+    // Subtract gap between title and time (about 4px)
+    const availableHeight = height - 16 - 12 - 4;
+    // Each line of text-sm is about 16px
+    const lineHeight = 16;
+    const maxLines = Math.floor(availableHeight / lineHeight);
+    return Math.max(1, maxLines); // Minimum 1 line, maximum 5 lines
   };
 
   const onMouseDownMoveHandle = (e: React.MouseEvent, id: string) => {
@@ -456,6 +467,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
                 const e = new Date(ev.end);
                 const top = (s.getHours() * 60 + s.getMinutes()) * PX_PER_MIN;
                 const height = Math.max(24, ((e.getTime() - s.getTime()) / 60000) * PX_PER_MIN);
+                const maxLines = getMaxLines(height);
                 return (
                   <div key={ev.id} className="absolute left-1 right-1"
                     style={{ top, height }}>
@@ -497,22 +509,37 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
                             data-role="resize-handle"
                           />
 
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-sm truncate">{ev.summary}</div>
+                          <div className="flex flex-col h-full justify-start">
+                            <div className="font-medium text-sm leading-tight break-words"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: maxLines,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
+                              }}>
+                              {ev.summary}
+                            </div>
+                            <div className="text-[11px] opacity-80 mt-1">
+                              {new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
                           </div>
-                          <div className="text-[10px] opacity-80">{new Date(ev.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+
                         </div>
                       }
                       title={ev.summary}
                       start={new Date(ev.start)}
                       end={new Date(ev.end)}
                       colorHex={ev.colorId ? (EVENT_COLORS[ev.colorId] || '#3b82f6') : '#3b82f6'}
+                      recurrence={ev.recurrence}
+                      recurringEventId={ev.recurringEventId}
                       onEdit={() => {
                         suppressCreate();
                         const s = new Date(ev.start);
                         const ee = new Date(ev.end);
                         setOpenPopoverFor(null);
-                        setEditorData({ id: ev.id, start: s, end: ee, title: ev.summary, colorId: ev.colorId });
+                        // Use the master RRULE if available; instances have empty recurrence but recurringEventId set
+                        const firstRule = (ev.recurrence && ev.recurrence.find(r => r.toUpperCase().startsWith('RRULE'))) || null;
+                        setEditorData({ id: ev.id, start: s, end: ee, title: ev.summary, colorId: ev.colorId, recurrence: firstRule });
                         setEditorOpen(true);
                       }}
                       onDelete={() => { suppressCreate(); setOpenPopoverFor(null); handleDelete(ev); }}
@@ -569,6 +596,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           initialEnd={editorData.end}
           initialTitle={editorData.title}
           initialColorId={editorData.colorId}
+          initialRecurrence={editorData.recurrence || null}
           onSave={async ({ title, start, end, colorId, recurrence }) => {
             if (editorData.id) {
               const updated = await updateEvent(editorData.id, { summary: title, start, end, colorId, ...(recurrence !== undefined ? { recurrence: recurrence || null } : {}) });

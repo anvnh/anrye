@@ -30,6 +30,15 @@ function toISO(date: Date): string {
   return date.toISOString();
 }
 
+function getLocalTimeZone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return tz || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 function ensureBearer(): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
@@ -112,21 +121,42 @@ export async function createEvent(payload: {
   colorId?: string;
   recurrence?: string[] | string;
 }): Promise<CalendarEvent> {
+  const tz = getLocalTimeZone();
+  const normalizeRecurrence = (rec?: string[] | string) => {
+    if (!rec) return undefined;
+    const arr = Array.isArray(rec) ? rec : [rec];
+    const cleaned = arr
+      .map(r => (r || '').trim())
+      .filter(Boolean)
+      .map(r => (r.toUpperCase().startsWith('RRULE') ? r.toUpperCase().startsWith('RRULE:') ? r : `RRULE:${r}` : r));
+    return cleaned.length > 0 ? cleaned : undefined;
+  };
+
   const body = {
     summary: payload.summary,
     description: payload.description || '',
-    start: { dateTime: toISO(payload.start) },
-    end: { dateTime: toISO(payload.end) },
+    start: { dateTime: toISO(payload.start), timeZone: tz },
+    end: { dateTime: toISO(payload.end), timeZone: tz },
     ...(payload.colorId ? { colorId: payload.colorId } : {}),
-    ...(payload.recurrence
-      ? { recurrence: Array.isArray(payload.recurrence) ? payload.recurrence : [payload.recurrence] }
-      : {}),
+    ...(normalizeRecurrence(payload.recurrence) ? { recurrence: normalizeRecurrence(payload.recurrence) } : {}),
   };
   const r = await calendarFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
     method: 'POST',
     body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error('CALENDAR_CREATE_FAILED');
+  if (!r.ok) {
+    let detail = '';
+    try {
+      detail = await r.text();
+      // try parse JSON error
+      try {
+        const j = JSON.parse(detail);
+        detail = j?.error?.message || detail;
+      } catch {}
+    } catch {}
+    console.error('CALENDAR_CREATE_FAILED', { status: r.status, detail, body });
+    throw new Error('CALENDAR_CREATE_FAILED');
+  }
   const j = await r.json();
   const mapped = mapEvent(j);
   if (!mapped) throw new Error('INVALID_EVENT');
@@ -141,22 +171,40 @@ export async function updateEvent(eventId: string, payload: {
   colorId?: string;
   recurrence?: string[] | string | null; // pass null to clear
 }): Promise<CalendarEvent> {
+  const tz = getLocalTimeZone();
   const body: any = {};
   if (payload.summary !== undefined) body.summary = payload.summary;
   if (payload.description !== undefined) body.description = payload.description;
-  if (payload.start) body.start = { dateTime: toISO(payload.start) };
-  if (payload.end) body.end = { dateTime: toISO(payload.end) };
+  if (payload.start) body.start = { dateTime: toISO(payload.start), timeZone: tz };
+  if (payload.end) body.end = { dateTime: toISO(payload.end), timeZone: tz };
   if (payload.colorId !== undefined) body.colorId = payload.colorId;
   if (payload.recurrence !== undefined) {
     if (payload.recurrence === null) body.recurrence = [];
-    else body.recurrence = Array.isArray(payload.recurrence) ? payload.recurrence : [payload.recurrence];
+    else {
+      const arr = Array.isArray(payload.recurrence) ? payload.recurrence : [payload.recurrence];
+      body.recurrence = arr
+        .map(r => (r || '').trim())
+        .filter(Boolean)
+        .map(r => (r.toUpperCase().startsWith('RRULE') ? r.toUpperCase().startsWith('RRULE:') ? r : `RRULE:${r}` : r));
+    }
   }
 
   const r = await calendarFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error('CALENDAR_UPDATE_FAILED');
+  if (!r.ok) {
+    let detail = '';
+    try {
+      detail = await r.text();
+      try {
+        const j = JSON.parse(detail);
+        detail = j?.error?.message || detail;
+      } catch {}
+    } catch {}
+    console.error('CALENDAR_UPDATE_FAILED', { status: r.status, detail, body });
+    throw new Error('CALENDAR_UPDATE_FAILED');
+  }
   const j = await r.json();
   const mapped = mapEvent(j);
   if (!mapped) throw new Error('INVALID_EVENT');

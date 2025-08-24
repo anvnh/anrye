@@ -17,6 +17,7 @@ type Props = {
   initialEnd: Date;
   initialTitle?: string;
   initialColorId?: string;
+  initialRecurrence?: string | null;
   onSave: (data: { title: string; start: Date; end: Date; colorId?: string; recurrence?: string | null }) => Promise<void> | void;
 };
 
@@ -50,7 +51,7 @@ export const LIGHT_COLOR_MAP: Record<string, string> = {
   '11': '#FFDAD6', // Dark Red (distinct from 4)
 };
 
-export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, initialEnd, initialTitle = '', initialColorId, onSave }) => {
+export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, initialEnd, initialTitle = '', initialColorId, initialRecurrence = null, onSave }) => {
   const [title, setTitle] = useState(initialTitle);
   const [date, setDate] = useState<Date>(new Date(initialStart));
   const [startTime, setStartTime] = useState(() => toTimeStr(initialStart));
@@ -71,9 +72,9 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
     setStartTime(toTimeStr(initialStart));
     setEndTime(toTimeStr(initialEnd));
     setColorId(initialColorId);
-    setRecurrence(null);
+    setRecurrence(initialRecurrence || null);
     setRecurrenceCustomMode(false);
-  }, [open, initialStart, initialEnd, initialTitle, initialColorId]);
+  }, [open, initialStart, initialEnd, initialTitle, initialColorId, initialRecurrence]);
 
   const onSubmit = async () => {
     const s = combine(date, startTime);
@@ -93,7 +94,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o ? onClose() : undefined}>
-      <DialogContent className={`sm:max-w-[520px] backdrop-blur-2xl 
+      <DialogContent className={`sm:max-w-[520px] backdrop-blur-2xl border-gray-700 border rounded-3xl 
         ${notesTheme === 'light'
           ? 'bg-gray-800/10 border-none text-black'
           : 'bg-main/95 text-white'
@@ -124,7 +125,7 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={`justify-start bg-main text-white ${notesTheme === 'light' ? 'bg-white text-black/75' : ''} `}
+                    className={`justify-start bg-main text-white hover:text-gray-300 ${notesTheme === 'light' ? 'bg-white text-black/75' : ''} `}
                   >
                     {date.toLocaleDateString()}
                   </Button>
@@ -181,49 +182,52 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
           {/* Recurrence */}
           <div className="space-y-2">
             <Label className="text-gray-300">Repeat</Label>
-            <select
-              className={`w-full ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'} rounded px-3 py-2 text-sm`}
-              value={recurrenceCustomMode ? '__custom__' : (recurrence || '')}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === '__custom__') {
-                  setRecurrenceCustomMode(true);
-                  setRecurrence('');
-                } else {
-                  setRecurrenceCustomMode(false);
-                  setRecurrence(v || null);
-                }
-              }}
-            >
-              <option value="">
-                Does not repeat
-              </option>
-              <option value="RRULE:FREQ=DAILY">Daily</option>
-              {(() => {
-                const weekday = initialStart.toLocaleDateString(undefined, { weekday: 'long' });
-                return <option value={rruleWeekly(initialStart)}>Weekly on {weekday.toLowerCase()}</option>;
-              })()}
-              {(() => {
-                const day = initialStart.getDate();
-                return <option value={`RRULE:FREQ=MONTHLY;BYMONTHDAY=${day}`}>Monthly on day {day}</option>;
-              })()}
-              {(() => {
-                const md = `${String(initialStart.getMonth() + 1).padStart(2, '0')}${String(initialStart.getDate()).padStart(2, '0')}`;
-                return <option value={`RRULE:FREQ=YEARLY;BYMONTHDAY=${initialStart.getDate()};BYMONTH=${initialStart.getMonth() + 1}`}>Annually on {initialStart.getDate()}/{initialStart.getMonth() + 1}</option>;
-              })()}
-              <option value="RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Every weekday (Mon–Fri)</option>
-              <option value="__custom__">Custom…</option>
-            </select>
+            {(() => {
+              const weekly = rruleWeekly(initialStart);
+              const monthly = `RRULE:FREQ=MONTHLY;BYMONTHDAY=${initialStart.getDate()}`;
+              const yearly = `RRULE:FREQ=YEARLY;BYMONTHDAY=${initialStart.getDate()};BYMONTH=${initialStart.getMonth() + 1}`;
+              const weekday = 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+              const presets = new Set<string>(['RRULE:FREQ=DAILY', weekly, monthly, yearly, weekday]);
+              const isCustom = !!recurrence && !presets.has(recurrence);
+              const selectValue = recurrenceCustomMode ? '__custom__' : (!recurrence ? '' : (isCustom ? '__custom__' : recurrence));
+              const customLabel = isCustom ? `Custom — ${summarizeRRule(recurrence!, initialStart)}` : 'Custom…';
+              return (
+                <select
+                  className={`w-full ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'} rounded px-3 py-2 text-sm`}
+                  value={selectValue}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '__custom__') {
+                      setRecurrenceCustomMode(true);
+                      // do not wipe existing custom rule
+                    } else {
+                      setRecurrenceCustomMode(false);
+                      setRecurrence(v || null);
+                    }
+                  }}
+                >
+                  <option value="">Does not repeat</option>
+                  <option value="RRULE:FREQ=DAILY">Daily</option>
+                  <option value={weekly}>{`Weekly on ${initialStart.toLocaleDateString('en-US', { weekday: 'long' })}`}</option>
+                  <option value={monthly}>{`Monthly on day ${initialStart.getDate()}`}</option>
+                  <option value={yearly}>{`Annually on ${initialStart.getDate()}/${initialStart.getMonth() + 1}`}</option>
+                  <option value={weekday}>Every weekday (Mon–Fri)</option>
+                  <option value="__custom__">{customLabel}</option>
+                </select>
+              );
+            })()}
             {recurrenceCustomMode && (
-              <div className="space-y-1">
-                <Label className="text-gray-400 text-xs">Enter RRULE (e.g., RRULE:FREQ=WEEKLY;BYDAY=TU)</Label>
-                <Input
-                  placeholder="RRULE:..."
-                  className="bg-main border-gray-700 text-white"
-                  value={recurrence ?? ''}
-                  onChange={(e) => setRecurrence(e.target.value || null)}
-                />
-              </div>
+              <CustomRecurrenceEditor
+                initialStart={combine(date, startTime)}
+                notesTheme={notesTheme}
+                onCancel={() => setRecurrenceCustomMode(false)}
+                initialRRule={recurrence || undefined}
+                onRuleChange={(rule) => setRecurrence(rule)}
+                onDone={(rule) => {
+                  setRecurrence(rule || null);
+                  setRecurrenceCustomMode(false);
+                }}
+              />
             )}
           </div>
         </div>
@@ -266,5 +270,252 @@ export const EVENT_COLORS = DARK_COLOR_MAP; // Fallback
 function rruleWeekly(d: Date) {
   const map = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   return `RRULE:FREQ=WEEKLY;BYDAY=${map[d.getDay()]}`;
+}
+
+function summarizeRRule(rrule: string, baseDate: Date): string {
+  try {
+    const raw = rrule.startsWith('RRULE:') ? rrule.substring(6) : rrule;
+    const kv = new Map<string, string>();
+    raw.split(';').forEach(p => {
+      const [k, v] = p.split('=');
+      kv.set((k || '').toUpperCase(), v || '');
+    });
+    const freq = kv.get('FREQ') || 'DAILY';
+    const interval = parseInt(kv.get('INTERVAL') || '1', 10);
+    const until = kv.get('UNTIL');
+    const count = kv.get('COUNT');
+    const endsPart = (() => {
+      if (until) {
+        const y = Number(until.slice(0, 4));
+        const m = Number(until.slice(4, 6));
+        const d = Number(until.slice(6, 8));
+        const hh = Number(until.slice(9, 11) || '0');
+        const mm = Number(until.slice(11, 13) || '0');
+        const ss = Number(until.slice(13, 15) || '0');
+        const dt = new Date(Date.UTC(y, m - 1, d, hh, mm, ss));
+        return ` until ${dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
+      }
+      if (count) {
+        const c = parseInt(count, 10);
+        return ` for ${c} occurrence${c > 1 ? 's' : ''}`;
+      }
+      return '';
+    })();
+    const every = interval > 1 ? `every ${interval}` : 'every';
+    if (freq === 'DAILY') {
+      return `${every} day${interval > 1 ? 's' : ''}${endsPart}`;
+    }
+    if (freq === 'WEEKLY') {
+      const mapNames: Record<string, string> = { SU: 'Sunday', MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday', FR: 'Friday', SA: 'Saturday' };
+      const by = (kv.get('BYDAY') || '').split(',').filter(Boolean).map(d => mapNames[d] || d).join(', ');
+      return `${every} week${interval > 1 ? 's' : ''}${by ? ` on ${by}` : ''}${endsPart}`;
+    }
+    if (freq === 'MONTHLY') {
+      return `${every} month${interval > 1 ? 's' : ''} on day ${baseDate.getDate()}${endsPart}`;
+    }
+    if (freq === 'YEARLY') {
+      return `${every} year${interval > 1 ? 's' : ''} on ${baseDate.getDate()}/${baseDate.getMonth() + 1}${endsPart}`;
+    }
+    return 'Custom…';
+  } catch {
+    return 'Custom…';
+  }
+}
+
+export function summarizeRRuleLong(rrule: string, baseDate: Date): string {
+  // English phrasing similar to Google Calendar card
+  const raw = summarizeRRule(rrule, baseDate);
+  // Ensure first letter uppercase and tweak joiners
+  const s = raw.charAt(0).toUpperCase() + raw.slice(1);
+  return s;
+}
+
+type CustomRecurrenceEditorProps = {
+  initialStart: Date;
+  notesTheme: 'light' | 'dark';
+  onCancel: () => void;
+  onDone: (rrule: string | null) => void;
+};
+
+function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps & { onRuleChange?: (rrule: string) => void; initialRRule?: string }) {
+  const { initialStart, notesTheme, onCancel, onDone, onRuleChange, initialRRule } = props;
+  const weekdayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+  const [freq, setFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('WEEKLY');
+  const [interval, setInterval] = useState<number>(1);
+  const [days, setDays] = useState<string[]>([weekdayMap[initialStart.getDay()]]);
+  const [endMode, setEndMode] = useState<'never' | 'until' | 'count'>('never');
+  const [untilDate, setUntilDate] = useState<string>(''); // yyyy-mm-dd
+  const [count, setCount] = useState<number>(10);
+
+  // Parse existing RRULE if provided, to prefill the UI
+  React.useEffect(() => {
+    if (!initialRRule) return;
+    const raw = initialRRule.startsWith('RRULE:') ? initialRRule.substring(6) : initialRRule;
+    const map = new Map<string, string>();
+    raw.split(';').forEach(p => {
+      const [k, v] = p.split('=');
+      if (k && v) map.set(k.toUpperCase(), v);
+    });
+    const f = (map.get('FREQ') as any) || 'WEEKLY';
+    setFreq(f);
+    const iv = parseInt(map.get('INTERVAL') || '1', 10);
+    if (!Number.isNaN(iv)) setInterval(Math.max(1, iv));
+    if (f === 'WEEKLY') {
+      const byday = (map.get('BYDAY') || '').split(',').filter(Boolean);
+      if (byday.length > 0) setDays(byday);
+    }
+    if (f === 'MONTHLY') {
+      // BYMONTHDAY is assumed automatically; nothing to set
+    }
+    if (f === 'YEARLY') {
+      // BYMONTH and BYMONTHDAY assumed; nothing to set
+    }
+    if (map.has('UNTIL')) {
+      const until = map.get('UNTIL')!; // YYYYMMDDTHHMMSSZ
+      const y = until.slice(0, 4);
+      const m = until.slice(4, 6);
+      const d = until.slice(6, 8);
+      setEndMode('until');
+      setUntilDate(`${y}-${m}-${d}`);
+    } else if (map.has('COUNT')) {
+      setEndMode('count');
+      const c = parseInt(map.get('COUNT') || '10', 10);
+      if (!Number.isNaN(c)) setCount(Math.max(1, c));
+    } else {
+      setEndMode('never');
+    }
+  }, [initialRRule]);
+
+  function toggleDay(d: string) {
+    setDays(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
+  }
+
+  function toUntilUTC(yyyyMmDd: string): string | null {
+    if (!yyyyMmDd) return null;
+    const [y, m, d] = yyyyMmDd.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    // Use 23:59:59 on that local date, convert to UTC
+    const dt = new Date(y, (m - 1), d, 23, 59, 59, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}${pad(dt.getUTCSeconds())}Z`;
+  }
+
+  function buildRule(): string {
+    const parts: string[] = [`FREQ=${freq}`, `INTERVAL=${Math.max(1, Number(interval) || 1)}`];
+    if (freq === 'WEEKLY') {
+      const selected = days.length > 0 ? days.slice().sort() : [weekdayMap[initialStart.getDay()]];
+      parts.push(`BYDAY=${selected.join(',')}`);
+    }
+    if (freq === 'MONTHLY') {
+      parts.push(`BYMONTHDAY=${initialStart.getDate()}`);
+    }
+    if (freq === 'YEARLY') {
+      parts.push(`BYMONTH=${initialStart.getMonth() + 1}`);
+      parts.push(`BYMONTHDAY=${initialStart.getDate()}`);
+    }
+    if (endMode === 'until') {
+      const u = toUntilUTC(untilDate);
+      if (u) parts.push(`UNTIL=${u}`);
+    } else if (endMode === 'count') {
+      parts.push(`COUNT=${Math.max(1, Number(count) || 1)}`);
+    }
+    const rule = `RRULE:${parts.join(';')}`;
+    return rule;
+  }
+
+  // Keep parent state in sync so pressing Save without "Done" still preserves custom rule
+  React.useEffect(() => {
+    const r = buildRule();
+    onRuleChange && onRuleChange(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freq, interval, days.join(','), endMode, untilDate, count]);
+
+  const dayChips = weekdayMap.map((d, idx) => (
+    <button
+      key={d}
+      type="button"
+      onClick={() => toggleDay(d)}
+      className={`px-2 py-1 rounded-full text-xs border ${days.includes(d) ? (notesTheme === 'light' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-600 text-white border-blue-600') : (notesTheme === 'light' ? 'bg-white text-black border-gray-300' : 'bg-main text-white border-gray-600')}`}
+      title={['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][idx]}
+    >
+      {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][idx]}
+    </button>
+  ));
+
+  return (
+    <div className={`rounded-md p-3 border ${notesTheme === 'light' ? 'bg-white text-black border-gray-200' : 'bg-secondary border-gray-700'}`}>
+      <div className="grid grid-cols-3 gap-2 items-center">
+        <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>
+          Repeat every
+        </Label>
+        <Input
+          type="number"
+          min={1}
+          value={interval}
+          onChange={(e) => setInterval(Number(e.target.value))}
+          className={`${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
+        />
+        <select
+          className={`rounded px-2 py-2 text-sm ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
+          value={freq}
+          onChange={(e) => setFreq(e.target.value as any)}
+        >
+          <option value="DAILY">day(s)</option>
+          <option value="WEEKLY">week(s)</option>
+          <option value="MONTHLY">month(s)</option>
+          <option value="YEARLY">year(s)</option>
+        </select>
+      </div>
+
+      {freq === 'WEEKLY' && (
+        <div className="mt-3 space-y-2">
+          <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>Repeat on</Label>
+          <div className="flex flex-wrap gap-2">
+            {dayChips}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 space-y-2">
+        <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>Ends</Label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="rr-end" checked={endMode === 'never'} onChange={() => setEndMode('never')} />
+            <span>Never</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="rr-end" checked={endMode === 'until'} onChange={() => setEndMode('until')} />
+            <span>On date</span>
+            <Input
+              type="date"
+              value={untilDate}
+              onChange={(e) => setUntilDate(e.target.value)}
+              className={`ml-2 w-auto ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
+              disabled={endMode !== 'until'}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="rr-end" checked={endMode === 'count'} onChange={() => setEndMode('count')} />
+            <span>After</span>
+            <Input
+              type="number"
+              min={1}
+              value={count}
+              onChange={(e) => setCount(Number(e.target.value))}
+              className={`ml-2 w-20 ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
+              disabled={endMode !== 'count'}
+            />
+            <span>occurrence(s)</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-3 flex justify-end gap-2">
+        <Button variant="ghost" type="button" onClick={onCancel} className={`${notesTheme === 'light' ? 'text-black/75' : ''}`}>Cancel</Button>
+        <Button type="button" onClick={() => onDone(buildRule())} className={`${notesTheme === 'light' ? 'light-bg-calendar-button text-black/75' : 'bg-calendar-button text-white'}`}>Done</Button>
+      </div>
+    </div>
+  );
 }
 
