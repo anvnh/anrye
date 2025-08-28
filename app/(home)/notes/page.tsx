@@ -2,25 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { FileText, Menu, PanelLeftOpen, Image as ImageIcon, X } from 'lucide-react';
+import { addDays } from 'date-fns';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
-import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor } from './_components';
+import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './_components';
 import RenameDialog from './_components/RenameDialog';
 import NoteNavbar from './_components/NoteNavbar';
 import { LoadingSpinner } from './_components/LoadingSpinner';
 import { ImageManager } from './_components/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PWALoadingState from '../../components/PWALoadingState';
-import CalendarPanel from './_components/CalendarPanel';
-
-// Utility function for date manipulation
-function addDays(base: Date, days: number): Date {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 // Import custom hooks
 import {
@@ -838,47 +831,14 @@ export default function NotesPage() {
       {isCalendarOpen && (
         <div className="fixed inset-0 z-[9999] bg-main">
           <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-700/60 bg-main">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                <h2 className="text-lg sm:text-xl font-semibold text-white">Calendar</h2>
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <button
-                    onClick={() => setCalendarDate(prev => addDays(prev, -7))}
-                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
-                  >
-                    Prev
-                  </button>
-                  <button
-                    onClick={() => setCalendarDate(prev => addDays(prev, 7))}
-                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
-                  >
-                    Next
-                  </button>
-                  <button
-                    onClick={() => setCalendarDate(new Date())}
-                    className={`px-2 sm:px-3 py-1 bg-calendar-button rounded text-xs sm:text-sm text-white transition-colors bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
-                  >
-                    Today
-                  </button>
-                </div>
-                <span className="text-gray-300 font-medium text-sm sm:text-base">{calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-              </div>
-              <button
-                onClick={() => setIsCalendarOpen(false)}
-                className={`p-2 rounded-lg text-gray-300 hover:text-white transition-colors flex-shrink-0 bg-calendar-button ${notesTheme === 'light' ? 'light-bg-calendar-button' : ''}`}
-                title="Close Calendar"
-              >
-                <X size={20} />
-              </button>
-            </div>
             {/* Calendar Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden relative">
               <CalendarPanel
                 currentDate={calendarDate}
                 onPrev={() => setCalendarDate(prev => addDays(prev, -7))}
                 onNext={() => setCalendarDate(prev => addDays(prev, 7))}
                 onToday={() => setCalendarDate(new Date())}
+                onClose={() => setIsCalendarOpen(false)}
               />
             </div>
           </div>

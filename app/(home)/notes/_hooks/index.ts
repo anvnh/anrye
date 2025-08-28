@@ -11,3 +11,4 @@ export { useResponsiveLayout } from './useResponsiveLayout';
 export { usePasteImage } from './usePasteImage';
 export { useWikilinkAutocomplete } from './useWikilinkAutocomplete';
 export { useTableToolbar } from './useTableToolbar'; 
+export { useDisclosure } from './useDisclosure';

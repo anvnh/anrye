@@ -116,8 +116,20 @@ body {
   background-color: #2A2F37 !important;
 }
 
-.bg-calendar-button:hover {
+.bg-calendar-button-hover {
   background-color: #3A414C !important;
+}
+
+.bg-calendar-button-with-hover {
+  background-color: #2A2F37 !important;
+}
+
+.bg-calendar-button-with-hover:hover {
+  background-color: #3A414C !important;
+}
+
+.bg-calendar-button-active {
+  background-color: #4B5563 !important;
 }
 
 /* Light: Calendar button backgrounds */
@@ -125,7 +137,19 @@ body {
   background-color: #F3F4F6 !important;
 }
 
-.light-bg-calendar-button:hover {
+.light-bg-calendar-button-hover {
+  background-color: #E5E7EB !important;
+}
+
+.light-bg-calendar-button-active {
+  background-color: #D1D5DB !important;
+}
+
+.light-bg-calendar-button-with-hover {
+  background-color: #F3F4F6 !important;
+}
+
+.light-bg-calendar-button-with-hover:hover {
   background-color: #E5E7EB !important;
 }
 
