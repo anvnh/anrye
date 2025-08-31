@@ -11,6 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        'bg-calendar-button': '#2A2F37',
         background: 'var(--background)',
         foreground: 'var(--foreground)',
         primary: {

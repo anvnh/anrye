@@ -47,6 +47,12 @@
     --primary: #6b7595;
     --primary-dark: #555879;
     --primary-light: #8b92b3;
+
+
+    --calendar-button: #2A2F37;
+    --calendar-button-hover: #3A414C;
+    --calendar-button-active: #4B5563;
+    --calendar-button-focus: #4B5563;
   }
 }
 

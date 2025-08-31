@@ -146,7 +146,7 @@ function Calendar({
         hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
-  components={{
+      components={{
         Root: ({ className, rootRef, ...props }) => {
           return (
             <div
@@ -189,7 +189,7 @@ function Calendar({
         },
         ...components,
       }}
-  {...resolvedPickerProps}
+      {...resolvedPickerProps}
     />
   )
 }
