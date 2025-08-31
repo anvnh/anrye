@@ -3,12 +3,11 @@ import { endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
 
 import { useCalendar } from "../../contexts/calendar-context";
 
-import { DraggableEvent } from "../dnd/draggable-event";
 import { EventDetailsDialog } from "../dialogs/event-details-dialog";
 
 import { cn } from "@/lib/utils";
 
-import type { IEvent } from "@/app/calendar/interfaces";
+import type { IEvent } from "../../interfaces";
 import type { VariantProps } from "class-variance-authority";
 
 const eventBadgeVariants = cva(
@@ -94,31 +93,29 @@ export function MonthEventBadge({ event, cellDate, eventCurrentDay, eventTotalDa
   };
 
   return (
-    <DraggableEvent event={event}>
-      <EventDetailsDialog event={event}>
-        <div role="button" tabIndex={0} className={eventBadgeClasses} onKeyDown={handleKeyDown}>
-          <div className="flex items-center gap-1.5 truncate">
-            {!["middle", "last"].includes(position) && ["mixed", "dot"].includes(badgeVariant) && (
-              <svg width="8" height="8" viewBox="0 0 8 8" className="event-dot shrink-0">
-                <circle cx="4" cy="4" r="4" />
-              </svg>
-            )}
+    <EventDetailsDialog event={event}>
+      <div role="button" tabIndex={0} className={eventBadgeClasses} onKeyDown={handleKeyDown}>
+        <div className="flex items-center gap-1.5 truncate">
+          {!["middle", "last"].includes(position) && ["mixed", "dot"].includes(badgeVariant) && (
+            <svg width="8" height="8" viewBox="0 0 8 8" className="event-dot shrink-0">
+              <circle cx="4" cy="4" r="4" />
+            </svg>
+          )}
 
-            {renderBadgeText && (
-              <p className="flex-1 truncate font-semibold">
-                {eventCurrentDay && (
-                  <span className="text-xs">
-                    Day {eventCurrentDay} of {eventTotalDays} •{" "}
-                  </span>
-                )}
-                {event.title}
-              </p>
-            )}
-          </div>
-
-          {renderBadgeText && <span>{format(new Date(event.startDate), "h:mm a")}</span>}
+          {renderBadgeText && (
+            <p className="flex-1 truncate font-semibold">
+              {eventCurrentDay && (
+                <span className="text-xs">
+                  Day {eventCurrentDay} of {eventTotalDays} •{" "}
+                </span>
+              )}
+              {event.title}
+            </p>
+          )}
         </div>
-      </EventDetailsDialog>
-    </DraggableEvent>
+
+        {renderBadgeText && <span>{format(new Date(event.startDate), "h:mm a")}</span>}
+      </div>
+    </EventDetailsDialog>
   );
 }

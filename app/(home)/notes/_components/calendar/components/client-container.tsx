@@ -5,7 +5,7 @@ import { isSameDay, parseISO } from "date-fns";
 
 import { useCalendar } from "../contexts/calendar-context";
 
-import { DndProviderWrapper } from "./dnd/dnd-provider";
+// import { DndProviderWrapper } from "./dnd/dnd-provider";
 
 import { CalendarHeader } from "./header/calendar-header";
 import { CalendarYearView } from "./year-view/calendar-year-view";
@@ -99,13 +99,11 @@ export function ClientContainer({ view, onViewChange, loading = false, onDateCha
     <div className="overflow-hidden rounded-xl border-none">
       <CalendarHeader view={view} events={filteredEvents} onViewChange={onViewChange} loading={loading} onDateChange={onDateChange} onClose={onClose} />
 
-      <DndProviderWrapper>
         {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "month" && <CalendarMonthView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "week" && <CalendarWeekView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "year" && <CalendarYearView allEvents={eventStartDates} />}
         {view === "agenda" && <CalendarAgendaView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
-      </DndProviderWrapper>
     </div>
   );
 }

@@ -148,8 +148,8 @@ export function isWorkingHour(day: Date, hour: number, workingHours: TWorkingHou
 }
 
 export function getVisibleHours(visibleHours: TVisibleHours, singleDayEvents: IEvent[]) {
-  let earliestEventHour = visibleHours.from - 1;
-  let latestEventHour = visibleHours.to + 1;
+  let earliestEventHour = visibleHours.from;
+  let latestEventHour = visibleHours.to;
 
   singleDayEvents.forEach(event => {
     const startHour = parseISO(event.startDate).getHours();
@@ -159,7 +159,8 @@ export function getVisibleHours(visibleHours: TVisibleHours, singleDayEvents: IE
     if (endHour > latestEventHour) latestEventHour = endHour;
   });
 
-  latestEventHour = Math.min(latestEventHour, 24);
+  // Always extend to 24h (00:00) for better visual representation
+  latestEventHour = Math.max(latestEventHour, 24);
 
   const hours = Array.from({ length: latestEventHour - earliestEventHour }, (_, i) => i + earliestEventHour);
 

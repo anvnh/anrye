@@ -1,11 +1,11 @@
 import { startOfWeek, addDays, format, parseISO, isSameDay, areIntervalsOverlapping, isToday } from "date-fns";
 
 import { useCalendar } from "../../contexts/calendar-context";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { AddEventDialog } from "../dialogs/add-event-dialog";
 import { EventBlock } from "./event-block";
-import { DroppableTimeBlock } from "../dnd/droppable-time-block";
+import { DraggableEventBlock } from "./draggable-event-block";
 import { CalendarTimeline } from "./calendar-time-line";
 import { WeekViewMultiDayEventsRow } from "./week-view-multi-day-events-row";
 
@@ -25,6 +25,7 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
   const { notesTheme } = useThemeSettings();
 
   const { hours, earliestEventHour, latestEventHour } = getVisibleHours(visibleHours, singleDayEvents);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const weekStart = startOfWeek(selectedDate);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -131,7 +132,11 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
             {hours.map((hour, index) => (
               <div key={hour} className="relative" style={{ height: "96px" }}>
                 <div className="absolute -top-3 right-2 flex h-6 items-center">
-                  {index !== 0 && <span className="text-xs text-muted-foreground">{format(new Date().setHours(hour, 0, 0, 0), "hh a")}</span>}
+                  {index !== 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {hour === 24 ? "00:00" : format(new Date().setHours(hour, 0, 0, 0), "HH:mm")}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -139,7 +144,7 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
 
           {/* Week grid */}
           <div className="relative flex-1">
-            <div className={cn(
+            <div ref={gridRef} className={cn(
               "grid grid-cols-7 divide-x border-l",
               notesTheme === "light" ? "" : "divide-gray-700 border-gray-700"
             )}>
@@ -166,27 +171,6 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
                             "pointer-events-none absolute inset-x-0 top-0 border-b",
                             notesTheme === "light" ? "" : "border-gray-700"
                           )}></div>}
-
-                          <DroppableTimeBlock date={day} hour={hour} minute={0}>
-                            <div className="absolute inset-x-0 top-0 h-[24px] transition-colors" />
-                          </DroppableTimeBlock>
-
-                          {/* Current day indicator */}
-                          {isCurrentDay && hour === 0 && (
-                            <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
-                          )}
-
-                          <DroppableTimeBlock date={day} hour={hour} minute={15}>
-                            <div className="absolute inset-x-0 top-[24px] h-[24px] transition-colors" />
-                          </DroppableTimeBlock>
-
-                          <DroppableTimeBlock date={day} hour={hour} minute={30}>
-                            <div className="absolute inset-x-0 top-[48px] h-[24px] transition-colors" />
-                          </DroppableTimeBlock>
-
-                          <DroppableTimeBlock date={day} hour={hour} minute={45}>
-                            <div className="absolute inset-x-0 top-[72px] h-[24px] transition-colors" />
-                          </DroppableTimeBlock>
                         </div>
                       );
                     })}
@@ -208,9 +192,14 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
                         if (!hasOverlap) style = { ...style, width: "100%", left: "0%" };
 
                         return (
-                          <div key={event.id} className="absolute p-1" style={style} data-event-block="true">
-                            <EventBlock event={event} />
-                          </div>
+                          <DraggableEventBlock
+                            key={event.id}
+                            event={event}
+                            day={day}
+                            visibleHoursRange={{ from: earliestEventHour, to: latestEventHour }}
+                            baseStyle={{ left: style.left, width: style.width }}
+                            horizontalWeekMeta={{ containerRef: gridRef, days: weekDays }}
+                          />
                         );
                       })
                     )}
@@ -219,7 +208,11 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
               })}
             </div>
 
-            <CalendarTimeline firstVisibleHour={earliestEventHour} lastVisibleHour={latestEventHour} />
+            <CalendarTimeline 
+              firstVisibleHour={earliestEventHour} 
+              lastVisibleHour={latestEventHour} 
+              visibleHours={visibleHours}
+            />
           </div>
           <AddEventDialog open={dialogOpen} onOpenChange={setDialogOpen} startDate={dialogStartDate} startTime={dialogStartTime} />
         </div>

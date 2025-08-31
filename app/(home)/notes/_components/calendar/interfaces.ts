@@ -16,6 +16,10 @@ export interface IEvent {
   color: TEventColor;
   description: string;
   user: IUser;
+  // Recurrence metadata (optional, present when sourced from Google Calendar API)
+  recurrence?: string[];
+  recurringEventId?: string;
+  originalStartTime?: string;
 }
 
 export interface ICalendarCell {

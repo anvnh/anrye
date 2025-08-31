@@ -8,7 +8,7 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 import { AddEventDialog } from "../dialogs/add-event-dialog";
 import { EventBlock } from "./event-block";
-import { DroppableTimeBlock } from "../dnd/droppable-time-block";
+import { DraggableEventBlock } from "./draggable-event-block";
 import { CalendarTimeline } from "./calendar-time-line";
 import { DayViewMultiDayEventsRow } from "./day-view-multi-day-events-row";
 
@@ -62,7 +62,11 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
               {hours.map((hour, index) => (
                 <div key={hour} className="relative" style={{ height: "96px" }}>
                   <div className="absolute -top-3 right-2 flex h-6 items-center">
-                    {index !== 0 && <span className="text-xs text-muted-foreground">{format(new Date().setHours(hour, 0, 0, 0), "hh a")}</span>}
+                    {index !== 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {hour === 24 ? "00:00" : format(new Date().setHours(hour, 0, 0, 0), "HH:mm")}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -77,32 +81,6 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
                   return (
                     <div key={hour} className={cn("relative", isDisabled && "bg-calendar-disabled-hour")} style={{ height: "96px" }}>
                       {index !== 0 && <div className="pointer-events-none absolute inset-x-0 top-0 border-b"></div>}
-
-                      <DroppableTimeBlock date={selectedDate} hour={hour} minute={0}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 0 }}>
-                          <div className="absolute inset-x-0 top-0 h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
-                      </DroppableTimeBlock>
-
-                      <DroppableTimeBlock date={selectedDate} hour={hour} minute={15}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 15 }}>
-                          <div className="absolute inset-x-0 top-[24px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
-                      </DroppableTimeBlock>
-
-                      <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed"></div>
-
-                      <DroppableTimeBlock date={selectedDate} hour={hour} minute={30}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 30 }}>
-                          <div className="absolute inset-x-0 top-[48px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
-                      </DroppableTimeBlock>
-
-                      <DroppableTimeBlock date={selectedDate} hour={hour} minute={45}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 45 }}>
-                          <div className="absolute inset-x-0 top-[72px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
-                      </DroppableTimeBlock>
                     </div>
                   );
                 })}
@@ -124,15 +102,23 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
                     if (!hasOverlap) style = { ...style, width: "100%", left: "0%" };
 
                     return (
-                      <div key={event.id} className="absolute p-1" style={style}>
-                        <EventBlock event={event} />
-                      </div>
+                      <DraggableEventBlock
+                        key={event.id}
+                        event={event}
+                        day={selectedDate}
+                        visibleHoursRange={{ from: earliestEventHour, to: latestEventHour }}
+                        baseStyle={{ left: style.left, width: style.width }}
+                      />
                     );
                   })
                 )}
               </div>
 
-              <CalendarTimeline firstVisibleHour={earliestEventHour} lastVisibleHour={latestEventHour} />
+              <CalendarTimeline 
+                firstVisibleHour={earliestEventHour} 
+                lastVisibleHour={latestEventHour} 
+                visibleHours={visibleHours}
+              />
             </div>
           </div>
         </ScrollArea>

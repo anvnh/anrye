@@ -57,9 +57,20 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
   // Get events from cache or fetch if not available
   const getEventsForRange = async (startDate: Date, endDate: Date, forceRefresh = false): Promise<CalendarEvent[]> => {
     const cacheKey = getCacheKey(startDate, endDate);
+
+    // Week view: always fetch fresh (skip cache)
+    if (forceRefresh) {
+      try {
+        const data = await listEvents(startDate, endDate);
+        return data;
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+        return [];
+      }
+    }
     
-    // Check cache first (unless force refresh)
-    if (!forceRefresh && eventsCache.has(cacheKey)) {
+    // For other views, check cache first
+    if (eventsCache.has(cacheKey)) {
       const cached = eventsCache.get(cacheKey)!;
       if (isCacheValid(cached.timestamp, cached.ttl)) {
         return cached.data;
@@ -105,7 +116,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           endDate.setDate(startDate.getDate() + 7);
         }
         
-        const data = await getEventsForRange(startDate, endDate);
+        const data = await getEventsForRange(startDate, endDate, viewType === 'week');
         setEvents(data);
       } catch (error) {
         console.error('Failed to fetch events:', error);
@@ -118,14 +129,8 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
   // Preload events for adjacent weeks/months (optimized)
   const preloadAdjacentEvents = React.useCallback(async (centerDate: Date, viewType: TCalendarView) => {
     if (viewType === 'week') {
-      // Preload only next week (most common navigation)
-      const nextWeekStart = new Date(centerDate);
-      nextWeekStart.setDate(centerDate.getDate() + 7);
-      const nextWeekEnd = new Date(nextWeekStart);
-      nextWeekEnd.setDate(nextWeekStart.getDate() + 7);
-
-      // Load in background without blocking
-      getEventsForRange(nextWeekStart, nextWeekEnd).catch(console.error);
+      // Skip preloading for week view to ensure fresh loads when navigating weeks
+      return;
     } else if (viewType === 'month') {
       // Preload next month for month view
       const nextMonthStart = new Date(centerDate.getFullYear(), centerDate.getMonth() + 1, 1);
@@ -141,14 +146,14 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
     setInternalDate(newDate);
     // Use debounced fetch for smooth navigation
     debouncedFetch(newDate, view);
-    // Preload adjacent events
+    // Preload adjacent events (skips for week view)
     preloadAdjacentEvents(newDate, view);
   };
 
   // Handle view changes
   const handleViewChange = (newView: TCalendarView) => {
     setView(newView);
-    // Preload events for the new view
+    // Preload events for the new view (skips for week view)
     preloadAdjacentEvents(effectiveDate, newView);
   };
 
@@ -166,7 +171,11 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
         id: 'default',
         name: 'Default User',
         picturePath: null
-      }
+      },
+      // Recurrence fields for delete options
+      recurrence: event.recurrence,
+      recurringEventId: event.recurringEventId,
+      originalStartTime: event.originalStartTime,
     }));
   };
 
@@ -206,11 +215,11 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           endDate.setDate(startDate.getDate() + 7);
         }
         
-        // Get events for the calculated range (from cache or fetch)
-        const data = await getEventsForRange(startDate, endDate);
+        // Get events for the calculated range (always fresh for week view)
+        const data = await getEventsForRange(startDate, endDate, view === 'week');
         setEvents(data);
         
-        // Preload adjacent events in background
+        // Preload adjacent events in background (skips for week view)
         preloadAdjacentEvents(effectiveDate, view);
       } catch (error) {
         console.error('Failed to fetch events:', error);
