@@ -1,13 +1,9 @@
-import { Calendar, Clock, User } from "lucide-react";
 import { parseISO, areIntervalsOverlapping, format } from "date-fns";
 
 import { useCalendar } from "../../contexts/CalendarContext";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CalendarDayButton, Calendar as CalendarPicker } from "@/components/ui/calendar";
 
-import { AddEventDialog } from "../dialogs/AddEventDialog";
-import { EventBlock } from "./EventBlock";
 import { DraggableEventBlock } from "./DraggableEventBlock";
 import { CalendarTimeline } from "./CalendarTimeline";
 import { DayViewMultiDayEventsRow } from "./DayViewMultiDayEventsRow";
@@ -147,7 +143,10 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents, onDateChange 
         </div>
       </div>
 
-      <div className="hidden w-64 divide-y border-l md:block">
+      <div className={cn(
+        "hidden w-64 divide-y border-l md:block",
+        notesTheme === "light" ? "" : "border-gray-700 divide-gray-700"
+      )}>
         <CalendarPicker 
           // classNames={{
           // }}

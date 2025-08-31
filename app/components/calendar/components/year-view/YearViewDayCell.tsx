@@ -1,11 +1,11 @@
 import { isToday } from "date-fns";
 import { useRouter } from "next/navigation";
 
-import { useCalendar } from "@/app/components/calendar/contexts/CalendarContext";
+import { useCalendar } from "../../contexts/CalendarContext";
 
 import { cn } from "@/lib/utils";
 
-import type { IEvent } from "@/app/components/calendar/interfaces";
+import type { IEvent } from "../../interfaces";
 
 interface IProps {
   day: number;

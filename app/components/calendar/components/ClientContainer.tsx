@@ -5,8 +5,6 @@ import { isSameDay, parseISO } from "date-fns";
 
 import { useCalendar } from "../contexts/CalendarContext";
 
-// import { DndProviderWrapper } from "./dnd/dnd-provider";
-
 import { CalendarHeader } from "./header/CalendarHeader";
 import { CalendarYearView } from "./year-view/CalendarYearView";
 import { CalendarMonthView } from "./month-view/CalendarMonthView";
