@@ -5,6 +5,8 @@ import { useCalendar } from "../../contexts/CalendarContext";
 import { DayCell } from "./DayCell";
 
 import { getCalendarCells, calculateMonthEventPositions } from "../../helpers";
+import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { cn } from "@/lib/utils";
 
 import type { IEvent } from "../../interfaces";
 
@@ -13,10 +15,11 @@ interface IProps {
   multiDayEvents: IEvent[];
 }
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function CalendarMonthView({ singleDayEvents, multiDayEvents }: IProps) {
   const { selectedDate } = useCalendar();
+  const { notesTheme } = useThemeSettings();
 
   const allEvents = [...multiDayEvents, ...singleDayEvents];
 
@@ -29,17 +32,29 @@ export function CalendarMonthView({ singleDayEvents, multiDayEvents }: IProps) {
 
   return (
     <div>
-      <div className="grid grid-cols-7 divide-x">
-        {WEEK_DAYS.map(day => (
+      <div className={cn(
+        "grid grid-cols-7 divide-x border-l border-t border-b",
+        notesTheme === "light" ? "" : "divide-gray-700 border-gray-700"
+      )}>
+        {week_days.map(day => (
           <div key={day} className="flex items-center justify-center py-2">
             <span className="text-xs font-medium text-muted-foreground">{day}</span>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 overflow-hidden">
-        {cells.map(cell => (
-          <DayCell key={cell.date.toISOString()} cell={cell} events={allEvents} eventPositions={eventPositions} />
+      <div className={cn(
+        "grid grid-cols-7 overflow-hidden border-l divide-x",
+        notesTheme === "light" ? "" : "border-gray-700 divide-gray-700"
+      )}>
+        {cells.map((cell, index) => (
+          <DayCell 
+            key={cell.date.toISOString()} 
+            cell={cell} 
+            events={allEvents} 
+            eventPositions={eventPositions}
+            cellIndex={index}
+          />
         ))}
       </div>
     </div>
