@@ -99,7 +99,7 @@ export function ClientContainer({ view, onViewChange, loading = false, onDateCha
     <div className="overflow-hidden rounded-xl border-none">
       <CalendarHeader view={view} events={filteredEvents} onViewChange={onViewChange} loading={loading} onDateChange={onDateChange} onClose={onClose} />
 
-        {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+        {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} onDateChange={onDateChange} />}
         {view === "month" && <CalendarMonthView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "week" && <CalendarWeekView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "year" && <CalendarYearView allEvents={eventStartDates} />}

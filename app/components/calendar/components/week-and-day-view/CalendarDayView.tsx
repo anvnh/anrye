@@ -21,9 +21,10 @@ import { useThemeSettings } from "@/app/(home)/notes/_hooks";
 interface IProps {
   singleDayEvents: IEvent[];
   multiDayEvents: IEvent[];
+  onDateChange?: (date: Date) => void;
 }
 
-export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
+export function CalendarDayView({ singleDayEvents, multiDayEvents, onDateChange }: IProps) {
   const { selectedDate, setSelectedDate, users, visibleHours, workingHours } = useCalendar();
 
   const { hours, earliestEventHour, latestEventHour } = getVisibleHours(visibleHours, singleDayEvents);
@@ -171,7 +172,14 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
               />
             )
           }}
-          mode="single" selected={selectedDate} onSelect={setSelectedDate}
+          mode="single" 
+          selected={selectedDate} 
+          onSelect={(date) => {
+            if (date) {
+              setSelectedDate(date);
+              onDateChange?.(date);
+            }
+          }}
         />
 
         <div className="flex-1 space-y-3">

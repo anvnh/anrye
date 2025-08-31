@@ -108,8 +108,14 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           // For month view: get events for entire month
           startDate = new Date(date.getFullYear(), date.getMonth(), 1);
           endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+        } else if (viewType === 'day') {
+          // For day view: get events for the specific day only
+          startDate = new Date(date);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(date);
+          endDate.setHours(23, 59, 59, 999);
         } else {
-          // For week/day view: get events for current week
+          // For week view: get events for current week
           startDate = new Date(date);
           startDate.setDate(date.getDate() - date.getDay() + 1);
           endDate = new Date(startDate);
@@ -131,6 +137,17 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
     if (viewType === 'week') {
       // Skip preloading for week view to ensure fresh loads when navigating weeks
       return;
+    } else if (viewType === 'day') {
+      // Preload next day for day view
+      const nextDay = new Date(centerDate);
+      nextDay.setDate(centerDate.getDate() + 1);
+      const nextDayStart = new Date(nextDay);
+      nextDayStart.setHours(0, 0, 0, 0);
+      const nextDayEnd = new Date(nextDay);
+      nextDayEnd.setHours(23, 59, 59, 999);
+
+      // Load in background without blocking
+      getEventsForRange(nextDayStart, nextDayEnd).catch(console.error);
     } else if (viewType === 'month') {
       // Preload next month for month view
       const nextMonthStart = new Date(centerDate.getFullYear(), centerDate.getMonth() + 1, 1);
@@ -207,8 +224,14 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           // For month view: get events for entire month
           startDate = new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(), 1);
           endDate = new Date(effectiveDate.getFullYear(), effectiveDate.getMonth() + 1, 0, 23, 59, 59, 999);
+        } else if (view === 'day') {
+          // For day view: get events for the specific day only
+          startDate = new Date(effectiveDate);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(effectiveDate);
+          endDate.setHours(23, 59, 59, 999);
         } else {
-          // For week/day view: get events for current week
+          // For week view: get events for current week
           startDate = new Date(effectiveDate);
           startDate.setDate(effectiveDate.getDate() - effectiveDate.getDay() + 1);
           endDate = new Date(startDate);
