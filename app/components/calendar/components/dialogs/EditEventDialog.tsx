@@ -42,7 +42,7 @@ export function EditEventDialog({ children, event }: IProps) {
 
   // Recurrence state (RRULE string or null)
   const [recurrence, setRecurrence] = useState<string | null>(null);
-  const [recurrenceCustomMode, setRecurrenceCustomMode] = useState(false);
+  const [showCustomEditor, setShowCustomEditor] = useState(false);
   
   // State for fetched recurrence rule from Google Calendar API
   const [fetchedRecurrenceRule, setFetchedRecurrenceRule] = useState<string | null>(null);
@@ -113,7 +113,17 @@ export function EditEventDialog({ children, event }: IProps) {
   useEffect(() => {
     // Check if event has recurrence data
     if (event.recurrence && event.recurrence.length > 0) {
-      setRecurrence(event.recurrence[0]); // Take the first recurrence rule
+      const rule = event.recurrence[0];
+      setRecurrence(rule);
+      // Check if this is a custom rule (not a preset)
+      const weekly = rruleWeekly(recurrenceInitialStart);
+      const monthly = `RRULE:FREQ=MONTHLY;BYMONTHDAY=${recurrenceInitialStart.getDate()}`;
+      const yearly = `RRULE:FREQ=YEARLY;BYMONTHDAY=${recurrenceInitialStart.getDate()};BYMONTH=${recurrenceInitialStart.getMonth() + 1}`;
+      const weekday = 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+      const presets = new Set<string>(['RRULE:FREQ=DAILY', weekly, monthly, yearly, weekday]);
+      if (!presets.has(rule)) {
+        setShowCustomEditor(true);
+      }
     } 
     // If no recurrence array but has recurringEventId, try to construct from event data
     else if (event.recurringEventId) {
@@ -124,7 +134,7 @@ export function EditEventDialog({ children, event }: IProps) {
       const constructedRule = `RRULE:FREQ=WEEKLY;BYDAY=${dayNames[dayOfWeek]}`;
       setRecurrence(constructedRule);
     }
-  }, [event.recurrence?.length, event.recurringEventId, event.startDate]);
+  }, [event.recurrence?.length, event.recurringEventId, event.startDate, recurrenceInitialStart]);
 
   // Fetch recurrence rule from Google Calendar API if needed
   useEffect(() => {
@@ -134,9 +144,19 @@ export function EditEventDialog({ children, event }: IProps) {
       getGCalEvent(event.recurringEventId)
         .then(masterEvent => {
           if (masterEvent.recurrence && masterEvent.recurrence.length > 0) {
-            setFetchedRecurrenceRule(masterEvent.recurrence[0]);
+            const rule = masterEvent.recurrence[0];
+            setFetchedRecurrenceRule(rule);
             // Also update the main recurrence state
-            setRecurrence(masterEvent.recurrence[0]);
+            setRecurrence(rule);
+            // Check if this is a custom rule (not a preset)
+            const weekly = rruleWeekly(recurrenceInitialStart);
+            const monthly = `RRULE:FREQ=MONTHLY;BYMONTHDAY=${recurrenceInitialStart.getDate()}`;
+            const yearly = `RRULE:FREQ=YEARLY;BYMONTHDAY=${recurrenceInitialStart.getDate()};BYMONTH=${recurrenceInitialStart.getMonth() + 1}`;
+            const weekday = 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
+            const presets = new Set<string>(['RRULE:FREQ=DAILY', weekly, monthly, yearly, weekday]);
+            if (!presets.has(rule)) {
+              setShowCustomEditor(true);
+            }
           }
         })
         .catch(error => {
@@ -146,7 +166,7 @@ export function EditEventDialog({ children, event }: IProps) {
           setIsLoadingRecurrence(false);
         });
     }
-  }, [event.recurringEventId, event.recurrence, fetchedRecurrenceRule, isLoadingRecurrence]);
+  }, [event.recurringEventId, event.recurrence, fetchedRecurrenceRule, isLoadingRecurrence, recurrenceInitialStart]);
 
   const onSubmit = async (values: TEventFormData) => {
     try {
@@ -377,7 +397,7 @@ export function EditEventDialog({ children, event }: IProps) {
               )}
             />
 
-            {/* Recurrence */}
+                        {/* Recurrence */}
             <div className="space-y-2">
               <FormLabel>Repeat</FormLabel>
               {isLoadingRecurrence ? (
@@ -389,7 +409,7 @@ export function EditEventDialog({ children, event }: IProps) {
                 const weekday = 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR';
                 const presets = new Set<string>(['RRULE:FREQ=DAILY', weekly, monthly, yearly, weekday]);
                 const isCustom = !!recurrence && !presets.has(recurrence);
-                const selectValue = recurrenceCustomMode ? '__custom__' : (!recurrence ? '' : (isCustom ? '__custom__' : recurrence));
+                const selectValue = showCustomEditor ? '__custom__' : (!recurrence ? '' : (isCustom ? '__custom__' : recurrence));
                 const customLabel = isCustom ? `Custom — ${summarizeRRule(recurrence!, recurrenceInitialStart)}` : 'Custom…';
                 return (
                   <select
@@ -398,9 +418,12 @@ export function EditEventDialog({ children, event }: IProps) {
                     onChange={(e) => {
                       const v = e.target.value;
                       if (v === '__custom__') {
-                        setRecurrenceCustomMode(true);
+                        setShowCustomEditor(true);
+                        // Set a custom rule to trigger the editor
+                        const customRule = `RRULE:FREQ=WEEKLY;BYDAY=${['SU','MO','TU','WE','TH','FR','SA'][recurrenceInitialStart.getDay()]}`;
+                        setRecurrence(customRule);
                       } else {
-                        setRecurrenceCustomMode(false);
+                        setShowCustomEditor(false);
                         setRecurrence(v || null);
                       }
                     }}
@@ -415,16 +438,17 @@ export function EditEventDialog({ children, event }: IProps) {
                   </select>
                 );
               })()}
-              {recurrenceCustomMode && (
+              {showCustomEditor && (
                 <CustomRecurrenceEditor
                   initialStart={recurrenceInitialStart}
                   notesTheme={notesTheme}
-                  onCancel={() => setRecurrenceCustomMode(false)}
+                  onCancel={() => {
+                    setShowCustomEditor(false);
+                    setRecurrence(null);
+                  }}
                   initialRRule={recurrence || undefined}
-                  onRuleChange={(rule) => setRecurrence(rule)}
                   onDone={(rule) => {
                     setRecurrence(rule || null);
-                    setRecurrenceCustomMode(false);
                   }}
                 />
               )}
@@ -562,12 +586,11 @@ type CustomRecurrenceEditorProps = {
   notesTheme: 'light' | 'dark';
   onCancel: () => void;
   onDone: (rrule: string | null) => void;
-  onRuleChange?: (rrule: string) => void;
   initialRRule?: string;
 };
 
 function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
-  const { initialStart, notesTheme, onCancel, onDone, onRuleChange, initialRRule } = props;
+  const { initialStart, notesTheme, onCancel, onDone, initialRRule } = props;
   const weekdayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
   const [freq, setFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('WEEKLY');
@@ -645,11 +668,7 @@ function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
     return rule;
   }
 
-  useEffect(() => {
-    const r = buildRule();
-    onRuleChange && onRuleChange(r);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freq, interval, days.join(','), endMode, untilDate, count]);
+
 
   const dayChips = ['Su','Mo','Tu','We','Th','Fr','Sa'].map((short, idx) => {
     const d = ['SU','MO','TU','WE','TH','FR','SA'][idx];

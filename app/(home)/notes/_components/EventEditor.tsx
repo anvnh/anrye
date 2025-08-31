@@ -222,7 +222,6 @@ export const EventEditor: React.FC<Props> = ({ open, onClose, initialStart, init
                 notesTheme={notesTheme}
                 onCancel={() => setRecurrenceCustomMode(false)}
                 initialRRule={recurrence || undefined}
-                onRuleChange={(rule) => setRecurrence(rule)}
                 onDone={(rule) => {
                   setRecurrence(rule || null);
                   setRecurrenceCustomMode(false);
@@ -337,8 +336,8 @@ type CustomRecurrenceEditorProps = {
   onDone: (rrule: string | null) => void;
 };
 
-function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps & { onRuleChange?: (rrule: string) => void; initialRRule?: string }) {
-  const { initialStart, notesTheme, onCancel, onDone, onRuleChange, initialRRule } = props;
+function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps & { initialRRule?: string }) {
+  const { initialStart, notesTheme, onCancel, onDone, initialRRule } = props;
   const weekdayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
   const [freq, setFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('WEEKLY');
@@ -424,12 +423,7 @@ function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps & { onRuleCha
     return rule;
   }
 
-  // Keep parent state in sync so pressing Save without "Done" still preserves custom rule
-  React.useEffect(() => {
-    const r = buildRule();
-    onRuleChange && onRuleChange(r);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freq, interval, days.join(','), endMode, untilDate, count]);
+
 
   const dayChips = weekdayMap.map((d, idx) => (
     <button

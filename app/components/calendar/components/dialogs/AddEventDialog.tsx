@@ -423,7 +423,6 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
                   notesTheme={notesTheme}
                   onCancel={() => setRecurrenceCustomMode(false)}
                   initialRRule={recurrence || undefined}
-                  onRuleChange={(rule) => setRecurrence(rule)}
                   onDone={(rule) => {
                     setRecurrence(rule || null);
                     setRecurrenceCustomMode(false);
@@ -534,12 +533,11 @@ type CustomRecurrenceEditorProps = {
   notesTheme: 'light' | 'dark';
   onCancel: () => void;
   onDone: (rrule: string | null) => void;
-  onRuleChange?: (rrule: string) => void;
   initialRRule?: string;
 };
 
 function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
-  const { initialStart, notesTheme, onCancel, onDone, onRuleChange, initialRRule } = props;
+  const { initialStart, notesTheme, onCancel, onDone, initialRRule } = props;
   const weekdayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
   const [freq, setFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('WEEKLY');
@@ -617,11 +615,7 @@ function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
     return rule;
   }
 
-  useEffect(() => {
-    const r = buildRule();
-    onRuleChange && onRuleChange(r);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freq, interval, days.join(','), endMode, untilDate, count]);
+
 
   const dayChips = ['Su','Mo','Tu','We','Th','Fr','Sa'].map((short, idx) => {
     const d = ['SU','MO','TU','WE','TH','FR','SA'][idx];

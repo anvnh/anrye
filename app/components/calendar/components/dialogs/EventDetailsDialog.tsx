@@ -196,16 +196,10 @@ export function EventDetailsDialog({ event, children }: IProps) {
             <div className="flex items-start gap-2">
               <Calendar className="mt-1 size-4 shrink-0" />
               <div>
-                <p className="text-sm font-medium">Start Date</p>
-                <p className="text-sm text-muted-foreground">{format(startDate, "MMM d, yyyy h:mm a")}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <Clock className="mt-1 size-4 shrink-0" />
-              <div>
-                <p className="text-sm font-medium">End Date</p>
-                <p className="text-sm text-muted-foreground">{format(endDate, "MMM d, yyyy h:mm a")}</p>
+                <p className="text-sm font-medium">Date & Time</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(startDate, "MMM d, yyyy")} · {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+                </p>
               </div>
             </div>
 
