@@ -40,6 +40,7 @@ interface NoteNavbarProps {
   onOpenCalendar: () => void;
   isPreviewMode: boolean;
   setIsPreviewMode: (v: boolean) => void;
+  showLastUpdated?: boolean;
 }
 
 const NoteNavbar: React.FC<NoteNavbarProps> = ({
@@ -76,6 +77,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   onOpenCalendar,
   isPreviewMode,
   setIsPreviewMode,
+  showLastUpdated = true,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
@@ -439,10 +441,12 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           </DropdownMenu>
         </div>
       </div>
-      <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
-        <span className="hidden sm:inline">Last updated: </span>
-        {formatLastUpdated(selectedNote.updatedAt)}
-      </p>
+      {showLastUpdated && (
+        <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
+          <span className="hidden sm:inline">Last updated: </span>
+          {formatLastUpdated(selectedNote.updatedAt)}
+        </p>
+      )}
     </div>
   );
 }

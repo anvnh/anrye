@@ -576,112 +576,141 @@ export default function NotesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          {/* Note Header - Always show */}
           {selectedNote ? (
-            <>
-              {/* Note Header */}
-              <NoteNavbar
-                selectedNote={selectedNote}
-                isEditing={isEditing}
-                editTitle={editTitle}
-                setEditTitle={setEditTitle}
-                setIsSplitMode={setIsSplitMode}
-                isSplitMode={isSplitMode}
-                tabSize={tabSize}
-                setTabSize={setTabSize}
-                currentTheme={currentTheme}
-                setCurrentTheme={setCurrentTheme}
-                themeOptions={themeOptions}
-                notesTheme={notesTheme}
-                setNotesTheme={setNotesTheme}
-                fontFamily={fontFamily}
-                setFontFamily={setFontFamily}
-                fontSize={fontSize}
-                setFontSize={setFontSize}
-                previewFontSize={previewFontSize}
-                setPreviewFontSize={setPreviewFontSize}
-                codeBlockFontSize={codeBlockFontSize}
-                setCodeBlockFontSize={setCodeBlockFontSize}
-                saveNote={saveNote}
-                cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
-                startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
-                isMobileSidebarOpen={isMobileSidebarOpen}
-                onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}
-                isSidebarHidden={isSidebarHidden}
-                onToggleSidebar={toggleSidebar}
-                onOpenImageManager={() => setIsImageManagerOpen(true)}
-                onOpenCalendar={() => setIsCalendarOpen(true)}
-                isPreviewMode={isPreviewMode}
-                setIsPreviewMode={setIsPreviewMode}
-              />
-
-              {/* Note Content */}
-              <div
-                className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl notes-surface"
-                style={{
-                  fontFamily: fontFamily,
-                  fontSize: fontSize,
-                  transition: 'font-family 0.2s, font-size 0.2s',
-                }}
-              >
-                <MemoizedNoteContent
-                  isEditing={isEditing}
-                  isSplitMode={isSplitMode}
-                  isPreviewMode={isPreviewMode}
-                  editContent={editContent}
-                  setEditContent={setEditContent}
-                  notes={notes}
-                  selectedNote={selectedNote}
-                  setNotes={setNotes}
-                  setSelectedNote={setSelectedNote}
-                  isSignedIn={isSignedIn}
-                  driveService={driveService}
-                  tabSize={tabSize}
-                  fontSize={fontSize}
-                  previewFontSize={previewFontSize}
-                  codeBlockFontSize={codeBlockFontSize}
-                  setIsLoading={setIsLoading}
-                  setSyncProgress={setSyncProgress}
-                  notesTheme={notesTheme}
-                />
-              </div>
-            </>
+            <NoteNavbar
+              selectedNote={selectedNote}
+              isEditing={isEditing}
+              editTitle={editTitle}
+              setEditTitle={setEditTitle}
+              setIsSplitMode={setIsSplitMode}
+              isSplitMode={isSplitMode}
+              tabSize={tabSize}
+              setTabSize={setTabSize}
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              themeOptions={themeOptions}
+              notesTheme={notesTheme}
+              setNotesTheme={setNotesTheme}
+              fontFamily={fontFamily}
+              setFontFamily={setFontFamily}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
+              previewFontSize={previewFontSize}
+              setPreviewFontSize={setPreviewFontSize}
+              codeBlockFontSize={codeBlockFontSize}
+              setCodeBlockFontSize={setCodeBlockFontSize}
+              saveNote={saveNote}
+              cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
+              startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
+              isMobileSidebarOpen={isMobileSidebarOpen}
+              onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}
+              isSidebarHidden={isSidebarHidden}
+              onToggleSidebar={toggleSidebar}
+              onOpenImageManager={() => setIsImageManagerOpen(true)}
+              onOpenCalendar={() => setIsCalendarOpen(true)}
+              isPreviewMode={isPreviewMode}
+              setIsPreviewMode={setIsPreviewMode}
+            />
           ) : (
-            <>
-              {/* Mobile Header for No Note Selected */}
-              <div className="lg:hidden border-b border-gray-600 px-6 py-4 flex-shrink-0 notes-header">
-                <div className="flex items-center">
-                  <button
-                    onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                    className="p-2 mr-3 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-                    title="Toggle sidebar"
-                  >
-                    <Menu size={20} />
-                  </button>
-                  <h1 className="text-xl font-semibold text-white">Notes</h1>
-                </div>
-              </div>
+            <NoteNavbar
+              selectedNote={{
+                id: 'no-note',
+                title: 'No Note Selected',
+                content: '',
+                path: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                driveFileId: undefined
+              }}
+              isEditing={false}
+              editTitle=""
+              setEditTitle={() => {}}
+              setIsSplitMode={() => {}}
+              isSplitMode={false}
+              tabSize={tabSize}
+              setTabSize={setTabSize}
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              themeOptions={themeOptions}
+              notesTheme={notesTheme}
+              setNotesTheme={setNotesTheme}
+              fontFamily={fontFamily}
+              setFontFamily={setFontFamily}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
+              previewFontSize={previewFontSize}
+              setPreviewFontSize={setPreviewFontSize}
+              codeBlockFontSize={codeBlockFontSize}
+              setCodeBlockFontSize={setCodeBlockFontSize}
+              saveNote={() => {}}
+              cancelEdit={() => {}}
+              startEdit={() => {}}
+              isMobileSidebarOpen={isMobileSidebarOpen}
+              onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              onCloseNote={() => {}}
+              isSidebarHidden={isSidebarHidden}
+              onToggleSidebar={toggleSidebar}
+              onOpenImageManager={() => setIsImageManagerOpen(true)}
+              onOpenCalendar={() => setIsCalendarOpen(true)}
+              isPreviewMode={false}
+              setIsPreviewMode={() => {}}
+              showLastUpdated={false}
+            />
+          )}
 
-              <div className="flex-1 flex items-center justify-center relative notes-surface">
-                {/* Floating sidebar toggle button */}
-                {isSidebarHidden && (
-                  <button
-                    onClick={toggleSidebar}
-                    className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 shadow-lg backdrop-blur-sm"
-                    title="Show sidebar"
-                  >
-                    <PanelLeftOpen size={16} />
-                    <span className="text-sm">Sidebar</span>
-                  </button>
-                )}
+          {/* Note Content */}
+          {selectedNote ? (
+            <div
+              className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl notes-surface"
+              style={{
+                fontFamily: fontFamily,
+                fontSize: fontSize,
+                transition: 'font-family 0.2s, font-size 0.2s',
+              }}
+            >
+              <MemoizedNoteContent
+                isEditing={isEditing}
+                isSplitMode={isSplitMode}
+                isPreviewMode={isPreviewMode}
+                editContent={editContent}
+                setEditContent={setEditContent}
+                notes={notes}
+                selectedNote={selectedNote}
+                setNotes={setNotes}
+                setSelectedNote={setSelectedNote}
+                isSignedIn={isSignedIn}
+                driveService={driveService}
+                tabSize={tabSize}
+                fontSize={fontSize}
+                previewFontSize={previewFontSize}
+                codeBlockFontSize={codeBlockFontSize}
+                setIsLoading={setIsLoading}
+                setSyncProgress={setSyncProgress}
+                notesTheme={notesTheme}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center relative notes-surface">
+              {/* Floating sidebar toggle button */}
+              {isSidebarHidden && (
+                <button
+                  onClick={toggleSidebar}
+                  className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white rounded-lg transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 shadow-lg backdrop-blur-sm"
+                  title="Show sidebar"
+                >
+                  <PanelLeftOpen size={16} />
+                  <span className="text-sm">Sidebar</span>
+                </button>
+              )}
 
-                <div className="text-center">
-                  <FileText size={64} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-300 text-lg">Select a note to start reading</p>
-                  <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
-                </div>
+              <div className="text-center">
+                <FileText size={64} className="text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-300 text-lg">Select a note to start reading</p>
+                <p className="text-gray-500 text-sm mt-2">Create a new note or select an existing one from the sidebar</p>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
