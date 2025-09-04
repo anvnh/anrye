@@ -118,8 +118,10 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           // For week view: get events for current week
           startDate = new Date(date);
           startDate.setDate(date.getDate() - date.getDay() + 1);
+          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(startDate);
-          endDate.setDate(startDate.getDate() + 7);
+          endDate.setDate(startDate.getDate() + 6);
+          endDate.setHours(23, 59, 59, 999);
         }
         
         const data = await getEventsForRange(startDate, endDate, viewType === 'week');
@@ -234,8 +236,10 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           // For week view: get events for current week
           startDate = new Date(effectiveDate);
           startDate.setDate(effectiveDate.getDate() - effectiveDate.getDay() + 1);
+          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(startDate);
-          endDate.setDate(startDate.getDate() + 7);
+          endDate.setDate(startDate.getDate() + 6);
+          endDate.setHours(23, 59, 59, 999);
         }
         
         // Get events for the calculated range (always fresh for week view)

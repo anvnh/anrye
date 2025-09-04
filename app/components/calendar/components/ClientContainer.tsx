@@ -48,7 +48,7 @@ export function ClientContainer({ view, onViewChange, loading = false, onDateCha
         const dayOfWeek = selectedDate.getDay();
 
         const weekStart = new Date(selectedDate);
-        weekStart.setDate(selectedDate.getDate() - dayOfWeek);
+        weekStart.setDate(selectedDate.getDate() - dayOfWeek + 1); // Start from Monday
         weekStart.setHours(0, 0, 0, 0);
 
         const weekEnd = new Date(weekStart);
@@ -94,14 +94,16 @@ export function ClientContainer({ view, onViewChange, loading = false, onDateCha
   }, [filteredEvents]);
 
   return (
-    <div className="overflow-hidden rounded-xl border-none">
+    <div className="h-full flex flex-col overflow-hidden rounded-xl border-none">
       <CalendarHeader view={view} events={filteredEvents} onViewChange={onViewChange} loading={loading} onDateChange={onDateChange} onClose={onClose} />
 
+      <div className="flex-1 overflow-auto">
         {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} onDateChange={onDateChange} />}
         {view === "month" && <CalendarMonthView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "week" && <CalendarWeekView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
         {view === "year" && <CalendarYearView allEvents={eventStartDates} />}
         {view === "agenda" && <CalendarAgendaView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+      </div>
     </div>
   );
 }

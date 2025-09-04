@@ -50,8 +50,8 @@ export function rangeText(view: TCalendarView, date: Date) {
       end = endOfMonth(date);
       break;
     case "week":
-      start = startOfWeek(date);
-      end = endOfWeek(date);
+      start = startOfWeek(date, { weekStartsOn: 1 });
+      end = endOfWeek(date, { weekStartsOn: 1 });
       break;
     case "day":
       return format(date, formatString);

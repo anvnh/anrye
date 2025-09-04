@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Columns, Grid3x3, List, Plus, Grid2x2, CalendarRange, Loader2, Settings, X } from "lucide-react";
+import { Columns, Grid3x3, List, Plus, Grid2x2, CalendarRange, Loader2, Settings, X, RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,7 +13,9 @@ import type { IEvent } from "../../interfaces";
 import type { TCalendarView } from "../../types";
 
 import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useCalendar } from "../../contexts/CalendarContext";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface IProps {
   view: TCalendarView;
@@ -27,6 +29,7 @@ interface IProps {
 export function CalendarHeader({ view, events, onViewChange, loading = false, onDateChange, onClose }: IProps) {
 
   const { notesTheme } = useThemeSettings();
+  const { setSelectedDate } = useCalendar();
 
   return (
     <div className={cn(
@@ -35,6 +38,22 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
     )}>
       <div className="flex items-center gap-3">
         <TodayButton />
+
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "border-none px-5 py-3 cursor-pointer",
+            notesTheme === "light" ? "light-bg-calendar-button text-black" : "bg-calendar-button-with-hover text-white"
+          )}
+          onClick={() => {
+            const today = new Date();
+            setSelectedDate(today);
+            onDateChange?.(today);
+          }}
+        >
+          Today
+        </Badge>
+
         <DateNavigator view={view} events={events} onDateChange={onDateChange} />
         {loading && (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
