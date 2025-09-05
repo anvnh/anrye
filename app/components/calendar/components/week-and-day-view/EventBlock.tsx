@@ -18,22 +18,22 @@ const calendarWeekEventCardVariants = cva(
     variants: {
       color: {
         // Colored and mixed variants
-        blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 [&_.event-dot]:fill-blue-600",
-        green: "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300 [&_.event-dot]:fill-green-600",
-        red: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300 [&_.event-dot]:fill-red-600",
-        yellow: "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300 [&_.event-dot]:fill-yellow-600",
-        purple: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300 [&_.event-dot]:fill-purple-600",
-        orange: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300 [&_.event-dot]:fill-orange-600",
-        gray: "border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 [&_.event-dot]:fill-neutral-600",
+        blue: "",
+        green: "",
+        red: "",
+        yellow: "",
+        purple: "",
+        orange: "",
+        gray: "",
 
         // Dot variants
-        "blue-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-blue-600",
-        "green-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-green-600",
-        "red-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-red-600",
-        "orange-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-orange-600",
-        "purple-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-purple-600",
-        "yellow-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-yellow-600",
-        "gray-dot": "bg-neutral-50 dark:bg-neutral-900 [&_.event-dot]:fill-neutral-600",
+        "blue-dot": "",
+        "green-dot": "",
+        "red-dot": "",
+        "orange-dot": "",
+        "purple-dot": "",
+        "yellow-dot": "",
+        "gray-dot": "",
       },
     },
     defaultVariants: {
@@ -63,25 +63,25 @@ export function EventBlock({ event, className }: IProps) {
       // Colored variants with theme-aware colors
       blue: isLight 
         ? "border-blue-200 bg-blue-50 text-blue-700 [&_.event-dot]:fill-blue-600" 
-        : "border-blue-800 bg-[#A7D8FF] text-black [&_.event-dot]:fill-blue-400",
+        : "border-blue-800 bg-[#93C5FD] text-black [&_.event-dot]:fill-blue-400",
       green: isLight 
         ? "border-green-200 bg-green-50 text-green-700 [&_.event-dot]:fill-green-600" 
-        : "border-green-800 bg-[#C3FBD8] text-black [&_.event-dot]:fill-green-400",
+        : "border-green-800 bg-[#86EFAC] text-black [&_.event-dot]:fill-green-400",
       red: isLight 
         ? "border-red-200 bg-red-50 text-red-700 [&_.event-dot]:fill-red-600" 
-        : "border-red-800 bg-red-950 text-red-300 [&_.event-dot]:fill-red-400",
+        : "border-red-800 bg-[#FCA5A5] text-black [&_.event-dot]:fill-red-400",
       yellow: isLight 
         ? "border-yellow-200 bg-yellow-50 text-yellow-700 [&_.event-dot]:fill-yellow-600" 
-        : "border-yellow-800 bg-yellow-950 text-yellow-300 [&_.event-dot]:fill-yellow-400",
+        : "border-yellow-800 bg-[#FDE68A] text-black [&_.event-dot]:fill-yellow-400",
       purple: isLight 
         ? "border-purple-200 bg-purple-50 text-purple-700 [&_.event-dot]:fill-purple-600" 
         : "border-purple-800 bg-[#CBAACB] text-black [&_.event-dot]:fill-purple-400",
       orange: isLight 
         ? "border-orange-200 bg-orange-50 text-orange-700 [&_.event-dot]:fill-orange-600" 
-        : "border-orange-800 bg-orange-950 text-orange-300 [&_.event-dot]:fill-orange-400",
+        : "border-orange-800 bg-[#FDBA74] text-black [&_.event-dot]:fill-orange-400",
       gray: isLight 
         ? "border-neutral-200 bg-neutral-50 text-neutral-700 [&_.event-dot]:fill-neutral-600" 
-        : "border-neutral-700 bg-neutral-900 text-neutral-300 [&_.event-dot]:fill-neutral-400",
+        : "border-neutral-700 bg-[#CBD5E1] text-black [&_.event-dot]:fill-neutral-400",
 
       // Dot variants with theme-aware backgrounds
       "blue-dot": isLight 

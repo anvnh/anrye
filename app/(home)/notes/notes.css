@@ -148,47 +148,247 @@ textarea:focus {
      | ... |
    </div>
    Only specified columns get fixed widths; horizontal scroll still works. */
-.md-table table th:nth-child(1),
-.md-table table td:nth-child(1) { width: var(--col-1, auto); min-width: var(--col-1, auto); }
-.md-table table th:nth-child(2),
-.md-table table td:nth-child(2) { width: var(--col-2, auto); min-width: var(--col-2, auto); }
-.md-table table th:nth-child(3),
-.md-table table td:nth-child(3) { width: var(--col-3, auto); min-width: var(--col-3, auto); }
-.md-table table th:nth-child(4),
-.md-table table td:nth-child(4) { width: var(--col-4, auto); min-width: var(--col-4, auto); }
-.md-table table th:nth-child(5),
-.md-table table td:nth-child(5) { width: var(--col-5, auto); min-width: var(--col-5, auto); }
-.md-table table th:nth-child(6),
-.md-table table td:nth-child(6) { width: var(--col-6, auto); min-width: var(--col-6, auto); }
-.md-table table th:nth-child(7),
-.md-table table td:nth-child(7) { width: var(--col-7, auto); min-width: var(--col-7, auto); }
-.md-table table th:nth-child(8),
-.md-table table td:nth-child(8) { width: var(--col-8, auto); min-width: var(--col-8, auto); }
-.md-table table th:nth-child(9),
-.md-table table td:nth-child(9) { width: var(--col-9, auto); min-width: var(--col-9, auto); }
-.md-table table th:nth-child(10),
-.md-table table td:nth-child(10) { width: var(--col-10, auto); min-width: var(--col-10, auto); }
-.md-table table th:nth-child(11),
-.md-table table td:nth-child(11) { width: var(--col-11, auto); min-width: var(--col-11, auto); }
-.md-table table th:nth-child(12),
-.md-table table td:nth-child(12) { width: var(--col-12, auto); min-width: var(--col-12, auto); }
-.md-table table th:nth-child(13),
-.md-table table td:nth-child(13) { width: var(--col-13, auto); min-width: var(--col-13, auto); }
-.md-table table th:nth-child(14),
-.md-table table td:nth-child(14) { width: var(--col-14, auto); min-width: var(--col-14, auto); }
-.md-table table th:nth-child(15),
-.md-table table td:nth-child(15) { width: var(--col-15, auto); min-width: var(--col-15, auto); }
-.md-table table th:nth-child(16),
-.md-table table td:nth-child(16) { width: var(--col-16, auto); min-width: var(--col-16, auto); }
-.md-table table th:nth-child(17),
-.md-table table td:nth-child(17) { width: var(--col-17, auto); min-width: var(--col-17, auto); }
-.md-table table th:nth-child(18),
-.md-table table td:nth-child(18) { width: var(--col-18, auto); min-width: var(--col-18, auto); }
-.md-table table th:nth-child(19),
-.md-table table td:nth-child(19) { width: var(--col-19, auto); min-width: var(--col-19, auto); }
-.md-table table th:nth-child(20),
-.md-table table td:nth-child(20) { width: var(--col-20, auto); min-width: var(--col-20, auto); }
 
-/* Keep long content from forcing cell expansion when widths are set */
+/* Ensure table container allows horizontal scrolling */
+.md-table {
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* Prevent table from stretching to full container width unnecessarily */
+.md-table table {
+  width: auto;
+  min-width: max-content;
+}
+/* Column width control with proper text wrapping */
+.md-table table th:nth-child(1),
+.md-table table td:nth-child(1) { 
+  width: var(--col-1, auto); 
+  min-width: var(--col-1, auto); 
+}
+.md-table table th:nth-child(2),
+.md-table table td:nth-child(2) { 
+  width: var(--col-2, auto); 
+  min-width: var(--col-2, auto); 
+}
+.md-table table th:nth-child(3),
+.md-table table td:nth-child(3) { 
+  width: var(--col-3, auto); 
+  min-width: var(--col-3, auto); 
+}
+.md-table table th:nth-child(4),
+.md-table table td:nth-child(4) { 
+  width: var(--col-4, auto); 
+  min-width: var(--col-4, auto); 
+}
+.md-table table th:nth-child(5),
+.md-table table td:nth-child(5) { 
+  width: var(--col-5, auto); 
+  min-width: var(--col-5, auto); 
+}
+.md-table table th:nth-child(6),
+.md-table table td:nth-child(6) { 
+  width: var(--col-6, auto); 
+  min-width: var(--col-6, auto); 
+}
+.md-table table th:nth-child(7),
+.md-table table td:nth-child(7) { 
+  width: var(--col-7, auto); 
+  min-width: var(--col-7, auto); 
+}
+.md-table table th:nth-child(8),
+.md-table table td:nth-child(8) { 
+  width: var(--col-8, auto); 
+  min-width: var(--col-8, auto); 
+}
+.md-table table th:nth-child(9),
+.md-table table td:nth-child(9) { 
+  width: var(--col-9, auto); 
+  min-width: var(--col-9, auto); 
+}
+.md-table table th:nth-child(10),
+.md-table table td:nth-child(10) { 
+  width: var(--col-10, auto); 
+  min-width: var(--col-10, auto); 
+}
+.md-table table th:nth-child(11),
+.md-table table td:nth-child(11) { 
+  width: var(--col-11, auto); 
+  min-width: var(--col-11, auto); 
+}
+.md-table table th:nth-child(12),
+.md-table table td:nth-child(12) { 
+  width: var(--col-12, auto); 
+  min-width: var(--col-12, auto); 
+}
+.md-table table th:nth-child(13),
+.md-table table td:nth-child(13) { 
+  width: var(--col-13, auto); 
+  min-width: var(--col-13, auto); 
+}
+.md-table table th:nth-child(14),
+.md-table table td:nth-child(14) { 
+  width: var(--col-14, auto); 
+  min-width: var(--col-14, auto); 
+}
+.md-table table th:nth-child(15),
+.md-table table td:nth-child(15) { 
+  width: var(--col-15, auto); 
+  min-width: var(--col-15, auto); 
+}
+.md-table table th:nth-child(16),
+.md-table table td:nth-child(16) { 
+  width: var(--col-16, auto); 
+  min-width: var(--col-16, auto); 
+}
+.md-table table th:nth-child(17),
+.md-table table td:nth-child(17) { 
+  width: var(--col-17, auto); 
+  min-width: var(--col-17, auto); 
+}
+.md-table table th:nth-child(18),
+.md-table table td:nth-child(18) { 
+  width: var(--col-18, auto); 
+  min-width: var(--col-18, auto); 
+}
+.md-table table th:nth-child(19),
+.md-table table td:nth-child(19) { 
+  width: var(--col-19, auto); 
+  min-width: var(--col-19, auto); 
+}
+.md-table table th:nth-child(20),
+.md-table table td:nth-child(20) { 
+  width: var(--col-20, auto); 
+  min-width: var(--col-20, auto); 
+}
+
+/* Default behavior: no text wrapping for auto-width columns */
 .md-table table th,
-.md-table table td { white-space: nowrap; }
+.md-table table td { 
+  white-space: nowrap; 
+}
+
+/* Allow text wrapping ONLY for columns with explicit width settings */
+.md-table[style*="--col-1"] table th:nth-child(1),
+.md-table[style*="--col-1"] table td:nth-child(1) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-2"] table th:nth-child(2),
+.md-table[style*="--col-2"] table td:nth-child(2) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-3"] table th:nth-child(3),
+.md-table[style*="--col-3"] table td:nth-child(3) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-4"] table th:nth-child(4),
+.md-table[style*="--col-4"] table td:nth-child(4) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-5"] table th:nth-child(5),
+.md-table[style*="--col-5"] table td:nth-child(5) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-6"] table th:nth-child(6),
+.md-table[style*="--col-6"] table td:nth-child(6) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-7"] table th:nth-child(7),
+.md-table[style*="--col-7"] table td:nth-child(7) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-8"] table th:nth-child(8),
+.md-table[style*="--col-8"] table td:nth-child(8) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-9"] table th:nth-child(9),
+.md-table[style*="--col-9"] table td:nth-child(9) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-10"] table th:nth-child(10),
+.md-table[style*="--col-10"] table td:nth-child(10) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-11"] table th:nth-child(11),
+.md-table[style*="--col-11"] table td:nth-child(11) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-12"] table th:nth-child(12),
+.md-table[style*="--col-12"] table td:nth-child(12) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-13"] table th:nth-child(13),
+.md-table[style*="--col-13"] table td:nth-child(13) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-14"] table th:nth-child(14),
+.md-table[style*="--col-14"] table td:nth-child(14) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-15"] table th:nth-child(15),
+.md-table[style*="--col-15"] table td:nth-child(15) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-16"] table th:nth-child(16),
+.md-table[style*="--col-16"] table td:nth-child(16) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-17"] table th:nth-child(17),
+.md-table[style*="--col-17"] table td:nth-child(17) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-18"] table th:nth-child(18),
+.md-table[style*="--col-18"] table td:nth-child(18) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-19"] table th:nth-child(19),
+.md-table[style*="--col-19"] table td:nth-child(19) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.md-table[style*="--col-20"] table th:nth-child(20),
+.md-table[style*="--col-20"] table td:nth-child(20) { 
+  white-space: normal; 
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* For columns with specific widths, allow text wrapping.
+   For columns without specific widths, keep nowrap behavior. */
