@@ -90,14 +90,33 @@ export const useDriveSync = (
             if (!existingNote && !existingByTitlePath) {
               // Load content and create new note
               driveService.getFile(file.id).then((content: string) => {
+                let noteContent = content;
+                let isEncrypted = false;
+                let encryptedData = undefined;
+
+                // Check if content is encrypted
+                try {
+                  const parsed = JSON.parse(content);
+                  if (parsed.encrypted === true && parsed.data) {
+                    isEncrypted = true;
+                    encryptedData = parsed.data;
+                    // For encrypted notes, we show placeholder content locally
+                    noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
+                  }
+                } catch (e) {
+                  // Not JSON, treat as regular content
+                }
+
                 const newNote: Note = {
                   id: Date.now().toString() + Math.random(),
                   title: noteTitle,
-                  content: content,
+                  content: noteContent,
                   path: notePath,
                   driveFileId: file.id,
                   createdAt: file.createdTime,
-                  updatedAt: file.modifiedTime
+                  updatedAt: file.modifiedTime,
+                  isEncrypted,
+                  encryptedData
                 };
 
                 setNotes(currentNotes => {
@@ -124,16 +143,37 @@ export const useDriveSync = (
                 setNotes(currentNotes => {
                   const currentNote = currentNotes.find(n => n.driveFileId === file.id);
                   if (currentNote) {
-                    const needsUpdate = currentNote.content !== content || currentNote.title !== noteTitle;
+                    let noteContent = content;
+                    let isEncrypted = false;
+                    let encryptedData = undefined;
+
+                    // Check if content is encrypted
+                    try {
+                      const parsed = JSON.parse(content);
+                      if (parsed.encrypted === true && parsed.data) {
+                        isEncrypted = true;
+                        encryptedData = parsed.data;
+                        // For encrypted notes, we show placeholder content locally
+                        noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
+                      }
+                    } catch (e) {
+                      // Not JSON, treat as regular content
+                    }
+
+                    const needsUpdate = currentNote.content !== noteContent || 
+                                       currentNote.title !== noteTitle ||
+                                       currentNote.isEncrypted !== isEncrypted;
                     if (needsUpdate) {
-                      // Update if content or title changed
+                      // Update if content, title, or encryption status changed
                       return currentNotes.map(n => 
                         n.driveFileId === file.id 
                           ? { 
                               ...n, 
                               title: noteTitle, // Update title if changed
-                              content: content,
-                              updatedAt: file.modifiedTime 
+                              content: noteContent,
+                              updatedAt: file.modifiedTime,
+                              isEncrypted,
+                              encryptedData
                             } 
                           : n
                       );
@@ -345,14 +385,33 @@ export const useDriveSync = (
           setNotes(prevNotes => {
             const existingNote = prevNotes.find(n => n.driveFileId === file.id);
             if (!existingNote) {
+              let noteContent = content;
+              let isEncrypted = false;
+              let encryptedData = undefined;
+
+              // Check if content is encrypted
+              try {
+                const parsed = JSON.parse(content);
+                if (parsed.encrypted === true && parsed.data) {
+                  isEncrypted = true;
+                  encryptedData = parsed.data;
+                  // For encrypted notes, we show placeholder content locally
+                  noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
+                }
+              } catch (e) {
+                // Not JSON, treat as regular content
+              }
+
               const newNote: Note = {
                 id: Date.now().toString() + Math.random(),
                 title: noteTitle,
-                content: content,
+                content: noteContent,
                 path: notePath,
                 driveFileId: file.id,
                 createdAt: file.createdTime,
-                updatedAt: file.modifiedTime
+                updatedAt: file.modifiedTime,
+                isEncrypted,
+                encryptedData
               };
               return [...prevNotes, newNote];
             }

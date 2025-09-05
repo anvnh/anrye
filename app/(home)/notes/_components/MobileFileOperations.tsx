@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, FolderPlus, FileText, Edit, Trash2, Plus, X, Move, Star } from 'lucide-react';
+import { MoreVertical, FolderPlus, FileText, Edit, Trash2, Plus, X, Move, Star, Lock, Unlock } from 'lucide-react';
 import { Note, Folder } from './types';
+import { NoteEncryptionDialog } from './NoteEncryption';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -30,6 +31,8 @@ interface MobileFileOperationsProps {
   onMoveItem?: (item: Note | Folder, itemType: 'note' | 'folder') => void;
   isPinned?: boolean;
   onTogglePin?: (item: Note | Folder, itemType: 'note' | 'folder') => void;
+  onEncryptNote?: (noteId: string, encryptedData: any) => void;
+  onDecryptNote?: (noteId: string, decryptedContent: string) => void;
 }
 
 // Three-dot menu for individual items using Radix UI DropdownMenu
@@ -44,7 +47,9 @@ export function MobileItemMenu({
   onSetIsMobileSidebarOpen,
   onMoveItem,
   isPinned,
-  onTogglePin
+  onTogglePin,
+  onEncryptNote,
+  onDecryptNote
 }: MobileFileOperationsProps) {
   if (!item) return null;
 
@@ -151,6 +156,38 @@ export function MobileItemMenu({
               >
                 <Move size={16} className="mr-2" />
                 Move
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-gray-600" />
+              <DropdownMenuItem
+                className="hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white p-0"
+                onClick={(e) => e.preventDefault()}
+              >
+                <NoteEncryptionDialog
+                  noteContent={(item as Note).content}
+                  isEncrypted={(item as Note).isEncrypted || false}
+                  encryptedData={(item as Note).encryptedData}
+                  onEncrypt={(encryptedData) => {
+                    onEncryptNote?.((item as Note).id, encryptedData);
+                  }}
+                  onDecrypt={(decryptedContent) => {
+                    onDecryptNote?.((item as Note).id, decryptedContent);
+                  }}
+                  trigger={
+                    <div className="flex items-center w-full px-3 py-2 hover:bg-gray-700 hover:text-white">
+                      {(item as Note).isEncrypted ? (
+                        <>
+                          <Unlock size={16} className="mr-2" />
+                          Decrypt Note
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={16} className="mr-2" />
+                          Encrypt Note
+                        </>
+                      )}
+                    </div>
+                  }
+                />
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-gray-600" />
               <DropdownMenuItem

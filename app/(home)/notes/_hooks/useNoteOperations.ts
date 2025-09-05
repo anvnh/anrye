@@ -164,8 +164,19 @@ export const useNoteOperations = (
         try {
           if (selectedNote.driveFileId) {
             setSyncProgress(50);
+            
+            // Determine what content to save to Drive
+            let driveContent = editContent;
+            if (selectedNote.isEncrypted && selectedNote.encryptedData) {
+              // For encrypted notes, save the encrypted data to Drive
+              driveContent = JSON.stringify({
+                encrypted: true,
+                data: selectedNote.encryptedData
+              });
+            }
+            
             // Try to update existing file
-            await driveService.updateFile(selectedNote.driveFileId, editContent);
+            await driveService.updateFile(selectedNote.driveFileId, driveContent);
             
             // If title changed, also rename the file
             if (selectedNote.title !== newTitle) {

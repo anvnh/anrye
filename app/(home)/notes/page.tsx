@@ -449,6 +449,106 @@ export default function NotesPage() {
     setEditContent(note.content);
   };
 
+  // Encryption handlers
+  const handleEncryptNote = async (noteId: string, encryptedData: any) => {
+    try {
+      setIsLoading(true);
+      setSyncProgress(10);
+
+      const noteToEncrypt = notes.find(n => n.id === noteId);
+      if (!noteToEncrypt) return;
+
+      // Create encrypted note with encrypted content for Google Drive
+      const encryptedContent = JSON.stringify({
+        encrypted: true,
+        data: encryptedData
+      });
+
+      const updatedNote = {
+        ...noteToEncrypt,
+        isEncrypted: true,
+        encryptedData,
+        // Keep original content for local display, but this will be overridden for Drive
+        updatedAt: new Date().toISOString()
+      };
+
+      setSyncProgress(50);
+
+      // Update in Drive with encrypted content if signed in
+      if (isSignedIn && noteToEncrypt.driveFileId) {
+        try {
+          await driveService.updateFile(noteToEncrypt.driveFileId, encryptedContent);
+          setSyncProgress(80);
+        } catch (error) {
+          console.error('Failed to update encrypted note in Drive:', error);
+        }
+      }
+
+      // Update local notes
+      setNotes(notes.map(note => note.id === noteId ? updatedNote : note));
+      
+      // Update selected note if it's the one being encrypted
+      if (selectedNote?.id === noteId) {
+        setSelectedNote(updatedNote);
+      }
+
+      setSyncProgress(100);
+      setTimeout(() => setSyncProgress(0), 500);
+    } catch (error) {
+      console.error('Failed to encrypt note:', error);
+      setSyncProgress(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDecryptNote = async (noteId: string, decryptedContent: string) => {
+    try {
+      setIsLoading(true);
+      setSyncProgress(10);
+
+      const noteToDecrypt = notes.find(n => n.id === noteId);
+      if (!noteToDecrypt) return;
+
+      const updatedNote = {
+        ...noteToDecrypt,
+        content: decryptedContent,
+        isEncrypted: false,
+        encryptedData: undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      setSyncProgress(50);
+
+      // Update in Drive with decrypted content if signed in
+      if (isSignedIn && noteToDecrypt.driveFileId) {
+        try {
+          await driveService.updateFile(noteToDecrypt.driveFileId, decryptedContent);
+          setSyncProgress(80);
+        } catch (error) {
+          console.error('Failed to update decrypted note in Drive:', error);
+        }
+      }
+
+      // Update local notes
+      setNotes(notes.map(note => note.id === noteId ? updatedNote : note));
+      
+      // Update selected note if it's the one being decrypted
+      if (selectedNote?.id === noteId) {
+        setSelectedNote(updatedNote);
+        setEditContent(decryptedContent);
+      }
+
+      setSyncProgress(100);
+      setTimeout(() => setSyncProgress(0), 500);
+    } catch (error) {
+      console.error('Failed to decrypt note:', error);
+      setSyncProgress(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const requestSelectNote = (note: Note) => {
     if (!note) return;
     if (hasUnsavedChanges) {
@@ -528,6 +628,8 @@ export default function NotesPage() {
             window.location.href = `/api/auth/google?origin=${origin}`;
           }}
           onSignOut={signOut}
+          onEncryptNote={handleEncryptNote}
+          onDecryptNote={handleDecryptNote}
           notesTheme={notesTheme}
         />
 
@@ -602,7 +704,13 @@ export default function NotesPage() {
               setCodeBlockFontSize={setCodeBlockFontSize}
               saveNote={saveNote}
               cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
-              startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
+              startEdit={() => {
+                if (selectedNote?.isEncrypted) {
+                  alert('This note is encrypted. Please decrypt it first before editing.');
+                  return;
+                }
+                startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode);
+              }}
               isMobileSidebarOpen={isMobileSidebarOpen}
               onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
               onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}

@@ -6,6 +6,15 @@ export interface Note {
   driveFileId?: string;
   createdAt: string;
   updatedAt: string;
+  isEncrypted?: boolean;
+  encryptedData?: {
+    data: string;
+    iv: string;
+    salt: string;
+    tag: string;
+    algorithm: string;
+    iterations: number;
+  };
 }
 
 export interface Folder {
@@ -74,5 +83,7 @@ export interface NoteSidebarProps {
   onClearCacheAndSync?: () => void;
   onSignIn?: () => void;
   onSignOut?: () => void;
+  onEncryptNote?: (noteId: string, encryptedData: any) => void;
+  onDecryptNote?: (noteId: string, decryptedContent: string) => void;
   notesTheme: 'light' | 'dark';
 }

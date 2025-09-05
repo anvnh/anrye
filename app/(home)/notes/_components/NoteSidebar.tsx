@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '@/app/lib/hooks/useDebounce';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search, Lock, Unlock, Shield } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/context-menu';
 import { NoteSidebarProps, Note, Folder } from './types';
 import { MobileItemMenu } from './MobileFileOperations';
+import { NoteEncryptionDialog, EncryptionStatusBadge } from './NoteEncryption';
 import MoveDrawer from './MoveDrawer';
 import { ImagesSection } from './ImagesSection';
 import {
@@ -61,6 +62,8 @@ export default function NoteSidebar({
   onClearCacheAndSync,
   onSignIn,
   onSignOut,
+  onEncryptNote,
+  onDecryptNote,
   notesTheme,
 }: NoteSidebarProps) {
 
@@ -603,10 +606,15 @@ export default function NoteSidebar({
                     className="text-gray-300 text-sm flex-1 truncate min-w-0 flex items-center gap-1 justify-between"
                     title={note.title}
                   >
-                    {note.title}
-                    {pinnedNoteIds.has(note.id) && (
-                      <Star size={12} className="text-yellow-400 flex-shrink-0" />
-                    )}
+                    <span className="truncate">{note.title}</span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {note.isEncrypted && (
+                        <EncryptionStatusBadge isEncrypted={true} className="text-xs px-1 py-0" />
+                      )}
+                      {pinnedNoteIds.has(note.id) && (
+                        <Star size={12} className="text-yellow-400" />
+                      )}
+                    </div>
                   </span>
                   <div className="flex-shrink-0 ml-2">
                     <MobileItemMenu
@@ -619,6 +627,8 @@ export default function NoteSidebar({
                       onSetIsMobileSidebarOpen={onSetIsMobileSidebarOpen}
                       onTogglePin={(it) => togglePin(it as Note, 'note')}
                       onMoveItem={handleMobileMove}
+                      onEncryptNote={onEncryptNote}
+                      onDecryptNote={onDecryptNote}
                     />
                   </div>
                 </div>
@@ -657,6 +667,38 @@ export default function NoteSidebar({
                 >
                   <Type size={16} className="mr-2" />
                   Rename Note
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-gray-600 mx-1" />
+                <ContextMenuItem
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <NoteEncryptionDialog
+                    noteContent={note.content}
+                    isEncrypted={note.isEncrypted || false}
+                    encryptedData={note.encryptedData}
+                    onEncrypt={(encryptedData) => {
+                      onEncryptNote?.(note.id, encryptedData);
+                    }}
+                    onDecrypt={(decryptedContent) => {
+                      onDecryptNote?.(note.id, decryptedContent);
+                    }}
+                    trigger={
+                      <div className="flex items-center w-full">
+                        {note.isEncrypted ? (
+                          <>
+                            <Unlock size={16} className="mr-4" />
+                            Decrypt Note
+                          </>
+                        ) : (
+                          <>
+                            <Lock size={16} className="mr-4" />
+                            Encrypt Note
+                          </>
+                        )}
+                      </div>
+                    }
+                  />
                 </ContextMenuItem>
                 <ContextMenuSeparator className="bg-gray-600 mx-1" />
                 <ContextMenuItem
