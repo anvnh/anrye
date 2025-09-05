@@ -688,12 +688,12 @@ export default function NoteSidebar({
                         {note.isEncrypted ? (
                           <>
                             <Unlock size={16} className="mr-4" />
-                            Decrypt Note
+                            Decrypt
                           </>
                         ) : (
                           <>
                             <Lock size={16} className="mr-4" />
-                            Encrypt Note
+                            Encrypt
                           </>
                         )}
                       </div>

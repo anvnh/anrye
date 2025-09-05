@@ -177,12 +177,12 @@ export function MobileItemMenu({
                       {(item as Note).isEncrypted ? (
                         <>
                           <Unlock size={16} className="mr-2" />
-                          Decrypt Note
+                          Remove Encryption
                         </>
                       ) : (
                         <>
                           <Lock size={16} className="mr-2" />
-                          Encrypt Note
+                          Encrypt for Drive
                         </>
                       )}
                     </div>

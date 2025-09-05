@@ -51,23 +51,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   // Right sidebar now only shows backlinks; calendar moved to modal
 
   // Determine which content should be rendered (unsaved edits if provided)
-  let contentToRender = overrideContent ?? selectedNote.content;
-  
-  // If note is encrypted and no override content, show encrypted message
-  if (selectedNote.isEncrypted && !overrideContent) {
-    contentToRender = `# 🔒 Encrypted Note
-
-This note is encrypted and protected. The content is securely stored and can only be viewed after decryption.
-
-**To view this note:**
-1. Right-click on the note in the sidebar
-2. Select "Decrypt Note"
-3. Enter your password
-
----
-
-*The encrypted content is safely stored on Google Drive and cannot be accessed without the correct password.*`;
-  }
+  const contentToRender = overrideContent ?? selectedNote.content;
 
   // Check if the note has headings
   const hasOutline = useMemo(() => hasHeadings(contentToRender), [contentToRender]);

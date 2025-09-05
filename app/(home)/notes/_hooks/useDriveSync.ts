@@ -100,8 +100,18 @@ export const useDriveSync = (
                   if (parsed.encrypted === true && parsed.data) {
                     isEncrypted = true;
                     encryptedData = parsed.data;
-                    // For encrypted notes, we show placeholder content locally
-                    noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
+                    // For encrypted notes loaded from Drive, we don't have the original content
+                    // User will need to decrypt to restore it
+                    noteContent = `# 🔒 Encrypted Note
+
+This note was loaded from Google Drive in encrypted format. 
+
+**To view the content:**
+1. Right-click on this note in the sidebar
+2. Select "Decrypt Note" 
+3. Enter your password to restore the original content
+
+The content will then be available for viewing and editing normally.`;
                   }
                 } catch (e) {
                   // Not JSON, treat as regular content
@@ -395,8 +405,17 @@ export const useDriveSync = (
                 if (parsed.encrypted === true && parsed.data) {
                   isEncrypted = true;
                   encryptedData = parsed.data;
-                  // For encrypted notes, we show placeholder content locally
-                  noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
+                  // For encrypted notes loaded from Drive, we don't have the original content
+                  noteContent = `# 🔒 Encrypted Note
+
+This note was loaded from Google Drive in encrypted format. 
+
+**To view the content:**
+1. Right-click on this note in the sidebar
+2. Select "Decrypt Note" 
+3. Enter your password to restore the original content
+
+The content will then be available for viewing and editing normally.`;
                 }
               } catch (e) {
                 // Not JSON, treat as regular content

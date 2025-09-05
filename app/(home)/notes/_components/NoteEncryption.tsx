@@ -96,12 +96,12 @@ export function NoteEncryptionDialog({
             {isEncrypted ? (
               <>
                 <Unlock className="h-4 w-4 mr-2" />
-                Decrypt Note
+                Remove Encryption
               </>
             ) : (
               <>
                 <Lock className="h-4 w-4 mr-2" />
-                Encrypt Note
+                Encrypt for Drive
               </>
             )}
           </Button>
@@ -115,7 +115,7 @@ export function NoteEncryptionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-5">
             <Shield className="h-5 w-5" />
-            {isEncrypted ? 'Decrypt Note' : 'Encrypt Note'}
+            {isEncrypted ? 'Remove Drive Encryption' : 'Encrypt for Google Drive'}
           </DialogTitle>
         </DialogHeader>
 
@@ -130,15 +130,15 @@ export function NoteEncryptionDialog({
           {!isEncrypted && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Once encrypted, you'll need this password to access your note. 
-                Make sure to store it safely!
+                <strong>Protection:</strong> Your note will be encrypted on Google Drive for security. 
+                On this website, you can still view and edit normally. Only the file on Drive will be protected.
               </p>
             </div>
           )}
 
           <div className="space-y-2">
             <Label htmlFor="password">
-              {isEncrypted ? 'Enter password to decrypt' : 'Create encryption password'}
+              {isEncrypted ? 'Enter password to remove encryption' : 'Create encryption password'}
             </Label>
             <div className="relative">
               <Input
@@ -155,13 +155,13 @@ export function NoteEncryptionDialog({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent group"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-4 w-4 group-hover:text-gray-500 transition-colors duration-200" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4 group-hover:text-gray-500 transition-colors duration-200" />
                 )}
               </Button>
             </div>
@@ -170,7 +170,6 @@ export function NoteEncryptionDialog({
           {!isEncrypted && password && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm">Password Strength</Label>
                 <span className={`text-xs font-medium ${passwordStrength.color}`}>
                   {passwordStrength.strength.toUpperCase()}
                 </span>
@@ -254,9 +253,9 @@ export function NoteEncryptionDialog({
               {(isEncrypting || isDecrypting) ? (
                 'Processing...'
               ) : isEncrypted ? (
-                'Decrypt'
+                'Remove Encryption'
               ) : (
-                'Encrypt'
+                'Encrypt for Drive'
               )}
             </Button>
           </div>
@@ -304,7 +303,7 @@ export function NotePreview({ content, isEncrypted, maxLength = 100 }: NotePrevi
     return (
       <div className="flex items-center gap-2 text-gray-500 italic">
         <Lock className="h-4 w-4" />
-        <span>This note is encrypted. Decrypt to view content.</span>
+        <span>This note is encrypted on Drive. Content shows normally here.</span>
       </div>
     );
   }

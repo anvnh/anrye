@@ -704,13 +704,7 @@ export default function NotesPage() {
               setCodeBlockFontSize={setCodeBlockFontSize}
               saveNote={saveNote}
               cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
-              startEdit={() => {
-                if (selectedNote?.isEncrypted) {
-                  alert('This note is encrypted. Please decrypt it first before editing.');
-                  return;
-                }
-                startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode);
-              }}
+              startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
               isMobileSidebarOpen={isMobileSidebarOpen}
               onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
               onCloseNote={() => closeNote(setSelectedNote, setEditTitle, setEditContent, setIsEditing, setIsSplitMode)}
