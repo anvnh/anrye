@@ -7,6 +7,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   isEncrypted?: boolean;
+  isUnlocked?: boolean;
   encryptedData?: {
     data: string;
     iv: string;

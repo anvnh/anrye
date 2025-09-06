@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { List, X, Network } from 'lucide-react';
+import { List, X, Network, Lock, Unlock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Note } from './types';
 import { MemoizedMarkdown } from '../_utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
 import BacklinksPanel from './BacklinksPanel';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useEncryption } from '../_hooks/useEncryption';
+import { cn } from '@/lib/utils';
+import { useThemeSettings } from '../_hooks/useThemeSettings';
 
 interface NotePreviewProps {
   selectedNote: Note;
@@ -42,6 +49,12 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 }) => {
   const [isOutlineOpen, setIsOutlineOpen] = useState(false);
   const [isBacklinksOpen, setIsBacklinksOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [error, setError] = useState('');
+  
   const outlineRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -50,8 +63,72 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const backlinksBackdropRef = useRef<HTMLDivElement>(null);
   // Right sidebar now only shows backlinks; calendar moved to modal
 
-  // Determine which content should be rendered (unsaved edits if provided)
-  const contentToRender = overrideContent ?? selectedNote.content;
+  const { decrypt } = useEncryption();
+
+  // Check if note is encrypted and has the encrypted data
+  const isEncrypted = selectedNote.isEncrypted && selectedNote.encryptedData;
+
+  // notes Theme
+  const { notesTheme } = useThemeSettings();
+  
+  // Reset decrypted content when selectedNote changes
+  useEffect(() => {
+    setDecryptedContent(null);
+    setPassword('');
+    setError('');
+    
+    // Reset unlocked state when switching notes
+    if (selectedNote.isEncrypted && selectedNote.isUnlocked) {
+      setNotes(prevNotes => 
+        prevNotes.map(note => 
+          note.id === selectedNote.id 
+            ? { ...note, isUnlocked: false }
+            : note
+        )
+      );
+      
+      setSelectedNote(prev => prev ? { ...prev, isUnlocked: false } : null);
+    }
+  }, [selectedNote.id]);
+
+  // Handle unlock
+  const handleUnlock = async () => {
+    if (!password || !selectedNote.encryptedData) return;
+    
+    setIsUnlocking(true);
+    setError('');
+    
+    const result = await decrypt(selectedNote.encryptedData, password);
+    if (result.success && result.data) {
+      setDecryptedContent(result.data);
+      setError('');
+      
+      // Update the note to mark it as unlocked
+      setNotes(prevNotes => 
+        prevNotes.map(note => 
+          note.id === selectedNote.id 
+            ? { ...note, isUnlocked: true }
+            : note
+        )
+      );
+      
+      // Update selectedNote to reflect the unlocked state
+      setSelectedNote(prev => prev ? { ...prev, isUnlocked: true } : null);
+    } else {
+      setError('Invalid password. Please try again.');
+    }
+    
+    setIsUnlocking(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleUnlock();
+    }
+  };
+
+  // Determine which content should be rendered
+  const contentToRender = overrideContent ?? (decryptedContent || selectedNote.content);
 
   // Check if the note has headings
   const hasOutline = useMemo(() => hasHeadings(contentToRender), [contentToRender]);
@@ -238,30 +315,111 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
   return (
     <div className="relative h-full">
-      {/* Mobile Toggle Buttons */}
-      <div className={`lg:hidden absolute top-4 right-4 z-50 flex gap-2 transition-opacity duration-300 ${isBacklinksOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        {/* Backlinks Toggle Button */}
-        <button
-          ref={backlinksBtnRef}
-          onClick={() => setIsBacklinksOpen(!isBacklinksOpen)}
-          className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
-          title="Toggle backlinks"
-        >
-          {isBacklinksOpen ? <X size={20} /> : <Network size={20} />}
-        </button>
+      {/* Show password input if note is encrypted and not yet unlocked */}
+      {isEncrypted && !decryptedContent && (
+        <div className="flex items-center justify-center h-full p-8">
+          <div className={cn(
+            "w-full max-w-md space-y-4 p-6 border rounded-lg", 
+            notesTheme === "light" ? "" : "bg-red-50 text-white border-gray-700"
+          )}>
+            <div className="flex items-center gap-2 text-red-800">
+              <Lock className="h-5 w-5" />
+              <span className="font-medium text-lg">This note is encrypted</span>
+            </div>
+            
+            <div className="space-y-3">
+              <Label htmlFor="unlock-password" className="text-sm text-gray-700">
+                Enter password to view content:
+              </Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    id="unlock-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Enter password..."
+                    className="pr-10 text-black"
+                    disabled={isUnlocking}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent group"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isUnlocking}
+                  >
+                    {showPassword ? (
+                      <EyeOff className={cn(
+                      "h-4 w-4 transition-colors duration-200",
+                      notesTheme === "light" ? "group-hover:text-gray-600" : "text-black group-hover:text-gray-500"
+                      )}/>
+                    ) : (
+                      <Eye className={cn(
+                        "h-4 w-4 transition-colors duration-200",
+                        notesTheme === "light" ? "group-hover:text-gray-600" : "text-black group-hover:text-gray-500"
+                      )}/>
+                    )}
+                  </Button>
+                </div>
+                <Button 
+                  onClick={handleUnlock}
+                  disabled={!password || isUnlocking}
+                  size="sm"
+                  className={cn(
+                    "transition-colors duration-200",
+                    notesTheme === "light" ? "hover:bg-gray-100" : "bg-icon-notenavbar"
+                  )}
+                >
+                  {isUnlocking ? 'Unlocking...' : 'Unlock'}
+                </Button>
+              </div>
+              
+              {error && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+            
+            <p className="text-xs text-gray-600">
+              * File on Google Drive remains encrypted
+            </p>
+          </div>
+        </div>
+      )}
 
-        {/* Outline Toggle Button */}
-        {hasOutline && (
-          <button
-            ref={buttonRef}
-            onClick={() => setIsOutlineOpen(!isOutlineOpen)}
-            className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
-            title="Toggle outline"
-          >
-            {isOutlineOpen ? <X size={20} /> : <List size={20} />}
-          </button>
-        )}
-      </div>
+      {/* Show normal content if not encrypted or already unlocked */}
+      {(!isEncrypted || decryptedContent) && (
+        <>
+
+          {/* Mobile Toggle Buttons */}
+          <div className={`lg:hidden absolute top-4 right-4 z-50 flex gap-2 transition-opacity duration-300 ${isBacklinksOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            {/* Backlinks Toggle Button */}
+            <button
+              ref={backlinksBtnRef}
+              onClick={() => setIsBacklinksOpen(!isBacklinksOpen)}
+              className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+              title="Toggle backlinks"
+            >
+              {isBacklinksOpen ? <X size={20} /> : <Network size={20} />}
+            </button>
+
+            {/* Outline Toggle Button */}
+            {hasOutline && (
+              <button
+                ref={buttonRef}
+                onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+                className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg p-2 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+                title="Toggle outline"
+              >
+                {isOutlineOpen ? <X size={20} /> : <List size={20} />}
+              </button>
+            )}
+          </div>
 
       {/* Mobile Backlinks Overlay */}
       {isBacklinksOpen && (
@@ -455,6 +613,8 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

@@ -609,7 +609,11 @@ export default function NoteSidebar({
                     <span className="truncate">{note.title}</span>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {note.isEncrypted && (
-                        <EncryptionStatusBadge isEncrypted={true} className="text-xs px-1 py-0" />
+                        <EncryptionStatusBadge 
+                          isEncrypted={true} 
+                          isUnlocked={note.isUnlocked || false}
+                          className="text-xs px-1 py-0" 
+                        />
                       )}
                       {pinnedNoteIds.has(note.id) && (
                         <Star size={12} className="text-yellow-400" />

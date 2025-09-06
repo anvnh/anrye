@@ -267,21 +267,31 @@ export function NoteEncryptionDialog({
 
 interface EncryptionStatusBadgeProps {
   isEncrypted: boolean;
+  isUnlocked?: boolean;
   className?: string;
 }
 
-export function EncryptionStatusBadge({ isEncrypted, className = '' }: EncryptionStatusBadgeProps) {
+export function EncryptionStatusBadge({ isEncrypted, isUnlocked = false, className = '' }: EncryptionStatusBadgeProps) {
   return (
     <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
       isEncrypted 
-        ? 'bg-green-100 text-green-800 border border-green-200' 
+        ? isUnlocked
+          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+          : 'bg-green-100 text-green-800 border border-green-200'
         : 'bg-gray-100 text-gray-600 border border-gray-200'
     } ${className}`}>
       {isEncrypted ? (
-        <>
-          <Lock className="h-3 w-3" />
-          Encrypted
-        </>
+        isUnlocked ? (
+          <>
+            <Unlock className="h-3 w-3" />
+            Unlocked
+          </>
+        ) : (
+          <>
+            <Lock className="h-3 w-3" />
+            Encrypted
+          </>
+        )
       ) : (
         <>
           <Unlock className="h-3 w-3" />
@@ -295,26 +305,122 @@ export function EncryptionStatusBadge({ isEncrypted, className = '' }: Encryptio
 interface NotePreviewProps {
   content: string;
   isEncrypted: boolean;
+  encryptedData?: EncryptedData;
   maxLength?: number;
 }
 
-export function NotePreview({ content, isEncrypted, maxLength = 100 }: NotePreviewProps) {
-  if (isEncrypted) {
+export function NotePreview({ content, isEncrypted, encryptedData, maxLength = 100 }: NotePreviewProps) {
+  const [password, setPassword] = useState('');
+  const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { decrypt } = useEncryption();
+
+  const handleUnlock = async () => {
+    if (!password || !encryptedData) return;
+    
+    setIsUnlocking(true);
+    setError('');
+    
+    const result = await decrypt(encryptedData, password);
+    if (result.success && result.data) {
+      setDecryptedContent(result.data);
+      setError('');
+    } else {
+      setError('Invalid password. Please try again.');
+    }
+    
+    setIsUnlocking(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleUnlock();
+    }
+  };
+
+  if (isEncrypted && !decryptedContent) {
     return (
-      <div className="flex items-center gap-2 text-gray-500 italic">
-        <Lock className="h-4 w-4" />
-        <span>This note is encrypted on Drive. Content shows normally here.</span>
+      <div className="space-y-3 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
+        <div className="flex items-center gap-2 text-yellow-800">
+          <Lock className="h-4 w-4" />
+          <span className="font-medium">🔒 This note is encrypted</span>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="unlock-password" className="text-sm text-gray-700">
+            Enter password to view content:
+          </Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                id="unlock-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Enter password..."
+                className="pr-10"
+                disabled={isUnlocking}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isUnlocking}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <Button 
+              onClick={handleUnlock}
+              disabled={!password || isUnlocking}
+              size="sm"
+            >
+              {isUnlocking ? 'Unlocking...' : 'Unlock'}
+            </Button>
+          </div>
+          
+          {error && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+        
+        <p className="text-xs text-gray-600">
+          * File on Google Drive remains encrypted
+        </p>
       </div>
     );
   }
 
-  const truncatedContent = content.length > maxLength 
-    ? content.substring(0, maxLength) + '...' 
-    : content;
+  // Show decrypted content or original content
+  const displayContent = decryptedContent || content;
+  const truncatedContent = displayContent.length > maxLength 
+    ? displayContent.substring(0, maxLength) + '...' 
+    : displayContent;
 
   return (
-    <div className="text-gray-700">
-      {truncatedContent}
+    <div className="space-y-2">
+      {isEncrypted && decryptedContent && (
+        <div className="flex items-center gap-2 text-green-600 text-sm">
+          <Unlock className="h-3 w-3" />
+          <span>Successfully unlocked</span>
+        </div>
+      )}
+      <div className="text-gray-700">
+        {truncatedContent}
+      </div>
     </div>
   );
 }
