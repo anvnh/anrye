@@ -12,4 +12,5 @@ export { default as MobileFileOperations, MobileItemMenu } from './MobileFileOpe
 export { default as MoveDrawer } from './MoveDrawer';
 export { default as BacklinksPanel } from './BacklinksPanel';
 export { default as WikilinkAutocomplete } from './WikilinkAutocomplete';
+export { AIFloatingInput } from './AIFloatingInput';
 export * from './types';

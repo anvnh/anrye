@@ -6,6 +6,7 @@ import { usePasteImage, useTableToolbar } from '../_hooks';
 import { Note } from './types';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
+import { AIFloatingInput } from './AIFloatingInput';
 
 interface NoteRegularEditorProps {
   editContent: string;
@@ -32,9 +33,37 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
 }) => {
   const cmRef = useRef<CMEditorApi | undefined>(undefined);
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
+  const [aiFloatingOpen, setAiFloatingOpen] = useState(false);
+  const [aiFloatingPosition, setAiFloatingPosition] = useState({ x: 0, y: 0 });
+  const [aiTriggerPosition, setAiTriggerPosition] = useState<{ from: number; to: number } | undefined>(undefined);
 
   // Initialize table toolbar
   const { isInTable, handleTableAction, handleCursorMove } = useTableToolbar(cmRef);
+
+  // Handle AI text insertion
+  const handleAITextInsert = useCallback((text: string, replacePosition?: { from: number; to: number }) => {
+    const api = cmRef.current;
+    if (api) {
+      if (replacePosition) {
+        // Replace text at specific position
+        api.setSelection(replacePosition.from, replacePosition.to);
+        api.insertTextAtSelection(text);
+      } else {
+        // Insert at current selection
+        api.insertTextAtSelection(text);
+      }
+    } else {
+      if (replacePosition) {
+        // Replace text in the content string
+        const before = editContent.slice(0, replacePosition.from);
+        const after = editContent.slice(replacePosition.to);
+        setEditContent(before + text + after);
+      } else {
+        // Fallback for non-CMEditor case
+        setEditContent(editContent + text);
+      }
+    }
+  }, [editContent, setEditContent]);
 
 
 
@@ -233,8 +262,29 @@ export const NoteRegularEditor: React.FC<NoteRegularEditorProps> = ({
             return result?.markdownLink ?? null;
           }}
           onCursorMove={handleCursorMove}
+          onAITrigger={(pos, triggerPosition) => {
+            setAiFloatingPosition(pos);
+            setAiTriggerPosition(triggerPosition);
+            setAiFloatingOpen(true);
+          }}
         />
       </div>
+      
+      {/* AI Floating Input */}
+      <AIFloatingInput
+        isVisible={aiFloatingOpen}
+        position={aiFloatingPosition}
+        onClose={() => setAiFloatingOpen(false)}
+        onInsertText={handleAITextInsert}
+        noteContent={editContent}
+        aiTriggerPosition={aiTriggerPosition}
+        onRestoreCursor={() => {
+          // Focus the editor and restore cursor position
+          if (cmRef.current) {
+            cmRef.current.focus();
+          }
+        }}
+      />
     </div>
   );
 };

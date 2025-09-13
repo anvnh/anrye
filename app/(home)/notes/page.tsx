@@ -765,7 +765,7 @@ export default function NotesPage() {
           {/* Note Content */}
           {selectedNote ? (
             <div
-              className="flex-1 min-h-0 overflow-hidden lg:rounded-bl-2xl lg:rounded-br-2xl notes-surface"
+              className="flex-1 min-h-0 overflow-hidden notes-surface"
               style={{
                 fontFamily: fontFamily,
                 fontSize: fontSize,

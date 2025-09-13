@@ -8,6 +8,7 @@ import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { indentWithTab } from '@codemirror/commands';
 import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import { createAIAutocompleteExtension, AIService } from './AIAutocomplete';
 
 export interface CMEditorApi {
   focus: () => void;
@@ -39,6 +40,7 @@ type CMEditorProps = {
   onPasteImage?: (file: File) => Promise<string | null>;
   onSelectionChange?: (line: number) => void;
   onCursorMove?: () => void;
+  onAITrigger?: (pos: { x: number; y: number }, triggerPosition?: { from: number; to: number }) => void;
 };
 
 const baseExtensions: Extension[] = [
@@ -106,7 +108,7 @@ function createListKeymap(tabSize: number) {
 }
 
 export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>(function CMEditor(
-  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange, onCursorMove },
+  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange, onCursorMove, onAITrigger },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -154,10 +156,39 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         keymap.of(createListKeymap(tabSize)),
         keymap.of(markdownKeymap),
         ...baseExtensions,
+        // Add AI autocomplete extension
+        createAIAutocompleteExtension({
+          onAIRequest: AIService.requestCompletion
+        }),
+        // Ctrl+/ to open floating AI input
+        keymap.of([{
+          key: 'Mod-/',
+          run: (view: EditorView) => {
+            if (!onAITrigger) return false;
+            const coords = view.coordsAtPos(view.state.selection.main.head);
+            if (!coords) return false;
+            onAITrigger({ x: coords.left, y: coords.top });
+            return true;
+          }
+        }]),
         themeCompartmentRef.current.of(styleExt),
         tabCompartmentRef.current.of(tabExt),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
+            // Detect typing of "/ai " and trigger floating input
+            if (onAITrigger) {
+              try {
+                const pos = update.state.selection.main.head;
+                const line = update.state.doc.lineAt(pos);
+                const before = update.state.doc.sliceString(line.from, pos);
+                if (/\/ai\s$/.test(before)) {
+                  const coords = (update.view as any)?.coordsAtPos?.(pos);
+                  const triggerPosition = { from: pos - 4, to: pos };
+                  onAITrigger({ x: coords?.left ?? 0, y: coords?.top ?? 0 }, triggerPosition);
+                  // Don't remove the "/ai " text here - let the AIFloatingInput handle replacement
+                }
+              } catch {}
+            }
             onChange(update.state.doc.toString());
           }
           if (update.selectionSet || update.focusChanged) {
