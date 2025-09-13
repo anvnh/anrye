@@ -149,16 +149,26 @@ textarea:focus {
    </div>
    Only specified columns get fixed widths; horizontal scroll still works. */
 
-/* Ensure table container allows horizontal scrolling */
+/* Ensure table container allows horizontal scrolling with consistent behavior across browsers */
 .md-table {
   overflow-x: auto;
+  overflow-y: hidden;
   width: 100%;
+  /* Force scrollbar to always be visible when content overflows */
+  scrollbar-width: auto; /* Firefox */
+  -webkit-overflow-scrolling: touch; /* iOS Safari */
+  /* Ensure consistent behavior across all browsers */
+  display: block;
+  white-space: nowrap;
 }
 
 /* Prevent table from stretching to full container width unnecessarily */
 .md-table table {
   width: auto;
   min-width: max-content;
+  /* Ensure table doesn't break out of container */
+  max-width: none;
+  table-layout: auto;
 }
 /* Column width control with proper text wrapping */
 .md-table table th:nth-child(1),
@@ -392,3 +402,56 @@ textarea:focus {
 
 /* For columns with specific widths, allow text wrapping.
    For columns without specific widths, keep nowrap behavior. */
+
+/* Browser-specific fixes for consistent scrollbar behavior */
+@-moz-document url-prefix() {
+  /* Firefox-specific: Force scrollbar to be visible */
+  .md-table {
+    scrollbar-width: auto !important;
+    overflow-x: auto !important;
+    /* Ensure Firefox shows scrollbar when content overflows */
+    scrollbar-gutter: stable;
+  }
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+@supports (-webkit-appearance: none) {
+  .md-table {
+    overflow-x: auto !important;
+  }
+  
+  /* Custom scrollbar styling for better visibility */
+  .md-table::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .md-table::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  
+  .md-table::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+  }
+  
+  .md-table::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Fallback for all browsers - ensure horizontal scroll is always available */
+.md-table {
+  /* Use auto to show scrollbar only when needed, but ensure it's visible */
+  overflow-x: auto !important;
+  /* Additional properties to ensure consistent behavior */
+  contain: layout;
+  will-change: scroll-position;
+}
+
+/* Additional fix for browsers that might not show scrollbars consistently */
+.md-table:not(:hover) {
+  /* Ensure scrollbar is visible even when not hovering */
+  overflow-x: auto !important;
+}
+

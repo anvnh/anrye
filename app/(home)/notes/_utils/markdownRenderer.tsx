@@ -41,6 +41,7 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTableScrollbar } from '../_hooks/useTableScrollbar';
 
 interface MarkdownRendererProps {
   content: string;
@@ -316,6 +317,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
   currentContent,
   codeBlockFontSize = '14px'
 }) => {
+  // Initialize table scrollbar hook to ensure consistent behavior across browsers
+  useTableScrollbar();
   // Pre-process content to get all headings with consistent IDs,
   // ensure $$...$$ blocks are on their own lines, and convert wikilinks
   const preprocessedContent = useMemo(() => {
