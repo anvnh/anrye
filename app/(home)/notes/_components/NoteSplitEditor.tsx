@@ -1066,7 +1066,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
             backgroundColor: notesTheme === 'light' ? '#ffffff' : 'bg-main'
           }}
         >
-          <div className={`prose max-w-none w-full m-0 p-0 ${notesTheme === 'light' ? 'prose-gray' : 'prose-invert'}`} style={{ fontSize: previewFontSize }}>
+          <div className={`prose max-w-none w-full m-0 p-0 pb-4 ${notesTheme === 'light' ? 'prose-gray' : 'prose-invert'}`} style={{ fontSize: previewFontSize }}>
             <style jsx>{`
               /* Enhanced KaTeX mobile responsiveness */
               .katex { 

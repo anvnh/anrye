@@ -99,7 +99,7 @@ const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className={`w-auto bg-dropdown-navbar/95 border-gray-600 text-gray-300 backdrop-blur-md settings-dropdown ${notesTheme === 'light' ? 'settings-dropdown--light' : ''}`}
+        className={`w-auto bg-dropdown-navbar border-gray-600 text-gray-300 settings-dropdown ${notesTheme === 'light' ? 'settings-dropdown-light' : ''}`}
       >
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuLabel>

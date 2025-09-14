@@ -492,7 +492,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
         {/* Main Content */}
         <div className={`flex-1 px-4 sm:px-8 md:px-16 lg:px-8 xl:px-16 py-6 overflow-y-auto`}>
-          <div className="prose prose-invert max-w-none" style={{ fontSize: previewFontSize }}>
+          <div className="prose prose-invert max-w-none pb-4" style={{ fontSize: previewFontSize }}>
             <style jsx>{`
           /* Mobile optimizations - respect font-size settings */
           @media (max-width: 640px) {

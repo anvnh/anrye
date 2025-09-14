@@ -103,7 +103,7 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
       // Check if this note already has a shared link
       const existingSharedNotes = JSON.parse(localStorage.getItem('sharedNotes') || '{}');
       let existingShortId = '';
-      let existingSettings = null;
+      let existingSettings: { readPermission: 'public' | 'password-required'; readPassword?: string; expireAt?: string | null } | null = null;
 
       // Find if this note is already shared
       for (const [id, sharedNote] of Object.entries(existingSharedNotes)) {
@@ -487,8 +487,8 @@ export function ShareDropdown({ noteId, noteTitle, noteContent, notesTheme }: Sh
 
         <DropdownMenuContent
           className={`
-            w-[320px] bg-dropdown-navbar/95 backdrop-blur-md text-white border-gray-700 
-            max-h-[75vh] overflow-y-auto ${notesTheme === 'light' ? 'share-dropdown--light' : ''}
+            w-[320px] bg-dropdown-navbar text-white border-gray-700 
+            max-h-[75vh] overflow-y-auto ${notesTheme === 'light' ? 'share-dropdown-light' : ''}
           `}
           align="end"
           // Keep menu open when interacting with nested popovers (calendar)
