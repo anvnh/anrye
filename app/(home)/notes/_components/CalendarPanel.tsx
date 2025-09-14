@@ -6,6 +6,7 @@ import { ClientContainer } from '../../../components/calendar/components/ClientC
 import { listEvents, CalendarEvent } from '@/app/lib/googleCalendar';
 import { useThemeSettings } from '../_hooks';
 import type { TCalendarView } from '../../../components/calendar/types';
+import { startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarPanelProps {
   onPrev?: () => void;
@@ -99,7 +100,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
 
-    debounceTimerRef.current = setTimeout(async () => {
+  debounceTimerRef.current = setTimeout(async () => {
       setIsNavigating(true);
       try {
         let startDate: Date, endDate: Date;
@@ -115,13 +116,11 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           endDate = new Date(date);
           endDate.setHours(23, 59, 59, 999);
         } else {
-          // For week view: get events for current week
-          startDate = new Date(date);
-          startDate.setDate(date.getDate() - date.getDay() + 1);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate);
-          endDate.setDate(startDate.getDate() + 6);
-          endDate.setHours(23, 59, 59, 999);
+      // For week view: Monday-based week using date-fns to avoid Sunday off-by-one
+      startDate = startOfWeek(date, { weekStartsOn: 1 });
+      startDate.setHours(0, 0, 0, 0);
+      endDate = endOfWeek(date, { weekStartsOn: 1 });
+      endDate.setHours(23, 59, 59, 999);
         }
         
         const data = await getEventsForRange(startDate, endDate, viewType === 'week');
@@ -233,12 +232,10 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
           endDate = new Date(effectiveDate);
           endDate.setHours(23, 59, 59, 999);
         } else {
-          // For week view: get events for current week
-          startDate = new Date(effectiveDate);
-          startDate.setDate(effectiveDate.getDate() - effectiveDate.getDay() + 1);
+          // For week view: Monday-based week using date-fns to avoid Sunday off-by-one
+          startDate = startOfWeek(effectiveDate, { weekStartsOn: 1 });
           startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate);
-          endDate.setDate(startDate.getDate() + 6);
+          endDate = endOfWeek(effectiveDate, { weekStartsOn: 1 });
           endDate.setHours(23, 59, 59, 999);
         }
         

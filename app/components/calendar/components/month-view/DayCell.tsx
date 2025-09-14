@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { isToday, startOfDay } from "date-fns";
 
 import { EventBullet } from "./EventBullet";
@@ -17,7 +17,7 @@ interface IProps {
   cellIndex: number;
 }
 
-export function DayCell({ cell, events, eventPositions, cellIndex }: IProps) {
+export const DayCell = React.memo(function DayCell({ cell, events, eventPositions, cellIndex }: IProps) {
   const { day, currentMonth, date } = cell;
   const { notesTheme } = useThemeSettings();
 
@@ -53,4 +53,4 @@ export function DayCell({ cell, events, eventPositions, cellIndex }: IProps) {
       </div>
     </div>
   );
-}
+});

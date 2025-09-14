@@ -202,64 +202,116 @@ export function getCalendarCells(selectedDate: Date): ICalendarCell[] {
   return [...prevMonthCells, ...currentMonthCells, ...nextMonthCells];
 }
 
+// Optimized version with O(n log n) complexity
 export function calculateMonthEventPositions(multiDayEvents: IEvent[], singleDayEvents: IEvent[], selectedDate: Date) {
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(selectedDate);
 
   const eventPositions: { [key: string]: number } = {};
-  const occupiedPositions: { [key: string]: boolean[] } = {};
-
-  eachDayOfInterval({ start: monthStart, end: monthEnd }).forEach(day => {
-    occupiedPositions[day.toISOString()] = [false, false, false];
-  });
-
-  const sortedEvents = [
-    ...multiDayEvents.sort((a, b) => {
-      const aDuration = differenceInDays(parseISO(a.endDate), parseISO(a.startDate));
-      const bDuration = differenceInDays(parseISO(b.endDate), parseISO(b.startDate));
-      return bDuration - aDuration || parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime();
-    }),
-    ...singleDayEvents.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()),
+  
+  // Pre-parse all dates to avoid repeated parsing
+  const eventsWithParsedDates = [
+    ...multiDayEvents.map(event => ({
+      ...event,
+      parsedStart: parseISO(event.startDate),
+      parsedEnd: parseISO(event.endDate),
+      duration: differenceInDays(parseISO(event.endDate), parseISO(event.startDate))
+    })),
+    ...singleDayEvents.map(event => ({
+      ...event,
+      parsedStart: parseISO(event.startDate),
+      parsedEnd: parseISO(event.endDate),
+      duration: 0
+    }))
   ];
 
-  sortedEvents.forEach(event => {
-    const eventStart = parseISO(event.startDate);
-    const eventEnd = parseISO(event.endDate);
-    const eventDays = eachDayOfInterval({
-      start: eventStart < monthStart ? monthStart : eventStart,
-      end: eventEnd > monthEnd ? monthEnd : eventEnd,
-    });
+  // Sort once by duration (desc) then by start time (asc)
+  const sortedEvents = eventsWithParsedDates.sort((a, b) => {
+    if (a.duration !== b.duration) {
+      return b.duration - a.duration; // Longer events first
+    }
+    return a.parsedStart.getTime() - b.parsedStart.getTime();
+  });
 
+  // Use Map for O(1) lookups instead of object with string keys
+  const occupiedPositions = new Map<string, boolean[]>();
+  
+  // Initialize occupied positions for the month
+  eachDayOfInterval({ start: monthStart, end: monthEnd }).forEach(day => {
+    occupiedPositions.set(day.toISOString(), [false, false, false]);
+  });
+
+  // Process events in sorted order
+  for (const event of sortedEvents) {
+    const eventStart = event.parsedStart < monthStart ? monthStart : event.parsedStart;
+    const eventEnd = event.parsedEnd > monthEnd ? monthEnd : event.parsedEnd;
+    
+    // Find the first available position (0, 1, or 2)
     let position = -1;
-
+    
     for (let i = 0; i < 3; i++) {
-      if (
-        eventDays.every(day => {
-          const dayPositions = occupiedPositions[startOfDay(day).toISOString()];
-          return dayPositions && !dayPositions[i];
-        })
-      ) {
+      let canPlace = true;
+      
+      // Check each day of the event for position availability
+      const currentDay = new Date(eventStart);
+      while (currentDay <= eventEnd) {
+        const dayKey = currentDay.toISOString();
+        const dayPositions = occupiedPositions.get(dayKey);
+        
+        if (!dayPositions || dayPositions[i]) {
+          canPlace = false;
+          break;
+        }
+        
+        currentDay.setDate(currentDay.getDate() + 1);
+      }
+      
+      if (canPlace) {
         position = i;
         break;
       }
     }
 
+    // If position found, mark it as occupied
     if (position !== -1) {
-      eventDays.forEach(day => {
-        const dayKey = startOfDay(day).toISOString();
-        occupiedPositions[dayKey][position] = true;
-      });
+      const currentDay = new Date(eventStart);
+      while (currentDay <= eventEnd) {
+        const dayKey = currentDay.toISOString();
+        const dayPositions = occupiedPositions.get(dayKey);
+        if (dayPositions) {
+          dayPositions[position] = true;
+        }
+        currentDay.setDate(currentDay.getDate() + 1);
+      }
       eventPositions[event.id] = position;
     }
-  });
+  }
 
   return eventPositions;
 }
 
+// Optimized version that caches parsed dates
+const parsedDatesCache = new Map<string, { start: Date; end: Date }>();
+
+function getParsedDates(event: IEvent) {
+  const cacheKey = `${event.startDate}-${event.endDate}`;
+  if (!parsedDatesCache.has(cacheKey)) {
+    parsedDatesCache.set(cacheKey, {
+      start: parseISO(event.startDate),
+      end: parseISO(event.endDate)
+    });
+  }
+  return parsedDatesCache.get(cacheKey)!;
+}
+
+// Function to clear the cache when needed (e.g., when events change)
+export function clearParsedDatesCache() {
+  parsedDatesCache.clear();
+}
+
 export function getMonthCellEvents(date: Date, events: IEvent[], eventPositions: Record<string, number>) {
   const eventsForDate = events.filter(event => {
-    const eventStart = parseISO(event.startDate);
-    const eventEnd = parseISO(event.endDate);
+    const { start: eventStart, end: eventEnd } = getParsedDates(event);
     return (date >= eventStart && date <= eventEnd) || isSameDay(date, eventStart) || isSameDay(date, eventEnd);
   });
 

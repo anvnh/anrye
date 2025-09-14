@@ -7,7 +7,7 @@ import { useCalendar } from "../../contexts/CalendarContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { getEventsCount, navigateDate, rangeText } from "../../helpers";
+import { navigateDate, rangeText } from "../../helpers";
 
 import type { IEvent } from "../../interfaces";
 import type { TCalendarView } from "../../types";
@@ -27,7 +27,6 @@ export function DateNavigator({ view, events, onDateChange }: IProps) {
   const month = formatDate(selectedDate, "MMMM");
   const year = selectedDate.getFullYear();
 
-  const eventCount = useMemo(() => getEventsCount(events, selectedDate, view), [events, selectedDate, view]);
 
   const handlePrevious = () => {
     const newDate = navigateDate(selectedDate, view, "previous");
@@ -47,12 +46,6 @@ export function DateNavigator({ view, events, onDateChange }: IProps) {
         <span className="text-lg font-semibold">
           {month} {year}
         </span>
-        <Badge variant="outline" className={cn(
-          "border-none px-1.5 py-1",
-          notesTheme === "light" ? "light-bg-calendar-button text-black" : "bg-calendar-button text-white"
-        )}>
-          {eventCount} events
-        </Badge>
       </div>
 
       <div className="flex items-center gap-2">

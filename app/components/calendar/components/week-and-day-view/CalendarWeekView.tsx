@@ -26,6 +26,7 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
 
   const { hours, earliestEventHour, latestEventHour } = getVisibleHours(visibleHours, singleDayEvents);
   const gridRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -103,7 +104,7 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
           )}>
             <div className="w-18"></div>
             <div className={cn(
-              "grid flex-1 grid-cols-7 divide-x border-l pr-2.5",
+              "grid flex-1 grid-cols-7 divide-x border-l",
               notesTheme === "light" ? "" : "border-gray-700 divide-gray-700"
             )}>
               {weekDays.map((day, index) => (
@@ -126,9 +127,15 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
           </div>
         </div>
 
-        <div className="flex overflow-auto min-h-0" style={{ height: 'calc(100vh - 130px)' }}>
+        <div 
+          ref={containerRef}
+          className="flex min-h-0" 
+          style={{ 
+            height: 'calc(100vh - 130px)'
+          }}
+        >
           {/* Hours column */}
-          <div className="relative w-18">
+          <div className="relative w-18 flex-shrink-0">
             {hours.map((hour, index) => (
               <div key={hour} className="relative" style={{ height: "96px" }}>
                 <div className="absolute -top-3 right-2 flex h-6 items-center">
@@ -145,7 +152,7 @@ export function CalendarWeekView({ singleDayEvents, multiDayEvents }: IProps) {
           {/* Week grid */}
           <div className="relative flex-1">
             <div ref={gridRef} className={cn(
-              "grid grid-cols-7 divide-x border-l",
+              "calendar-week-grid grid grid-cols-7 divide-x border-l",
               notesTheme === "light" ? "" : "divide-gray-700 border-gray-700"
             )}>
               {weekDays.map((day, dayIndex) => {

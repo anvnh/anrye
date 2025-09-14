@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 
 import { useCalendar } from "../../contexts/CalendarContext";
 
@@ -17,7 +17,7 @@ interface IProps {
 
 const week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function CalendarMonthView({ singleDayEvents, multiDayEvents }: IProps) {
+export const CalendarMonthView = React.memo(function CalendarMonthView({ singleDayEvents, multiDayEvents }: IProps) {
   const { selectedDate } = useCalendar();
   const { notesTheme } = useThemeSettings();
 
@@ -59,4 +59,4 @@ export function CalendarMonthView({ singleDayEvents, multiDayEvents }: IProps) {
       </div>
     </div>
   );
-}
+});

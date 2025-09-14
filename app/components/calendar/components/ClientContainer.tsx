@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { isSameDay, parseISO } from "date-fns";
+import { isSameDay, parseISO, startOfWeek, endOfWeek } from "date-fns";
 
 import { useCalendar } from "../contexts/CalendarContext";
 
@@ -45,18 +45,11 @@ export function ClientContainer({ view, onViewChange, loading = false, onDateCha
       }
 
       if (view === "week") {
-        const dayOfWeek = selectedDate.getDay();
-
-        const weekStart = new Date(selectedDate);
-        weekStart.setDate(selectedDate.getDate() - dayOfWeek + 1); // Start from Monday
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
         weekStart.setHours(0, 0, 0, 0);
-
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
-
-        const isInSelectedWeek = eventStartDate <= weekEnd && eventEndDate >= weekStart;
-        return isInSelectedWeek;
+        return eventStartDate <= weekEnd && eventEndDate >= weekStart;
       }
 
       if (view === "day") {
