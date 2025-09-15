@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context } = await request.json();
+    const { prompt, context, selectedText, explainMode } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -12,23 +12,59 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('GEMINI_API_KEY not found in environment variables');
+      // Detect language for mock response
+      const isVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(prompt) || 
+                           /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(selectedText || '');
+      
       // Return a mock response for testing
+      let mockResponse;
+      if (isVietnamese) {
+        mockResponse = `Phản hồi AI mẫu: Tôi hiểu bạn muốn "${prompt}".`;
+        if (selectedText && selectedText.trim()) {
+          mockResponse += ` Tôi thấy bạn đã chọn text: "${selectedText}". Tôi có thể giúp bạn chỉnh sửa, cải thiện hoặc thay thế text này.`;
+        }
+        mockResponse += ` Đây là phản hồi thử nghiệm. Vui lòng cấu hình GEMINI_API_KEY trong file .env.local để nhận phản hồi AI thực.`;
+      } else {
+        mockResponse = `Mock AI Response: I understand you want "${prompt}".`;
+        if (selectedText && selectedText.trim()) {
+          mockResponse += ` I can see you have selected text: "${selectedText}". I can help you edit, improve, or replace this text.`;
+        }
+        mockResponse += ` This is a test response. Please configure GEMINI_API_KEY in your .env.local file to get real AI responses.`;
+      }
+      
       return NextResponse.json({ 
-        completion: `Mock AI Response: I understand you want "${prompt}". This is a test response. Please configure GEMINI_API_KEY in your .env.local file to get real AI responses.`
+        completion: mockResponse
       });
     }
 
-    // Prepare the context for Gemini
-    const systemPrompt = `You are a helpful AI writing assistant. Help the user with their note-taking and writing tasks. 
+    // Detect language of the prompt
+    const isVietnamese = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(prompt) || 
+                         /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(selectedText || '');
     
-Context from their notes: ${context || 'No context provided'}
-
-User request: ${prompt}
-
-Please provide a helpful, concise response that directly addresses their request. If they're asking for content generation, provide well-structured, useful content.`;
+    // Prepare the context for Gemini
+    let systemPrompt = `You are a helpful AI writing assistant. Help the user with their note-taking and writing tasks.`;
+    
+    // Add language instruction
+    if (isVietnamese) {
+      systemPrompt += `\n\nIMPORTANT: Respond in Vietnamese (Tiếng Việt).`;
+    } else {
+      systemPrompt += `\n\nIMPORTANT: Respond in English.`;
+    }
+    
+    if (selectedText && selectedText.trim()) {
+      // When there's selected text, focus only on that text
+      if (explainMode) {
+        systemPrompt += `\n\nYou are working with this selected text: "${selectedText}"\n\nUser request: ${prompt}\n\nPlease explain, analyze, or provide information about the selected text above. Provide a detailed explanation or analysis that will replace the "/ai" trigger text.`;
+      } else {
+        systemPrompt += `\n\nYou are working with this selected text: "${selectedText}"\n\nUser request: ${prompt}\n\nPlease work ONLY with the selected text above. Provide ONLY the final result without any explanations, introductions, or additional text. If they want to edit, improve, translate, or modify the text, provide ONLY the improved version.`;
+      }
+    } else {
+      // When no selected text, use full context
+      systemPrompt += `\n\nContext from their notes: ${context || 'No context provided'}\n\nUser request: ${prompt}\n\nPlease provide a helpful, concise response that directly addresses their request. If they're asking for content generation, provide well-structured, useful content.`;
+    }
 
     // Call Gemini API
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
     console.log('Calling Gemini API:', apiUrl);
     
     const requestBody = {

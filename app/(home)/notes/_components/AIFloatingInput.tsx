@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AIFloatingInputProps {
   isVisible: boolean;
@@ -12,13 +13,23 @@ interface AIFloatingInputProps {
   onInsertText: (text: string, replacePosition?: { from: number; to: number }) => void;
   noteContent: string;
   aiTriggerPosition?: { from: number; to: number };
+  selectedText?: string; // Text that is currently selected in the editor
+  selectedTextPosition?: { from: number; to: number }; // Position of selected text
+  onSelectionChange?: () => void; // Callback to detect new text selection
   onRestoreCursor?: () => void; // Callback to restore cursor position and focus editor
 }
 
 // AI Service for making requests
 class AIService {
-  static async requestCompletion(prompt: string, context: string): Promise<string> {
+  static async requestCompletion(prompt: string, context: string, selectedText?: string, explainMode?: boolean): Promise<string> {
     try {
+      // If there's selected text, focus only on that instead of the full context
+      let enhancedContext = context;
+      if (selectedText && selectedText.trim()) {
+        // Only use selected text as context, not the full note
+        enhancedContext = `Selected text to work with: "${selectedText}"`;
+      }
+
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: {
@@ -26,7 +37,9 @@ class AIService {
         },
         body: JSON.stringify({
           prompt,
-          context,
+          context: enhancedContext,
+          selectedText: selectedText || null,
+          explainMode: explainMode || false,
         }),
       });
 
@@ -53,13 +66,25 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
   onInsertText,
   noteContent,
   aiTriggerPosition,
+  selectedText,
+  selectedTextPosition,
+  onSelectionChange,
   onRestoreCursor
 }) => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [positionAbove, setPositionAbove] = useState(false);
+  const [isExplainMode, setIsExplainMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Generate preview text for selected text
+  const getSelectedTextPreview = useCallback(() => {
+    if (!selectedText) return '';
+    const maxLength = 50;
+    if (selectedText.length <= maxLength) return selectedText;
+    return selectedText.slice(0, maxLength) + '...';
+  }, [selectedText]);
 
   // Collision detection for positioning
   const checkCollision = useCallback(() => {
@@ -75,7 +100,7 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
     const spaceAbove = position.y;
     
     // AIFloatingInput height (approximate)
-    const inputHeight = 60; // Height of the input container
+    const inputHeight = selectedText ? 100 : 60; // Height includes selected text preview
     const margin = 16; // Margin from viewport edge
     
     // Check if there's enough space below
@@ -86,7 +111,7 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
     const shouldPositionAbove = !hasSpaceBelow && hasSpaceAbove;
     
     setPositionAbove(shouldPositionAbove);
-  }, [isVisible, position]);
+  }, [isVisible, position, selectedText]);
 
   useEffect(() => {
     if (isVisible) {
@@ -104,7 +129,15 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
     const onClick = (e: MouseEvent) => {
       if (!isVisible) return;
       if (!containerRef.current) return;
-      if (!containerRef.current.contains(e.target as Node)) onClose();
+      
+      // Check if click is inside the editor (not just outside the floating input)
+      const target = e.target as Element;
+      const isEditorClick = target.closest('.cm-editor') || target.closest('.raw-content');
+      
+      // Only close if click is outside both floating input AND editor
+      if (!containerRef.current.contains(target) && !isEditorClick) {
+        onClose();
+      }
     };
     window.addEventListener('mousedown', onClick);
     return () => window.removeEventListener('mousedown', onClick);
@@ -122,9 +155,38 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [isVisible, checkCollision]);
 
+  // Listen for selection changes when floating input is open
+  useEffect(() => {
+    if (!isVisible || !onSelectionChange) return;
+    
+    let timeoutId: NodeJS.Timeout;
+    
+    const handleSelectionChange = () => {
+      // Clear previous timeout
+      clearTimeout(timeoutId);
+      
+      // Debounce selection change by 300ms
+      timeoutId = setTimeout(() => {
+        onSelectionChange();
+      }, 300);
+    };
+    
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      clearTimeout(timeoutId);
+    };
+  }, [isVisible, onSelectionChange]);
+
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = async (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      
+      // Remove "/ai" trigger if it exists
+      if (aiTriggerPosition) {
+        onInsertText('', aiTriggerPosition);
+      }
+      
       // Restore cursor position and focus editor before closing
       if (onRestoreCursor) {
         onRestoreCursor();
@@ -135,62 +197,68 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
     if (e.key === 'Enter' && !loading) {
       e.preventDefault();
       if (!prompt.trim()) return;
-      try {
-        setLoading(true);
-        const result = await AIService.requestCompletion(prompt.trim(), noteContent);
-        // If we have a trigger position, replace the "/ai " text, otherwise append
+      await handleAIRequest(false); // false = replace mode
+    }
+  };
+
+  const handleAIRequest = async (explainMode: boolean) => {
+    try {
+      setLoading(true);
+      const result = await AIService.requestCompletion(prompt.trim(), noteContent, selectedText, explainMode);
+      
+      if (explainMode) {
+        // In explain mode, replace "/ai" trigger with explanation
         if (aiTriggerPosition) {
           onInsertText(result, aiTriggerPosition);
         } else {
           onInsertText(`\n\n${result}\n`);
         }
-        onClose();
-      } catch (error) {
-        console.error('AI request failed:', error);
-        // Show error message to user
-        const errorMessage = 'Sorry, I encountered an error. Please try again.';
-        if (aiTriggerPosition) {
-          onInsertText(errorMessage, aiTriggerPosition);
-        } else {
-          onInsertText(`\n\n${errorMessage}\n`);
-        }
-        onClose();
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleSend = async () => {
-    if (loading || !prompt.trim()) return;
-    try {
-      setLoading(true);
-      const result = await AIService.requestCompletion(prompt.trim(), noteContent);
-      if (aiTriggerPosition) {
-        onInsertText(result, aiTriggerPosition);
       } else {
-        onInsertText(`\n\n${result}\n`);
+        // In replace mode, replace the selected text and remove "/ai" trigger
+        if (selectedText && selectedTextPosition) {
+          // Calculate the range that includes both selected text and "/ai" trigger
+          let startPos = selectedTextPosition.from;
+          let endPos = selectedTextPosition.to;
+          
+          if (aiTriggerPosition) {
+            // Include "/ai" trigger in the replacement range
+            startPos = Math.min(startPos, aiTriggerPosition.from);
+            endPos = Math.max(endPos, aiTriggerPosition.to);
+          }
+          
+          // Replace the entire range with just the result
+          onInsertText(result, { from: startPos, to: endPos });
+        } else if (aiTriggerPosition) {
+          onInsertText(result, aiTriggerPosition);
+        } else {
+          onInsertText(`\n\n${result}\n`);
+        }
       }
       onClose();
     } catch (error) {
       console.error('AI request failed:', error);
-      // Show error message to user
       const errorMessage = 'Sorry, I encountered an error. Please try again.';
-      if (aiTriggerPosition) {
-        onInsertText(errorMessage, aiTriggerPosition);
-      } else {
-        onInsertText(`\n\n${errorMessage}\n`);
-      }
+      onInsertText(`\n\n${errorMessage}\n`);
       onClose();
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSend = async () => {
+    if (loading || !prompt.trim()) return;
+    await handleAIRequest(false); // false = replace mode
+  };
+
+  const handleExplain = async () => {
+    if (loading || !prompt.trim()) return;
+    await handleAIRequest(true); // true = explain mode
+  };
+
   if (!isVisible) return null;
 
   // Calculate position based on collision detection
-  const inputHeight = 60;
+  const inputHeight = selectedText ? 100 : 60;
   const margin = 16;
   const topPosition = positionAbove 
     ? Math.max(margin, position.y - inputHeight - 80) // Position above with some spacing
@@ -205,24 +273,59 @@ export const AIFloatingInput: React.FC<AIFloatingInputProps> = ({
   } as React.CSSProperties;
 
   return (
-    <div ref={containerRef} style={style} className="rounded-xl border border-gray-700 bg-main shadow-xl p-2 flex items-center gap-2">
-      <Input
-        ref={inputRef}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Ask AI... (Enter to send, Esc to close)"
-        disabled={loading}
-        className="h-9 border-none"
-      />
-      <Button
-        size="sm"
-        disabled={loading || !prompt.trim()}
-        onClick={handleSend}
-      >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
-      </Button>
-    </div>
+    <TooltipProvider>
+      <div ref={containerRef} style={style} className="rounded-md border-none bg-main shadow-xl">
+        {/* Selected text preview */}
+        {selectedText && (
+          <div className="px-3 py-2 border-b border-gray-500 bg-secondary rounded-t-md">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Selected:</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-sm text-gray-200 truncate max-w-[300px] cursor-help">
+                    {getSelectedTextPreview()}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-md mb-2 bg-secondary">
+                  <p className="text-sm break-words">{selectedText}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        )}
+        
+        {/* Main input area */}
+        <div className="p-2 flex items-center gap-2">
+          <Input
+            ref={inputRef}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={selectedText ? `Ask AI about selected text... (Enter to replace, Esc to close)` : "Ask AI... (Enter to send, Esc to close)"}
+            disabled={loading}
+            className="h-9 border-none"
+          />
+          {selectedText && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={loading || !prompt.trim()}
+              onClick={handleExplain}
+              className="text-xs"
+            >
+              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Explain'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            disabled={loading || !prompt.trim()}
+            onClick={handleSend}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedText ? 'Replace' : 'Send'}
+          </Button>
+        </div>
+      </div>
+    </TooltipProvider>
   );
 };
 

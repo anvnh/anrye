@@ -94,10 +94,30 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   const [aiFloatingOpen, setAiFloatingOpen] = useState(false);
   const [aiFloatingPosition, setAiFloatingPosition] = useState({ x: 0, y: 0 });
   const [aiTriggerPosition, setAiTriggerPosition] = useState<{ from: number; to: number } | undefined>(undefined);
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [selectedTextPosition, setSelectedTextPosition] = useState<{ from: number; to: number } | undefined>(undefined);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   // Initialize table toolbar
   const { isInTable, handleTableAction, handleCursorMove } = useTableToolbar(cmRef);
+
+  // Handle text selection for AI
+  const handleTextSelection = useCallback(() => {
+    const api = cmRef.current;
+    if (api) {
+      const selection = api.getSelectionOffsets();
+      if (selection.from !== selection.to) {
+        // There is a selection
+        const selected = editContent.slice(selection.from, selection.to);
+        setSelectedText(selected);
+        setSelectedTextPosition(selection);
+      } else {
+        // No selection
+        setSelectedText('');
+        setSelectedTextPosition(undefined);
+      }
+    }
+  }, [editContent]);
 
   // Handle AI text insertion
   const handleAITextInsert = useCallback((text: string, replacePosition?: { from: number; to: number }) => {
@@ -1018,6 +1038,8 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
             }}
             onCursorMove={handleCursorMove}
             onAITrigger={(pos, triggerPosition) => { 
+              // Check for text selection first
+              handleTextSelection();
               setAiFloatingPosition(pos); 
               setAiTriggerPosition(triggerPosition);
               setAiFloatingOpen(true); 
@@ -1276,6 +1298,9 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
         onInsertText={handleAITextInsert}
         noteContent={editContent}
         aiTriggerPosition={aiTriggerPosition}
+        selectedText={selectedText}
+        selectedTextPosition={selectedTextPosition}
+        onSelectionChange={handleTextSelection}
         onRestoreCursor={() => {
           // Focus the editor and restore cursor position
           if (cmRef.current) {
