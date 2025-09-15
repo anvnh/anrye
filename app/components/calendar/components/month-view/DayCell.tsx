@@ -34,7 +34,7 @@ export const DayCell = React.memo(function DayCell({ cell, events, eventPosition
         className={cn(
           "h-6 px-1 text-xs font-semibold lg:px-2",
           !currentMonth && "opacity-20",
-          isToday(date) && "flex w-6 translate-x-1 items-center justify-center rounded-full bg-primary px-0 font-bold text-primary-foreground"
+          isToday(date) && "flex w-6 translate-x-1 items-center justify-center rounded-full bg-main px-0 font-bold text-primary-foreground"
         )}
       >
         {day}

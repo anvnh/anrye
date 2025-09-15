@@ -8,7 +8,7 @@ import { useCalendar } from "../contexts/CalendarContext";
 import { CalendarHeader } from "./header/CalendarHeader";
 import { CalendarYearView } from "./year-view/CalendarYearView";
 import { CalendarMonthView } from "./month-view/CalendarMonthView";
-import { CalendarAgendaView } from "./agenda-view/calendar-agenda-view";
+import { CalendarAgendaView } from "./agenda-view/CalendarAgendaView";
 import { CalendarDayView } from "./week-and-day-view/CalendarDayView";
 import { CalendarWeekView } from "./week-and-day-view/CalendarWeekView";
 

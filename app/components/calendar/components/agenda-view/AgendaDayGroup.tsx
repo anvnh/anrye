@@ -1,6 +1,6 @@
 import { differenceInDays, format, parseISO, startOfDay } from "date-fns";
 
-import { AgendaEventCard } from "./agenda-event-card";
+import { AgendaEventCard } from "./AgendaEventCard";
 
 import type { IEvent } from "../../interfaces";
 
