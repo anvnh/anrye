@@ -6,7 +6,7 @@ import { DriveImage } from './types';
 import { driveService } from '../../../lib/googleDrive';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import dynamic from 'next/dynamic';
-import { imageLoadingManager } from '../_utils';
+import { imageLoadingManager } from '../utils';
 
 // Use the same Lightbox as NotePreview (client-only)
 const ImageLightbox = dynamic(() => import('./ImageLightbox'), { ssr: false });

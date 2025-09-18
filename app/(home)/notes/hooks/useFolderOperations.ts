@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
-import { Note, Folder } from '../_components/types';
+import { Note, Folder } from '../components/types';
 
 export const useFolderOperations = (
   notes: Note[],

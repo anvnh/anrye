@@ -12,7 +12,7 @@ import { ChangeBadgeVariantInput } from "../ChangeBadgeVariantInput";
 import type { IEvent } from "../../interfaces";
 import type { TCalendarView } from "../../types";
 
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";

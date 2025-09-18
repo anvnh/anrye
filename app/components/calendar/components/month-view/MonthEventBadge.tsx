@@ -3,7 +3,7 @@ import { endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
 
 import { useCalendar } from "../../contexts/CalendarContext";
 import { getThemeAwareEventColors } from "../../styles/eventColors";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 
 import { EventDetailsDialog } from "../dialogs/EventDetailsDialog";
 

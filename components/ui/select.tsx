@@ -6,7 +6,7 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-import { useThemeSettings } from "@/app/(home)/notes/_hooks"
+import { useThemeSettings } from "@/app/(home)/notes/hooks"
 
 function Select({
   ...props

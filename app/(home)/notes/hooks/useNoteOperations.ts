@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
-import { Note, Folder } from '../_components/types';
-import { createNoteTemplate } from '../_utils/noteTemplate';
+import { Note, Folder } from '../components/types';
+import { createNoteTemplate } from '../utils/noteTemplate';
 
 export const useNoteOperations = (
   notes: Note[],

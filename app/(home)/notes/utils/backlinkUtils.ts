@@ -1,4 +1,4 @@
-import { Note } from '../_components/types';
+import { Note } from '../components/types';
 
 export interface BacklinkInfo {
   note: Note;

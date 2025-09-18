@@ -4,7 +4,7 @@ import { useCalendar } from "../contexts/CalendarContext";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { useThemeSettings } from "../../../(home)/notes/_hooks";
+import { useThemeSettings } from "../../../(home)/notes/hooks";
 import { cn } from "@/lib/utils";
 
 export function ChangeBadgeVariantInput() {

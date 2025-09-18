@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { useDisclosure, useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useDisclosure, useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
 
 import { Input } from "@/components/ui/input";

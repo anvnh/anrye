@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 import { DateInput, DateSegment, TimeField } from "react-aria-components";
 
 import { cn } from "@/lib/utils";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 
 import type { TimeFieldProps, TimeValue } from "react-aria-components";
 

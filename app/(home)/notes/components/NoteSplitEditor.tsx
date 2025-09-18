@@ -2,11 +2,11 @@
 
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { Note } from './types';
-import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../_utils';
+import { MemoizedMarkdown, OptimizedMarkdownBlocksAST } from '../utils';
 import { EditorToolbar } from './EditorToolbar';
 import { useAdvancedDebounce } from '@/app/lib/hooks/useDebounce';
 import { performanceMonitor, batchDOMUpdates } from '@/app/lib/optimizations';
-import { usePasteImage, useTableToolbar } from '../_hooks';
+import { usePasteImage, useTableToolbar } from '../hooks';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
 import { AIFloatingInput } from './AIFloatingInput';

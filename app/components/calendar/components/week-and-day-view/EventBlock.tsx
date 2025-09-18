@@ -2,7 +2,7 @@ import { cva } from "class-variance-authority";
 import { format, differenceInMinutes, parseISO } from "date-fns";
 
 import { useCalendar } from "../../contexts/CalendarContext";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { getThemeAwareEventColors } from "../../styles/eventColors";
 
 import { EventDetailsDialog } from "../dialogs/EventDetailsDialog";

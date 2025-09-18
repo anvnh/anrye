@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { EditorView } from '@codemirror/view';
-import type { CMEditorApi } from '../_components/CMEditor';
-import { tableOperations } from '../_utils/tableOperations';
+import type { CMEditorApi } from '../components/CMEditor';
+import { tableOperations } from '../utils/tableOperations';
 
 export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefined>) => {
   const [isInTable, setIsInTable] = useState(false);
