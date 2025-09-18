@@ -134,29 +134,30 @@ export default function NoteSidebar({
       // Starts with query gets high score
       if (textLower.startsWith(queryLower)) return 90;
 
+      // Contains as whole phrase gets high score
+      if (textLower.includes(queryLower)) return 80;
+
       // Contains as whole word gets medium-high score
       try {
         const wordBoundaryRegex = new RegExp(`\\b${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-        if (wordBoundaryRegex.test(textLower)) return 80;
+        if (wordBoundaryRegex.test(textLower)) return 70;
       } catch {
         // Fallback if regex is invalid
       }
 
-      // Contains query gets medium score
-      if (textLower.includes(queryLower)) return 70;
-
-      // Fuzzy match for partial matches
+      // Only do fuzzy matching if query has multiple words and no exact/phrase match found
       const words = queryLower.split(/\s+/).filter(Boolean);
-      let matchedWords = 0;
-
-      for (const word of words) {
-        if (textLower.includes(word)) {
-          matchedWords++;
+      if (words.length > 1) {
+        let matchedWords = 0;
+        for (const word of words) {
+          if (textLower.includes(word)) {
+            matchedWords++;
+          }
         }
-      }
-
-      if (matchedWords > 0) {
-        return 50 + (matchedWords / words.length) * 20;
+        // Only return fuzzy score if ALL words match
+        if (matchedWords === words.length) {
+          return 50 + (matchedWords / words.length) * 20;
+        }
       }
 
       return 0;
@@ -172,50 +173,33 @@ export default function NoteSidebar({
     const query = debouncedSearchQuery.trim();
     const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Enhanced note filtering with multiple criteria
+    // Search only in title for notes
     const noteResults = notes.map(note => {
-      let maxScore = 0;
-
-      // Search in title (highest priority)
+      // Search only in title
       const titleScore = searchScore(note.title, query);
-      maxScore = Math.max(maxScore, titleScore);
 
-      // Search in file path
-      const pathScore = searchScore(note.path || '', query) * 0.8; // Slightly lower priority
-      maxScore = Math.max(maxScore, pathScore);
-
-      // Search in content (lower priority for performance)
-      const contentScore = searchScore(note.content || '', query) * 0.6;
-      maxScore = Math.max(maxScore, contentScore);
-
-      // Bonus for matching multiple words
+      // Bonus for matching multiple words in title
+      let bonus = 0;
       if (queryWords.length > 1) {
         const allWordsInTitle = queryWords.every(word =>
           note.title.toLowerCase().includes(word)
         );
         if (allWordsInTitle) {
-          maxScore += 10;
+          bonus = 10;
         }
       }
 
-      return { note, score: maxScore };
+      return { note, score: titleScore + bonus };
     }).filter(result => result.score > 0)
       .sort((a, b) => b.score - a.score)
       .map(result => result.note);
 
-    // Enhanced folder filtering
+    // Search only in folder name
     const folderResults = folders.map(folder => {
-      let maxScore = 0;
-
-      // Search in folder name
+      // Search only in folder name
       const nameScore = searchScore(folder.name, query);
-      maxScore = Math.max(maxScore, nameScore);
 
-      // Search in folder path
-      const pathScore = searchScore(folder.path || '', query) * 0.8;
-      maxScore = Math.max(maxScore, pathScore);
-
-      return { folder, score: maxScore };
+      return { folder, score: nameScore };
     }).filter(result => result.score > 0)
       .sort((a, b) => b.score - a.score)
       .map(result => result.folder);
@@ -889,7 +873,7 @@ export default function NoteSidebar({
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search notes and folders..."
+                    placeholder="Search by title..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchFocused(true)}
@@ -928,11 +912,28 @@ export default function NoteSidebar({
                 </div>
               )}
 
-              {isLoading && (
+              {isLoading ? (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-blue-400 font-medium">Syncing...</span>
                     <span className="text-xs text-gray-400">{syncProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out shadow-sm"
+                      style={{
+                        width: `${syncProgress}%`,
+                        boxShadow: syncProgress > 0 ? '0 0 8px rgba(59, 130, 246, 0.6)' : 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-blue-400 font-medium">
+                      Not currently syncing
+                    </span>
                   </div>
                   <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                     <div

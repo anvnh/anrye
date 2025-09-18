@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import AuthenticatedLayout from "./components/AuthenticatedLayout";
 import HomeClient from './components/HomeClient';
+import Navbar from './components/NavBar';
 
-// Compute static date labels on server; run ticking timer only in the client component
 function Hero() {
   return (
     <div
@@ -15,7 +14,7 @@ function Hero() {
             Welcome to AnRye
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-90 transition-colors">
-            Personal website with utilities and notes
+            Website that saves your notes and personal documents
           </p>
         </div>
       </div>
@@ -25,9 +24,10 @@ function Hero() {
 
 export default function Home() {
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="min-h-screen flex flex-col">
         <div className="flex-1">
+          <Navbar />
           <Hero />
           <HomeClient />
         </div>
@@ -46,6 +46,6 @@ export default function Home() {
           </div>
         </footer>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

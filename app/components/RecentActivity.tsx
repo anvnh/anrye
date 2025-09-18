@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
 	FileText,
-	Heart,
 	Settings,
 	Edit,
 	Clock,
@@ -38,8 +37,6 @@ const getActivityColor = (type: Activity['type']): string => {
 	switch (type) {
 		case 'note':
 			return 'text-blue-400 bg-blue-400/10';
-		case 'milestone':
-			return 'text-pink-400 bg-pink-400/10';
 		case 'utility':
 			return 'text-green-400 bg-green-400/10';
 		case 'editor':
@@ -53,8 +50,6 @@ const getIconComponent = (iconName: string) => {
 	switch (iconName) {
 		case 'FileText':
 			return <FileText className="w-5 h-5" />;
-		case 'Heart':
-			return <Heart className="w-5 h-5" />;
 		case 'Settings':
 			return <Settings className="w-5 h-5" />;
 		case 'Edit':

@@ -135,15 +135,6 @@ export default function LoveTimerHoverCard() {
 					</div>
 				</div>
 
-				{/* Milestones Link */}
-				<div className="mt-6 pt-4 border-t border-gray-600">
-					<Link
-						href="/milestones"
-						className="inline-flex bg-main border-b-gray-500 border-b-1 hover:border-b-white items-center gap-2 px-4 py-2 text-white rounded-lg font-medium transition-colors w-full justify-center"
-					>
-						View Love Milestones
-					</Link>
-				</div>
 			</HoverCardContent>
 		</HoverCard>
 	);
