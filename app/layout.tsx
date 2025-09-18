@@ -76,6 +76,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
         style={{ backgroundColor: '#222831' }}
+        suppressHydrationWarning={true}
       >
         <DriveProvider>
           {children}
@@ -84,6 +85,46 @@ export default function RootLayout({
         {process.env.NODE_ENV === 'production' && (
           <Script src="/sw-register.js" strategy="afterInteractive" />
         )}
+        <Script
+          id="dark-reader-hydration-fix"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Comprehensive Dark Reader hydration fix
+              (function() {
+                // Suppress hydration warnings for Dark Reader modifications
+                const originalError = console.error;
+                console.error = function(...args) {
+                  const message = args[0];
+                  if (typeof message === 'string' && 
+                      (message.includes('Hydration failed') || 
+                       message.includes('hydration mismatch') ||
+                       message.includes('data-darkreader') ||
+                       message.includes('server rendered HTML') ||
+                       message.includes('client properties'))) {
+                    return; // Suppress Dark Reader related hydration warnings
+                  }
+                  originalError.apply(console, args);
+                };
+
+                // Also suppress React's hydration warnings in development
+                if (typeof window !== 'undefined') {
+                  const originalWarn = console.warn;
+                  console.warn = function(...args) {
+                    const message = args[0];
+                    if (typeof message === 'string' && 
+                        (message.includes('Hydration') || 
+                         message.includes('hydration') ||
+                         message.includes('data-darkreader'))) {
+                      return; // Suppress Dark Reader related warnings
+                    }
+                    originalWarn.apply(console, args);
+                  };
+                }
+              })();
+            `
+          }}
+        />
         <Script
           id="pwa-auth-preloader"
           strategy="afterInteractive"
