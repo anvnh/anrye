@@ -584,7 +584,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className={`h-screen min-h-0 flex flex-col ${notesTheme === 'dark' ? 'notes-dark' : 'notes-light'}`}>
+    <div className={`h-screen min-h-0 flex flex-col ${notesTheme === 'dark' ? 'notes-dark' : 'notes-light'}`} suppressHydrationWarning={true}>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* File Explorer Sidebar */}
         <NoteSidebar
@@ -822,7 +822,7 @@ export default function NotesPage() {
         setIsCreatingFolder(open);
         if (!open) setNewFolderName('');
       }}>
-        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }} suppressHydrationWarning={true}>
           <DialogHeader>
             <DialogTitle className="text-white">Create New Folder</DialogTitle>
             <DialogDescription className="text-gray-300">
@@ -840,7 +840,7 @@ export default function NotesPage() {
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder="Folder name"
               className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: '#222831' }}
+              style={{ backgroundColor: '#222831' }} suppressHydrationWarning={true}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -879,7 +879,7 @@ export default function NotesPage() {
         setIsCreatingNote(open);
         if (!open) setNewNoteName('');
       }}>
-        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }}>
+        <DialogContent className="sm:max-w-md" style={{ backgroundColor: '#31363F', borderColor: '#4a5568' }} suppressHydrationWarning={true}>
           <DialogHeader>
             <DialogTitle className="text-white">
               Create New Note
@@ -899,7 +899,7 @@ export default function NotesPage() {
               onChange={(e) => setNewNoteName(e.target.value)}
               placeholder="Note title"
               className="w-full px-3 py-2 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: '#222831' }}
+              style={{ backgroundColor: '#222831' }} suppressHydrationWarning={true}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -960,7 +960,7 @@ export default function NotesPage() {
 
       {/* Full Screen Calendar Overlay */}
       {isCalendarOpen && (
-        <div className="fixed inset-0 z-[9999] bg-main">
+        <div className="fixed inset-0 z-[9999] bg-main" suppressHydrationWarning={true}>
           <div className="h-full flex flex-col">
             {/* Calendar Content */}
             <div className="flex-1 overflow-hidden relative">

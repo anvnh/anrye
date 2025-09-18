@@ -38,7 +38,7 @@ export default function PWALoadingState({
 
 	if (showLoading) {
 		return (
-			<div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#222831' }}>
+			<div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#222831' }} suppressHydrationWarning={true}>
 				<div className="text-center">
 					<div className="relative">
 						{/* Animated spinner */}
