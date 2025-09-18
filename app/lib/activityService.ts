@@ -18,7 +18,7 @@ interface DriveFile {
 
 export interface Activity {
   id: string;
-  type: 'note' | 'milestone' | 'utility' | 'editor';
+  type: 'note' | 'utility' | 'editor';
   title: string;
   description: string;
   timestamp: Date;
@@ -66,9 +66,8 @@ class ActivityService {
       }
 
       // Get files from different folders
-      const [notesFiles, loveFiles, utilsFiles, allFiles] = await Promise.allSettled([
+      const [notesFiles, utilsFiles, allFiles] = await Promise.allSettled([
         this.getNotesFiles(),
-        this.getLoveFiles(),
         this.getUtilsFiles(),
         this.getAllRecentFiles()
       ]);
@@ -77,12 +76,6 @@ class ActivityService {
       if (notesFiles.status === 'fulfilled') {
         const noteActivities = notesFiles.value.map(file => this.convertFileToActivity(file, 'note'));
         activities.push(...noteActivities);
-      }
-
-      // Process love files (milestones)
-      if (loveFiles.status === 'fulfilled') {
-        const loveActivities = loveFiles.value.map(file => this.convertFileToActivity(file, 'milestone'));
-        activities.push(...loveActivities);
       }
 
       // Process utils files
@@ -129,17 +122,6 @@ class ActivityService {
     }
   }
 
-  private async getLoveFiles(): Promise<DriveActivity[]> {
-    try {
-      const drive = await this.ensureDrive();
-      const loveFolderId = await drive.findOrCreateLoveFolder();
-      const files = await drive.listFiles(loveFolderId);
-      return files.filter((file: DriveFile) => file.mimeType === 'text/plain' || file.mimeType.includes('document'));
-    } catch (error) {
-      console.error('Error fetching love files:', error);
-      return [];
-    }
-  }
 
   private async getUtilsFiles(): Promise<DriveActivity[]> {
     try {
@@ -186,8 +168,6 @@ class ActivityService {
       switch (type) {
         case 'note':
           return 'FileText';
-        case 'milestone':
-          return 'Heart';
         case 'utility':
           return 'Settings';
         case 'editor':
@@ -201,8 +181,6 @@ class ActivityService {
       switch (type) {
         case 'note':
           return '/notes';
-        case 'milestone':
-          return '/milestones';
         case 'utility':
           return '/utils';
         case 'editor':
@@ -216,8 +194,6 @@ class ActivityService {
       switch (type) {
         case 'note':
           return `Updated: ${name}`;
-        case 'milestone':
-          return `Love milestone: ${name}`;
         case 'utility':
           return `Used utility: ${name}`;
         case 'editor':
@@ -252,15 +228,6 @@ class ActivityService {
       },
       {
         id: '2',
-        type: 'milestone',
-        title: 'Love Anniversary',
-        description: 'Celebrated 100 days together!',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        icon: 'Heart',
-        href: '/milestones'
-      },
-      {
-        id: '3',
         type: 'utility',
         title: 'Password Generator',
         description: 'Generated new secure password',
@@ -269,7 +236,7 @@ class ActivityService {
         href: '/utils'
       },
       {
-        id: '4',
+        id: '3',
         type: 'editor',
         title: 'Code Snippet',
         description: 'Created new React component',

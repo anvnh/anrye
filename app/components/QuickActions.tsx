@@ -40,14 +40,6 @@ export default function QuickActions() {
 			bgColor: 'bg-purple-400/10 hover:bg-purple-400/20'
 		},
 		{
-			title: 'Milestones',
-			description: 'Track your love journey milestones',
-			icon: <Heart className="w-6 h-6" />,
-			href: '/milestones',
-			color: 'text-pink-400',
-			bgColor: 'bg-pink-400/10 hover:bg-pink-400/20'
-		},
-		{
 			title: 'Utils',
 			description: 'Useful utilities and tools',
 			icon: <Settings className="w-6 h-6" />,
