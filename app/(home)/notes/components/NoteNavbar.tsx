@@ -81,6 +81,9 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
 
+  const isNoNoteSelected = selectedNote.id === 'no-note';
+
+
   // Helper function to format the last updated time
   const formatLastUpdated = (dateString: string): string => {
     const date = new Date(dateString);
@@ -207,17 +210,18 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         {/* Desktop Buttons - Hidden on mobile */}
         <div className="hidden lg:flex items-center gap-1 sm:gap-2 shrink justify-end min-w-0 flex-nowrap overflow-x-auto overflow-y-hidden whitespace-nowrap">
           {/* Close Note Button */}
-          <button
-            onClick={onCloseNote}
-            className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-icon-notenavbar text-white
+          {!isNoNoteSelected && (
+            <button
+              onClick={onCloseNote}
+              className={`px-2 sm:px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1 bg-icon-notenavbar text-white
               ${notesTheme === 'light' ? 'bg-icon-notenavbar-light' : ''}`}
-            title="Close Note"
-          >
-            <span className="hidden sm:inline">
-              Close Note
-            </span>
-          </button>
-
+              title="Close Note"
+            >
+              <span className="hidden sm:inline">
+                Close Note
+              </span>
+            </button>
+          )}
           {/* Image Manager Button */}
           <button
             onClick={onOpenImageManager}
@@ -245,12 +249,14 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           </button>
 
           {/* Share Button */}
-          <ShareDropdown
-            noteId={selectedNote.id}
-            noteTitle={selectedNote.title}
-            noteContent={selectedNote.content}
-            notesTheme={notesTheme}
-          />
+          {!isNoNoteSelected && (
+            <ShareDropdown
+              noteId={selectedNote.id}
+              noteTitle={selectedNote.title}
+              noteContent={selectedNote.content}
+              notesTheme={notesTheme}
+            />
+          )}
 
           {/* Preview Mode Toggle - Only show when editing */}
           {isEditing && (
