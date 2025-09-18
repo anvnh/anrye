@@ -6,7 +6,7 @@ import { MonthEventBadge } from "./MonthEventBadge";
 
 import { cn } from "@/lib/utils";
 import { getMonthCellEvents } from "../../helpers";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 
 import type { ICalendarCell, IEvent } from "../../interfaces";
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Note } from '../_components/types';
-import { suggestNoteLinks } from '../_utils/backlinkUtils';
+import { Note } from '../components/types';
+import { suggestNoteLinks } from '../utils/backlinkUtils';
 
 interface WikilinkAutocompleteState {
   isOpen: boolean;

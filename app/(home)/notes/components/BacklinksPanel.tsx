@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Note } from './types';
-import { findBacklinks, findOutgoingLinks, BacklinkInfo } from '../_utils/backlinkUtils';
+import { findBacklinks, findOutgoingLinks, BacklinkInfo } from '../utils/backlinkUtils';
 import { FileText, ArrowRight, ArrowLeft, Network, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 
 interface BacklinksPanelProps {

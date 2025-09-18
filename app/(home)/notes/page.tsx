@@ -7,11 +7,11 @@ import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
-import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './_components';
-import RenameDialog from './_components/RenameDialog';
-import NoteNavbar from './_components/NoteNavbar';
-import { LoadingSpinner } from './_components/LoadingSpinner';
-import { ImageManager } from './_components/ImageManager';
+import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './components';
+import RenameDialog from './components/RenameDialog';
+import NoteNavbar from './components/NoteNavbar';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { ImageManager } from './components/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PWALoadingState from '../../components/PWALoadingState';
 
@@ -27,16 +27,15 @@ import {
   useKeyboardShortcuts,
   useSidebarResize,
   useResponsiveLayout,
-} from './_hooks';
+} from './hooks';
 
 // Import utilities
-import { startEdit, cancelEdit, closeNote } from './_utils/noteActions';
-import { clearAllData, setupDebugUtils } from './_utils/debugUtils';
+import { startEdit, cancelEdit, closeNote } from './utils/noteActions';
+import { clearAllData, setupDebugUtils } from './utils/debugUtils';
 // Removed: heading-based sync is now self-contained in NoteSplitEditor
 
 import React, { useMemo } from 'react';
-import { Note } from './_components/types';
-import { MemoizedMarkdown } from './_utils/markdownRenderer';
+import { Note } from './components/types';
 
 // Memoized note content wrapper to prevent re-renders when folders change
 const MemoizedNoteContent = React.memo(({

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
-import { Note, Folder } from '../_components/types';
+import { Note, Folder } from '../components/types';
 
 // Lazy load the drive service
 const loadDriveService = async () => {

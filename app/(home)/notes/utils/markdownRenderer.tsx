@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
-import { Note } from '../_components/types';
+import { Note } from '../components/types';
 import Prism from 'prismjs';
 import { visit } from 'unist-util-visit';
 import { createPortal } from 'react-dom';
@@ -25,9 +25,9 @@ import {
   MessageSquare,
   ClipboardList
 } from 'lucide-react';
-import FoldableHeading from '../_components/FoldableHeading';
-import { CheckboxItem } from '../_components/CheckboxItem';
-import { CheckboxProvider } from '../_contexts/CheckboxContext';
+import FoldableHeading from '../components/FoldableHeading';
+import { CheckboxItem } from '../components/CheckboxItem';
+import { CheckboxProvider } from '../context/CheckboxContext';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -41,7 +41,7 @@ import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTableScrollbar } from '../_hooks/useTableScrollbar';
+import { useTableScrollbar } from '../hooks/useTableScrollbar';
 
 interface MarkdownRendererProps {
   content: string;
@@ -784,7 +784,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
 
             // Use the optimized image component
             const OptimizedImage = React.useMemo(() => {
-              return React.lazy(() => import('../_components/OptimizedImage').then(module => ({ default: module.default })));
+              return React.lazy(() => import('../components/OptimizedImage').then(module => ({ default: module.default })));
             }, []);
 
             return (
@@ -808,7 +808,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 {/* Modals for editing and lightbox */}
                 {isEditorOpen && (
                   // @ts-ignore dynamic import path
-                  React.createElement(require('../_components/ImageEditor').default, {
+                  React.createElement(require('../components/ImageEditor').default, {
                     src: loadedImageUrl || (src as string),
                     driveFileId: (src as string).match(/id=([^&]+)/)?.[1],
                     onClose: () => setIsEditorOpen(false),
@@ -833,7 +833,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 )}
                 {isLightboxOpen && (
                   // @ts-ignore dynamic import path
-                  React.createElement(require('../_components/ImageLightbox').default, {
+                  React.createElement(require('../components/ImageLightbox').default, {
                     src: editedImageUrl || loadedImageUrl || (src as string),
                     alt,
                     onClose: () => setIsLightboxOpen(false),

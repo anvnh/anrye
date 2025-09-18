@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Note, Folder } from '../_components/types';
+import { Note, Folder } from '../components/types';
 
 export const useNotesState = () => {
   // Core data state

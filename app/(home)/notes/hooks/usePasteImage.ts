@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
-import { Note } from '../_components/types';
+import { Note } from '../components/types';
 
 interface UsePasteImageProps {
   notes: Note[];

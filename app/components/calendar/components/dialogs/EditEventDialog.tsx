@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { useCalendar } from "../../contexts/CalendarContext";
-import { useDisclosure, useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useDisclosure, useThemeSettings } from "@/app/(home)/notes/hooks";
 import { updateEvent as updateGCalEvent, getEvent as getGCalEvent } from "@/app/lib/googleCalendar";
 import { useEffect, useMemo, useState } from "react";
 

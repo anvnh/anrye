@@ -1,4 +1,4 @@
-import type { CMEditorApi } from '../_components/CMEditor';
+import type { CMEditorApi } from '../components/CMEditor';
 
 export const tableOperations = {
   /**
