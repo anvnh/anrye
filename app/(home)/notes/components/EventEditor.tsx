@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { TimePicker } from './TimePicker';
-import { useThemeSettings } from '../_hooks';
+import { useThemeSettings } from '../hooks';
 
 type Props = {
   open: boolean;

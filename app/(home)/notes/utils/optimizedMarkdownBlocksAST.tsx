@@ -1,6 +1,6 @@
 import React from 'react';
-import { MemoizedMarkdown } from '../_utils';
-import { Note } from '../_components/types';
+import { MemoizedMarkdown } from '../utils';
+import { Note } from '../components/types';
 
 // Simple hash function to create stable keys for blocks
 function simpleHash(str: string): string {

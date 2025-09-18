@@ -6,7 +6,7 @@ import {
   type EncryptedData,
   type EncryptionResult,
   type DecryptionResult 
-} from '../_utils/encryptionUtils';
+} from '../utils/encryptionUtils';
 
 export interface UseEncryptionState {
   isEncrypting: boolean;

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { groupEvents, getEventBlockStyle, isWorkingHour, getVisibleHours } from "../../helpers";
 
 import type { IEvent } from "../../interfaces";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 
 interface IProps {
   singleDayEvents: IEvent[];

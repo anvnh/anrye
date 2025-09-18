@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
-import { usePasteImage, useTableToolbar } from '../_hooks';
+import { usePasteImage, useTableToolbar } from '../hooks';
 import { Note } from './types';
 import RenameImageDialog from './RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';

@@ -2,7 +2,7 @@ import { formatDate } from "date-fns";
 
 import { useCalendar } from "../../contexts/CalendarContext";
 
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { cn } from "@/lib/utils";
 
 export function TodayButton() {

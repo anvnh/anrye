@@ -4,16 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { List, X, Network, Lock, Unlock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Note } from './types';
-import { MemoizedMarkdown } from '../_utils';
+import { MemoizedMarkdown } from '../utils';
 import NoteOutlineSidebar from './NoteOutlineSidebar';
 import BacklinksPanel from './BacklinksPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useEncryption } from '../_hooks/useEncryption';
+import { useEncryption } from '../hooks/useEncryption';
 import { cn } from '@/lib/utils';
-import { useThemeSettings } from '../_hooks/useThemeSettings';
+import { useThemeSettings } from '../hooks/useThemeSettings';
 
 interface NotePreviewProps {
   selectedNote: Note;
