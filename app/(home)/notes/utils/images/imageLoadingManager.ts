@@ -34,7 +34,7 @@ class ImageLoadingManager {
   private async initDriveService() {
     if (!this.driveService) {
       try {
-        const module = await import('../../../../lib/googleDrive');
+        const module = await import('../../services/googleDrive');
         this.driveService = module.driveService;
       } catch (error) {
         console.error('Failed to initialize drive service:', error);

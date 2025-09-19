@@ -5,7 +5,7 @@ import { useMemo, useCallback, useRef, useEffect } from 'react';
 export const loadDriveService = async () => {
   if (typeof window !== 'undefined') {
     try {
-      return await import('./googleDrive');
+      return await import('../(home)/notes/services/googleDrive');
     } catch (error) {
       return null;
     }

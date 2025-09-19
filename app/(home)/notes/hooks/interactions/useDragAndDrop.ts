@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
-import { driveService } from '../../../../lib/googleDrive';
+import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
 
 export const useDragAndDrop = (
