@@ -337,9 +337,8 @@ The content will then be available for viewing and editing normally.`;
       
       setSyncProgress(10);
       
-      // Reset all sync states
+      // Reset Drive sync state (keep app initialized to avoid fullscreen loader)
       setHasSyncedWithDrive(false);
-      setIsInitialized(false);
       
       setSyncProgress(15);
       

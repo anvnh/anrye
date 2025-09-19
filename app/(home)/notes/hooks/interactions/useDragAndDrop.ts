@@ -2,6 +2,8 @@ import React, { useCallback } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
+import { useStorageSettings } from '../settings/useStorageSettings';
+import { tursoService } from '../../services/tursoService';
 
 export const useDragAndDrop = (
   notes: Note[],
@@ -14,6 +16,7 @@ export const useDragAndDrop = (
   setSelectedNote: React.Dispatch<React.SetStateAction<Note | null>>
 ) => {
   const { isSignedIn } = useDrive();
+  const { currentProvider } = useStorageSettings();
 
   const handleDragStart = useCallback((e: React.DragEvent, type: 'note' | 'folder', id: string) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -57,7 +60,7 @@ export const useDragAndDrop = (
           if (note && note.path !== '') {
       const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
             // Move on Google Drive if signed in and both have Drive IDs
-            if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
+            if (currentProvider === 'google-drive' && isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
               try {
                 setSyncProgress(35);
                 // Move existing file to root parent; keep same ID
@@ -77,6 +80,19 @@ export const useDragAndDrop = (
                 if (selectedNote?.id === note.id) setSelectedNote(updated);
                 setSyncProgress(80);
               }
+            } else if (currentProvider === 'r2-turso') {
+              try {
+                setSyncProgress(40);
+                await tursoService.connect();
+                // Update note in DB: folderId null for root
+                await tursoService.saveNote({ id: note.id, title: finalTitle, content: note.content, folderId: undefined });
+                const updated = { ...note, title: finalTitle, path: '' } as Note;
+                setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+                if (selectedNote?.id === note.id) setSelectedNote(updated);
+                setSyncProgress(85);
+              } catch (err) {
+                console.error('Failed to move note to root on Turso:', err);
+              }
             } else {
               // Update locally only
               const updated = { ...note, title: finalTitle, path: '' } as Note;
@@ -92,7 +108,7 @@ export const useDragAndDrop = (
             const newPath = folder.name; // Root level path is just the folder name
 
             // Move on Google Drive if signed in and both have Drive IDs
-            if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
+            if (currentProvider === 'google-drive' && isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
               try {
                 setSyncProgress(40);
                 // Move the folder itself; children follow implicitly
@@ -134,6 +150,18 @@ export const useDragAndDrop = (
                 updateFolderLocallyToRoot();
                 setSyncProgress(90);
               }
+            } else if (currentProvider === 'r2-turso') {
+              try {
+                setSyncProgress(45);
+                await tursoService.connect();
+                // Update folder parent in DB
+                await tursoService.saveFolder({ id: folder.id, name: folder.name, parentId: targetFolderId === 'root' ? undefined : targetFolderId });
+              } catch (err) {
+                console.error('Failed to move folder in Turso:', err);
+              }
+              // Update locally only
+              updateFolderLocallyToRoot();
+              setSyncProgress(85);
             } else {
               // Update locally only
               updateFolderLocallyToRoot();
@@ -201,7 +229,7 @@ export const useDragAndDrop = (
         if (note && note.path !== targetFolder.path) {
       const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
           // Move on Google Drive if signed in and both have Drive IDs
-          if (isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
+          if (currentProvider === 'google-drive' && isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
             try {
               setSyncProgress(35);
               // Move file to new parent; keep same ID
@@ -221,6 +249,19 @@ export const useDragAndDrop = (
               if (selectedNote?.id === note.id) setSelectedNote(updated);
               setSyncProgress(85);
             }
+          } else if (currentProvider === 'r2-turso') {
+            try {
+              setSyncProgress(40);
+              await tursoService.connect();
+              // Update note with new folderId (preserve the same note id)
+              await tursoService.saveNote({ id: note.id, title: finalTitle, content: note.content, folderId: targetFolderId });
+              const updated = { ...note, title: finalTitle, path: targetFolder.path } as Note;
+              setNotes(prev => prev.map(n => n.id === draggedItem.id ? updated : n));
+              if (selectedNote?.id === note.id) setSelectedNote(updated);
+              setSyncProgress(90);
+            } catch (err) {
+              console.error('Failed to move note in Turso:', err);
+            }
           } else {
             // Update locally only
             const updated = { ...note, title: finalTitle, path: targetFolder.path } as Note;
@@ -236,7 +277,7 @@ export const useDragAndDrop = (
           const newPath = targetFolder.path ? `${targetFolder.path}/${folder.name}` : folder.name;
 
           // Move on Google Drive if signed in and both have Drive IDs
-          if (isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
+          if (currentProvider === 'google-drive' && isSignedIn && folder.driveFolderId && targetFolder.driveFolderId) {
             try {
               setSyncProgress(40);
               // Move the folder itself; children follow implicitly
@@ -278,6 +319,18 @@ export const useDragAndDrop = (
               updateFolderLocally();
               setSyncProgress(90);
             }
+          } else if (currentProvider === 'r2-turso') {
+            try {
+              setSyncProgress(45);
+              await tursoService.connect();
+              // Update folder parent in DB
+              await tursoService.saveFolder({ id: folder.id, name: folder.name, parentId: targetFolderId });
+            } catch (err) {
+              console.error('Failed to move folder in Turso:', err);
+            }
+            // Update locally only
+            updateFolderLocally();
+            setSyncProgress(85);
           } else {
             // Update locally only
             updateFolderLocally();

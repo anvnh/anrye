@@ -76,7 +76,42 @@ export const useStorageSettings = () => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_PROVIDER_KEY, currentProvider);
+      try {
+        // Notify other hook instances in the same tab
+        window.dispatchEvent(new CustomEvent('storage-provider-changed', { detail: { provider: currentProvider } }));
+      } catch {}
     }
+  }, [currentProvider]);
+
+  // Listen for provider changes from elsewhere (same tab via custom event, other tabs via storage)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleCustom = (e: Event) => {
+      try {
+        const custom = e as CustomEvent;
+        const provider = custom?.detail?.provider as StorageProvider | undefined;
+        if (provider && provider !== currentProvider) {
+          setCurrentProvider(provider);
+        }
+      } catch {}
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_PROVIDER_KEY && e.newValue) {
+        const provider = e.newValue as StorageProvider;
+        if (provider && provider !== currentProvider) {
+          setCurrentProvider(provider);
+        }
+      }
+    };
+
+    window.addEventListener('storage-provider-changed', handleCustom as EventListener);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('storage-provider-changed', handleCustom as EventListener);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [currentProvider]);
 
   // Save R2 config to localStorage
@@ -112,6 +147,12 @@ export const useStorageSettings = () => {
       // Here you would implement the actual switching logic
       // For now, we'll just update the provider
       setCurrentProvider(provider);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_PROVIDER_KEY, provider);
+        try {
+          window.dispatchEvent(new CustomEvent('storage-provider-changed', { detail: { provider } }));
+        } catch {}
+      }
       
       // Simulate connection check
       await new Promise(resolve => setTimeout(resolve, 1000));

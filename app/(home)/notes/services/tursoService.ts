@@ -37,6 +37,9 @@ class TursoService {
   }
 
   private async executeQuery(query: string, params: any[] = []): Promise<any> {
+    // Always refresh config from localStorage in case settings changed
+    this.loadConfig();
+
     if (!this.config) {
       throw new Error('Turso configuration not found');
     }
