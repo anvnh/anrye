@@ -8,8 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Eye, EyeOff, Lock, Unlock, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useEncryption, usePasswordStrength } from '../../hooks/useEncryption';
-import { generateSecurePassword, type EncryptedData } from '../../utils/encryptionUtils';
+import { useEncryption, usePasswordStrength } from '../../hooks/features/useEncryption';
+import { generateSecurePassword, type EncryptedData } from '../../utils/encryption/encryptionUtils';
 import { useThemeSettings } from '../../hooks';
 import { cn } from '@/lib/utils';
 
