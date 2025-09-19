@@ -8,7 +8,7 @@ import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { indentWithTab } from '@codemirror/commands';
 import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
-import { createAIAutocompleteExtension, AIService } from './AIAutocomplete';
+import { createAIAutocompleteExtension, AIService } from '../ai/AIAutocomplete';
 
 export interface CMEditorApi {
   focus: () => void;

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { Folder as FolderIcon, Home, ChevronRight, ChevronLeft, Search } from 'lucide-react';
-import { Note, Folder } from './types';
+import { Note, Folder } from '../types';
 import {
   Drawer,
   DrawerContent,

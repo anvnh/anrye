@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MoreVertical, FolderPlus, FileText, Edit, Trash2, Plus, X, Move, Star, Lock, Unlock } from 'lucide-react';
-import { Note, Folder } from './types';
-import { NoteEncryptionDialog } from './NoteEncryption';
+import { Note, Folder } from '../types';
+import { NoteEncryptionDialog } from '../modals/NoteEncryption';
 import {
   DropdownMenu,
   DropdownMenuTrigger,

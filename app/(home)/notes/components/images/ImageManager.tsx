@@ -19,8 +19,8 @@ import {
   cleanupOrphanedImages,
   getImageUsageStats,
   ImageInfo
-} from '../utils/imageUtils';
-import { Note } from './types';
+} from '../../utils/imageUtils';
+import { Note } from '../types';
 import { driveService } from '@/app/lib/googleDrive';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import dynamic from 'next/dynamic';
@@ -130,7 +130,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
         await deleteImageFromDrive(image.driveFileId);
 
         // Clear the cache for this file ID since it's been deleted
-        const { imageLoadingManager } = await import('../utils/imageLoadingManager');
+        const { imageLoadingManager } = await import('../../utils/imageLoadingManager');
         imageLoadingManager.clearCacheForFile(image.driveFileId);
       }
     } catch (error) {
@@ -158,7 +158,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
             await deleteImageFromDrive(image.driveFileId);
 
             // Clear the cache for this file ID since it's been deleted
-            const { imageLoadingManager } = await import('../utils/imageLoadingManager');
+            const { imageLoadingManager } = await import('../../utils/imageLoadingManager');
             imageLoadingManager.clearCacheForFile(image.driveFileId);
           }
         }

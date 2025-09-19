@@ -2,11 +2,11 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorToolbar } from './EditorToolbar';
-import { usePasteImage, useTableToolbar } from '../hooks';
-import { Note } from './types';
-import RenameImageDialog from './RenameImageDialog';
+import { usePasteImage, useTableToolbar } from '../../hooks';
+import { Note } from '../types';
+import RenameImageDialog from '../images/RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
-import { AIFloatingInput } from './AIFloatingInput';
+import { AIFloatingInput } from '../ai/AIFloatingInput';
 
 interface NoteRegularEditorProps {
   editContent: string;
