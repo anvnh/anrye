@@ -9,9 +9,9 @@ import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './components';
 import RenameDialog from './components/modals/RenameDialog';
-import NoteNavbar from './components/sidebar/NoteNavbar';
+import NoteNavbar from './components/sidebar/navigation/NoteNavbar';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
-import { ImageManager } from './components/images/ImageManager';
+import { ImageManager } from './components/images/management/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PWALoadingState from '../../components/PWALoadingState';
 
@@ -30,8 +30,8 @@ import {
 } from './hooks';
 
 // Import utilities
-import { startEdit, cancelEdit, closeNote } from './utils/noteActions';
-import { clearAllData, setupDebugUtils } from './utils/debugUtils';
+import { startEdit, cancelEdit, closeNote } from './utils/core/noteActions';
+import { clearAllData, setupDebugUtils } from './utils/debug/debugUtils';
 // Removed: heading-based sync is now self-contained in NoteSplitEditor
 
 import React, { useMemo } from 'react';
