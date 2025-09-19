@@ -1,8 +1,8 @@
 // Lazily import GoogleDriveService to keep it out of the initial bundle
-let driveModulePromise: Promise<typeof import('./googleDrive')> | null = null;
+let driveModulePromise: Promise<typeof import('../(home)/notes/services/googleDrive')> | null = null;
 const loadDrive = () => {
   if (!driveModulePromise) {
-    driveModulePromise = import('./googleDrive');
+    driveModulePromise = import('../(home)/notes/services/googleDrive');
   }
   return driveModulePromise;
 };

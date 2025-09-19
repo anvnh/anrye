@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays, MoreHorizontal, Eye } from 'lucide-react';
 import { ShareDropdown } from '../../forms/ShareDropdown';
-import SettingsDropdown from '../../forms/SettingsDropdown';
+import { SettingsPage } from '../../forms/SettingsPage';
 import { Note } from '../../types';
-import { driveService } from '@/app/lib/googleDrive';
+import { driveService } from '@/app/(home)/notes/services/googleDrive';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface NoteNavbarProps {
@@ -13,21 +13,24 @@ interface NoteNavbarProps {
   setEditTitle: (title: string) => void;
   setIsSplitMode: (v: boolean) => void;
   isSplitMode: boolean;
-  tabSize: number;
-  setTabSize: (n: number) => void;
-  currentTheme: string;
-  setCurrentTheme: (t: string) => void;
-  themeOptions: { value: string; label: string }[];
   notesTheme: 'light' | 'dark';
-  setNotesTheme: (t: 'light' | 'dark') => void;
-  fontFamily: string;
-  setFontFamily: (f: string) => void;
-  fontSize: string;
-  setFontSize: (s: string) => void;
-  previewFontSize: string;
-  setPreviewFontSize: (s: string) => void;
-  codeBlockFontSize: string;
-  setCodeBlockFontSize: (s: string) => void;
+  setNotesTheme?: (t: 'light' | 'dark') => void;
+  // font settings
+  fontFamily?: string;
+  setFontFamily?: (v: string) => void;
+  fontSize?: string;
+  setFontSize?: (v: string) => void;
+  previewFontSize?: string;
+  setPreviewFontSize?: (v: string) => void;
+  codeBlockFontSize?: string;
+  setCodeBlockFontSize?: (v: string) => void;
+  // theme/highlighter
+  currentTheme?: string;
+  setCurrentTheme?: (v: string) => void;
+  themeOptions?: { value: string; label: string }[];
+  // editor behavior
+  tabSize?: number;
+  setTabSize?: (v: number) => void;
   saveNote: () => void;
   cancelEdit: () => void;
   startEdit: () => void;
@@ -50,11 +53,6 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   setEditTitle,
   setIsSplitMode,
   isSplitMode,
-  tabSize,
-  setTabSize,
-  currentTheme,
-  setCurrentTheme,
-  themeOptions,
   notesTheme,
   setNotesTheme,
   fontFamily,
@@ -65,6 +63,11 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   setPreviewFontSize,
   codeBlockFontSize,
   setCodeBlockFontSize,
+  currentTheme,
+  setCurrentTheme,
+  themeOptions,
+  tabSize,
+  setTabSize,
   saveNote,
   cancelEdit,
   startEdit,
@@ -305,24 +308,26 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
             </button>
           )}
 
-          {/* Settings Dropdown */}
-          <SettingsDropdown
-            tabSize={tabSize}
-            setTabSize={setTabSize}
-            currentTheme={currentTheme}
-            setCurrentTheme={setCurrentTheme}
-            themeOptions={themeOptions}
-            notesTheme={notesTheme}
-            setNotesTheme={setNotesTheme}
-            fontFamily={fontFamily}
-            setFontFamily={setFontFamily}
-            fontSize={fontSize}
-            setFontSize={setFontSize}
-            previewFontSize={previewFontSize}
-            setPreviewFontSize={setPreviewFontSize}
-            codeBlockFontSize={codeBlockFontSize}
-            setCodeBlockFontSize={setCodeBlockFontSize}
-          />
+          {/* Settings Page */}
+          {setNotesTheme ? (
+            <SettingsPage
+              notesTheme={notesTheme}
+              setNotesTheme={setNotesTheme}
+              fontFamily={fontFamily ?? 'inherit'}
+              setFontFamily={(v) => setFontFamily?.(v)}
+              fontSize={fontSize ?? '16px'}
+              setFontSize={(v) => setFontSize?.(v)}
+              previewFontSize={previewFontSize ?? '16px'}
+              setPreviewFontSize={(v) => setPreviewFontSize?.(v)}
+              codeBlockFontSize={codeBlockFontSize ?? '14px'}
+              setCodeBlockFontSize={(v) => setCodeBlockFontSize?.(v)}
+              currentTheme={currentTheme ?? 'mocha'}
+              setCurrentTheme={(v) => setCurrentTheme?.(v)}
+              themeOptions={themeOptions ?? []}
+              tabSize={tabSize ?? 2}
+              setTabSize={(v) => setTabSize?.(v)}
+            />
+          ) : null}
 
           {isEditing ? (
             <>
@@ -403,25 +408,27 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                   notesTheme={notesTheme}
                 />
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
-                <SettingsDropdown
-                  tabSize={tabSize}
-                  setTabSize={setTabSize}
-                  currentTheme={currentTheme}
-                  setCurrentTheme={setCurrentTheme}
-                  themeOptions={themeOptions}
-                  notesTheme={notesTheme}
-                  setNotesTheme={setNotesTheme}
-                  fontFamily={fontFamily}
-                  setFontFamily={setFontFamily}
-                  fontSize={fontSize}
-                  setFontSize={setFontSize}
-                  previewFontSize={previewFontSize}
-                  setPreviewFontSize={setPreviewFontSize}
-                  codeBlockFontSize={codeBlockFontSize}
-                  setCodeBlockFontSize={setCodeBlockFontSize}
-                />
-              </DropdownMenuItem>
+              {setNotesTheme ? (
+                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                  <SettingsPage
+                    notesTheme={notesTheme}
+                    setNotesTheme={setNotesTheme}
+                    fontFamily={fontFamily ?? 'inherit'}
+                    setFontFamily={(v) => setFontFamily?.(v)}
+                    fontSize={fontSize ?? '16px'}
+                    setFontSize={(v) => setFontSize?.(v)}
+                    previewFontSize={previewFontSize ?? '16px'}
+                    setPreviewFontSize={(v) => setPreviewFontSize?.(v)}
+                    codeBlockFontSize={codeBlockFontSize ?? '14px'}
+                    setCodeBlockFontSize={(v) => setCodeBlockFontSize?.(v)}
+                    currentTheme={currentTheme ?? 'mocha'}
+                    setCurrentTheme={(v) => setCurrentTheme?.(v)}
+                    themeOptions={themeOptions ?? []}
+                    tabSize={tabSize ?? 2}
+                    setTabSize={(v) => setTabSize?.(v)}
+                  />
+                </DropdownMenuItem>
+              ) : null}
 
               {isEditing ? (
                 <>

@@ -1,5 +1,5 @@
-import './types';
-import { getGoogleClientId, isGoogleClientIdConfigured } from './env';
+import '../../../lib/types';
+import { getGoogleClientId, isGoogleClientIdConfigured } from '../../../lib/env';
 
 interface DriveFile {
   id: string;

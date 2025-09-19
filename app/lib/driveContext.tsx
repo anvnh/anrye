@@ -23,10 +23,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false); // Track if auth has been properly initialized
 
   // Lazy-load the Google Drive module only when needed
-  let driveModulePromise: Promise<typeof import('./googleDrive')> | null = null;
+  let driveModulePromise: Promise<typeof import('../(home)/notes/services/googleDrive')> | null = null;
   const loadDriveModule = () => {
     if (!driveModulePromise) {
-      driveModulePromise = import('./googleDrive');
+      driveModulePromise = import('../(home)/notes/services/googleDrive');
     }
     return driveModulePromise;
   };
@@ -36,7 +36,6 @@ export function DriveProvider({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        // hỏi server lấy access_token dựa trên refresh cookie HttpOnly
         const resp = await fetch("/api/auth/google/token", { method: "POST" });
         if (!cancelled && resp.ok) {
           const data = await resp.json();
@@ -93,7 +92,6 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       );
       window.location.href = `/api/auth/google?origin=${origin}`;
     } finally {
-      // sẽ redirect nên đoạn sau thường không chạy; để an toàn vẫn reset
       setIsLoading(false);
     }
   };

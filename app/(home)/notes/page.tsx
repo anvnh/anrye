@@ -5,7 +5,7 @@ import { FileText, Menu, PanelLeftOpen, Image as ImageIcon, X } from 'lucide-rea
 import { addDays } from 'date-fns';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
-import { driveService } from '../../lib/googleDrive';
+import { driveService } from './services/googleDrive';
 import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './components';
 import RenameDialog from './components/modals/RenameDialog';
@@ -686,11 +686,6 @@ export default function NotesPage() {
               setEditTitle={setEditTitle}
               setIsSplitMode={setIsSplitMode}
               isSplitMode={isSplitMode}
-              tabSize={tabSize}
-              setTabSize={setTabSize}
-              currentTheme={currentTheme}
-              setCurrentTheme={setCurrentTheme}
-              themeOptions={themeOptions}
               notesTheme={notesTheme}
               setNotesTheme={setNotesTheme}
               fontFamily={fontFamily}
@@ -701,6 +696,11 @@ export default function NotesPage() {
               setPreviewFontSize={setPreviewFontSize}
               codeBlockFontSize={codeBlockFontSize}
               setCodeBlockFontSize={setCodeBlockFontSize}
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              themeOptions={themeOptions}
+              tabSize={tabSize}
+              setTabSize={setTabSize}
               saveNote={saveNote}
               cancelEdit={() => cancelEdit(setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
               startEdit={() => startEdit(selectedNote, setIsEditing, setEditTitle, setEditContent, setIsSplitMode)}
@@ -730,11 +730,6 @@ export default function NotesPage() {
               setEditTitle={() => {}}
               setIsSplitMode={() => {}}
               isSplitMode={false}
-              tabSize={tabSize}
-              setTabSize={setTabSize}
-              currentTheme={currentTheme}
-              setCurrentTheme={setCurrentTheme}
-              themeOptions={themeOptions}
               notesTheme={notesTheme}
               setNotesTheme={setNotesTheme}
               fontFamily={fontFamily}
@@ -745,6 +740,11 @@ export default function NotesPage() {
               setPreviewFontSize={setPreviewFontSize}
               codeBlockFontSize={codeBlockFontSize}
               setCodeBlockFontSize={setCodeBlockFontSize}
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              themeOptions={themeOptions}
+              tabSize={tabSize}
+              setTabSize={setTabSize}
               saveNote={() => {}}
               cancelEdit={() => {}}
               startEdit={() => {}}

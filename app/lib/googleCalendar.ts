@@ -1,6 +1,6 @@
 'use client';
 
-import { driveService } from './googleDrive';
+import { driveService } from '../(home)/notes/services/googleDrive';
 
 export interface CalendarEvent {
   id: string;

@@ -1,4 +1,4 @@
-import { driveService } from '@/app/lib/googleDrive';
+import { driveService } from '@/app/(home)/notes/services/googleDrive';
 
 export interface ImageInfo {
   markdown: string;
