@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
+import { useStorageSettings } from '../settings/useStorageSettings';
+import { tursoService } from '../../services/tursoService';
 
 export const useFolderOperations = (
   notes: Note[],
@@ -13,6 +15,7 @@ export const useFolderOperations = (
   setSyncProgress: (progress: number) => void
 ) => {
   const { isSignedIn } = useDrive();
+  const { currentProvider } = useStorageSettings();
 
   const createFolder = useCallback(async (newFolderName: string) => {
     if (!newFolderName.trim()) return;
@@ -27,9 +30,19 @@ export const useFolderOperations = (
       setSyncProgress(30);
 
       let driveFolderId;
-      if (isSignedIn && parentDriveId) {
+      if (currentProvider === 'google-drive' && isSignedIn && parentDriveId) {
         setSyncProgress(50);
         driveFolderId = await driveService.createFolder(newFolderName, parentDriveId);
+        setSyncProgress(80);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(50);
+        await tursoService.connect();
+        const newId = Date.now().toString();
+        await tursoService.saveFolder({
+          id: newId,
+          name: newFolderName,
+          parentId: parentFolder?.id === 'root' ? undefined : parentFolder?.id,
+        });
         setSyncProgress(80);
       }
 
@@ -57,7 +70,7 @@ export const useFolderOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [folders, selectedPath, isSignedIn, setIsLoading, setSyncProgress, setFolders]);
+  }, [folders, selectedPath, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setFolders]);
 
   const deleteFolder = useCallback(async (folderId: string) => {
     const folderToDelete = folders.find(f => f.id === folderId);
@@ -77,8 +90,13 @@ export const useFolderOperations = (
       setSyncProgress(30);
 
       for (const note of notesToDelete) {
-        if (isSignedIn && note.driveFileId) {
+        if (currentProvider === 'google-drive' && isSignedIn && note.driveFileId) {
           await driveService.deleteFile(note.driveFileId);
+        } else if (currentProvider === 'r2-turso') {
+          try {
+            await tursoService.connect();
+            await tursoService.deleteNote(note.id);
+          } catch {}
         }
         processedItems++;
         // Update progress based on how many items we've processed
@@ -89,9 +107,14 @@ export const useFolderOperations = (
       setSyncProgress(70);
 
       // Delete from Drive if signed in and has Drive folder ID
-      if (isSignedIn && folderToDelete.driveFolderId) {
+      if (currentProvider === 'google-drive' && isSignedIn && folderToDelete.driveFolderId) {
         setSyncProgress(75);
         await driveService.deleteFile(folderToDelete.driveFolderId);
+        setSyncProgress(85);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(75);
+        await tursoService.connect();
+        await tursoService.deleteFolder(folderToDelete.id);
         setSyncProgress(85);
       }
 
@@ -116,7 +139,7 @@ export const useFolderOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [folders, notes, isSignedIn, setIsLoading, setSyncProgress, setNotes, setFolders]);
+  }, [folders, notes, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setFolders]);
 
   const renameFolder = useCallback(async (folderId: string, currentName: string, newName: string) => {
     const folderToRename = folders.find(f => f.id === folderId);
@@ -127,10 +150,15 @@ export const useFolderOperations = (
       setSyncProgress(10);
 
       // Update folder name in Drive if signed in and has Drive folder ID
-      if (isSignedIn && folderToRename.driveFolderId) {
+      if (currentProvider === 'google-drive' && isSignedIn && folderToRename.driveFolderId) {
         setSyncProgress(30);
         await driveService.renameFolder(folderToRename.driveFolderId, newName);
         setSyncProgress(60);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(35);
+        await tursoService.connect();
+        await tursoService.saveFolder({ id: folderToRename.id, name: newName, parentId: folderToRename.parentId === 'root' ? undefined : folderToRename.parentId });
+        setSyncProgress(65);
       }
 
       // Update folder locally
@@ -155,7 +183,7 @@ export const useFolderOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [folders, isSignedIn, setIsLoading, setSyncProgress, setFolders]);
+  }, [folders, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setFolders]);
 
   const toggleFolder = useCallback((folderId: string) => {
     setFolders(prevFolders => 

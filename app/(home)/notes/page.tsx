@@ -36,6 +36,8 @@ import { clearAllData, setupDebugUtils } from './utils/debug/debugUtils';
 
 import React, { useMemo } from 'react';
 import { Note } from './components/types';
+import { useStorageSettings } from './hooks/settings/useStorageSettings';
+import { tursoService } from './services/tursoService';
 
 // Memoized note content wrapper to prevent re-renders when folders change
 const MemoizedNoteContent = React.memo(({
@@ -243,6 +245,10 @@ export default function NotesPage() {
     clearCacheAndSync,
   } = useDriveSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
 
+  const { currentProvider } = useStorageSettings();
+
+  const initRanRef = useRef(false);
+
   const {
     createNote,
     createNoteFromCurrentContent,
@@ -325,10 +331,10 @@ export default function NotesPage() {
   useSidebarResize(isResizing, setIsResizing, setSidebarWidth);
   useResponsiveLayout(isSplitMode, setIsSplitMode);
 
-  // Initialize data and sync with Drive - wait for auth to be initialized first
+  // Initialize data once and sync with Drive on first load if provider is Google Drive
   useEffect(() => {
     // Only proceed if authentication has been properly initialized
-    if (!isAuthInitialized) {
+    if (!isAuthInitialized || initRanRef.current) {
       return;
     }
 
@@ -336,26 +342,177 @@ export default function NotesPage() {
       try {
         const savedHasSynced = localStorage.getItem('has-synced-drive');
 
-        // Then check Google Drive status (slower, but non-blocking)
-        setTimeout(async () => {
-          // Sync with Drive if signed in and haven't synced yet
-          if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
-            syncWithDrive();
-          } else if (!isSignedIn) {
-            // Reset sync flag when signed out
-            setHasSyncedWithDrive(false);
-          }
-        }, 100);
+        // Only run Google Drive sync flow if the provider is Google Drive
+        if (currentProvider === 'google-drive') {
+          // Then check Google Drive status (slower, but non-blocking)
+          setTimeout(async () => {
+            // Sync with Drive if signed in and haven't synced yet
+            if (isSignedIn && !JSON.parse(savedHasSynced || 'false')) {
+              syncWithDrive();
+            } else if (!isSignedIn) {
+              // Reset sync flag when signed out
+              setHasSyncedWithDrive(false);
+            }
+          }, 100);
+        }
 
         setIsInitialized(true);
+        initRanRef.current = true;
       } catch (error) {
         // Failed to initialize notes
         setIsInitialized(true);
+        initRanRef.current = true;
       }
     };
 
     initializeData();
-  }, [isAuthInitialized, isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized]);
+  }, [isAuthInitialized, isSignedIn, syncWithDrive, setHasSyncedWithDrive, setIsInitialized, currentProvider]);
+
+  // When switching to Google Drive, clear sidebar and trigger a fresh sync
+  useEffect(() => {
+    if (currentProvider !== 'google-drive') return;
+    // Clear immediately
+    setNotes([]);
+    setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+    setSelectedNote(null);
+    setSelectedPath('');
+    // Trigger fresh sync
+    void clearCacheAndSync();
+  }, [currentProvider, setNotes, setFolders, setSelectedNote, setSelectedPath, clearCacheAndSync]);
+
+  // When switching to R2 + Turso, clear sidebar and load content from Turso
+  useEffect(() => {
+    const loadFromTurso = async () => {
+      try {
+        setIsLoading(true);
+        setSyncProgress(10);
+
+        // Clear local caches and sidebar content immediately
+        setNotes([]);
+        setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+        setSelectedNote(null);
+        setSelectedPath('');
+
+        setSyncProgress(25);
+        // Ensure Turso is configured and reachable, create tables if needed
+        await tursoService.connect();
+
+        setSyncProgress(40);
+        // Check if we have local data to migrate
+        const localNotes = localStorage.getItem('notes-new');
+        const localFolders = localStorage.getItem('folders-new');
+        
+        if (localNotes && localFolders) {
+          setSyncProgress(50);
+          // Migrate local data to Turso
+          const parsedNotes = JSON.parse(localNotes);
+          const parsedFolders = JSON.parse(localFolders);
+          
+          // Filter out root folder and migrate folders
+          const foldersToMigrate = parsedFolders.filter((f: any) => f.id !== 'root');
+          for (const folder of foldersToMigrate) {
+            await tursoService.saveFolder({
+              id: folder.id,
+              name: folder.name,
+              parentId: folder.parentId === 'root' ? undefined : folder.parentId,
+            });
+          }
+          
+          setSyncProgress(70);
+          // Migrate notes
+          for (const note of parsedNotes) {
+            await tursoService.saveNote({
+              id: note.id,
+              title: note.title,
+              content: note.content,
+              folderId: note.path ? foldersToMigrate.find((f: any) => f.path === note.path)?.id : undefined,
+            });
+          }
+          
+          setSyncProgress(80);
+          // Clear local caches after successful migration
+          localStorage.removeItem('notes-new');
+          localStorage.removeItem('folders-new');
+          localStorage.removeItem('notes-cache');
+          localStorage.removeItem('folders-cache');
+          localStorage.setItem('has-synced-drive', 'false');
+          localStorage.setItem('has-synced-with-drive', 'false');
+        }
+
+        setSyncProgress(85);
+        // Load data from Turso
+        const [tursoFolders, tursoNotes] = await Promise.all([
+          tursoService.getAllFolders(),
+          tursoService.getAllNotes(),
+        ]);
+
+        // Build folder map to compute hierarchical paths
+        const idToFolder = new Map<string, { id: string; name: string; parentId?: string }>();
+        for (const f of tursoFolders) {
+          idToFolder.set(f.id, { id: f.id, name: f.name, parentId: (f as any).parentId });
+        }
+
+        const computePath = (folderId?: string): string => {
+          if (!folderId) return '';
+          const segments: string[] = [];
+          let curId: string | undefined = folderId;
+          const safety = 1000; // guard
+          let steps = 0;
+          while (curId && steps < safety) {
+            const node = idToFolder.get(curId);
+            if (!node) break;
+            segments.push(node.name);
+            curId = node.parentId || undefined;
+            steps += 1;
+          }
+          return segments.reverse().join('/');
+        };
+
+        // Convert folders to app Folder type
+        const convertedFolders = tursoFolders.map(f => {
+          const parentId = (f as any).parentId as string | undefined;
+          const path = computePath(f.id);
+          const isTopLevel = !parentId;
+          return {
+            id: f.id,
+            name: f.name,
+            path,
+            parentId: isTopLevel ? 'root' : (parentId || ''),
+            expanded: false,
+          } as const;
+        });
+
+        // Convert notes to app Note type
+        const convertedNotes = tursoNotes.map(n => {
+          const notePath = computePath((n as any).folderId);
+          return {
+            id: n.id,
+            title: n.title,
+            content: n.content,
+            path: notePath,
+            createdAt: n.createdAt,
+            updatedAt: n.updatedAt,
+          } as const;
+        });
+
+        setSyncProgress(95);
+        setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }, ...convertedFolders]);
+        setNotes(convertedNotes);
+
+        setSyncProgress(100);
+        setTimeout(() => setSyncProgress(0), 300);
+      } catch (err) {
+        console.error('Failed to load from Turso:', err);
+        // If Turso fails, keep sidebar cleared but stop loading state
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (currentProvider === 'r2-turso') {
+      void loadFromTurso();
+    }
+  }, [currentProvider, setFolders, setNotes, setSelectedNote, setSelectedPath, setIsLoading, setSyncProgress]);
 
   // No external scroll sync cleanup needed
 

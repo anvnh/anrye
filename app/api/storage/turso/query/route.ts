@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@libsql/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,30 +22,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In a real implementation, you would:
-    // 1. Use the Turso client library to execute the query
-    // 2. Handle the response properly
+    const client = createClient({ url, authToken: token });
 
-    // For now, we'll simulate the database query
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // Support multi-statement queries (e.g., CREATE TABLE ...; CREATE INDEX ...;)
+    const statements = query
+      .split(';')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
 
-    // Mock response based on query type
-    if (query.includes('SELECT')) {
-      return NextResponse.json({
-        success: true,
-        rows: [], // Mock empty result set
-      });
-    } else if (query.includes('INSERT') || query.includes('UPDATE') || query.includes('DELETE')) {
-      return NextResponse.json({
-        success: true,
-        changes: 1, // Mock successful change
-      });
+    let lastResult: any = null;
+    if (statements.length > 1) {
+      for (const stmt of statements) {
+        // No positional params across multiple statements; run each directly
+        lastResult = await client.execute(stmt);
+      }
     } else {
-      return NextResponse.json({
-        success: true,
-        message: 'Query executed successfully',
-      });
+      lastResult = await client.execute({ sql: query, args: params });
     }
+
+    // Normalize response
+    const rows = (lastResult as any)?.rows ?? [];
+    const columns = (lastResult as any)?.columns ?? [];
+    const rowsAffected = (lastResult as any)?.rowsAffected ?? 0;
+
+    return NextResponse.json({ success: true, rows, columns, rowsAffected });
 
   } catch (error) {
     console.error('Turso query error:', error);
