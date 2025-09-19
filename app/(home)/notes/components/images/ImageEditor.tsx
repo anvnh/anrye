@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, RotateCw, RotateCcw, Save } from 'lucide-react';
-import ColorPicker from './ColorPicker';
+import ColorPicker from '../ui/ColorPicker';
 import { driveService } from '@/app/lib/googleDrive';
 
 interface ImageEditorProps {

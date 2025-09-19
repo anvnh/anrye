@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { imageLoadingManager } from '../utils/imageLoadingManager';
+import { imageLoadingManager } from '../../utils/imageLoadingManager';
 
 interface OptimizedImageProps {
   src: string;

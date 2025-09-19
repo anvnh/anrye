@@ -124,7 +124,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       await mod.driveService.signOut();
 
       // Clear image cache when signing out
-      const { imageLoadingManager } = await import('../(home)/notes/_utils/imageLoadingManager');
+      const { imageLoadingManager } = await import('../(home)/notes/utils/imageLoadingManager');
       imageLoadingManager.clearCache();
       // Clear any temporary tokens from previous auth attempts
       try {

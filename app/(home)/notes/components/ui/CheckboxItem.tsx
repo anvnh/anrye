@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { useCheckbox } from '../context/CheckboxContext';
+import { useCheckbox } from '../../context/CheckboxContext';
 
 interface CheckboxItemProps {
   isChecked: boolean;

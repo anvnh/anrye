@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useDrive } from '../../../lib/driveContext';
 import { driveService } from '../../../lib/googleDrive';
 import { Note, Folder } from '../components/types';
@@ -11,6 +11,28 @@ const loadDriveService = async () => {
   return null;
 };
 
+// Utility functions for optimization
+const chunkArray = <T>(array: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+};
+
+const BATCH_SIZE = 10; // Process 10 files at a time
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+// Type definitions for Drive files
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  parents?: string[];
+  createdTime: string;
+  modifiedTime: string;
+}
+
 export const useDriveSync = (
   notes: Note[],
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>,
@@ -22,87 +44,122 @@ export const useDriveSync = (
   const { isSignedIn, forceReAuthenticate } = useDrive();
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Cache management
+  const cacheRef = useRef<Map<string, { data: any, timestamp: number }>>(new Map());
+  const loadingPromisesRef = useRef<Map<string, Promise<any>>>(new Map());
 
+  // Cache management functions
+  const getCachedData = (key: string) => {
+    const cached = cacheRef.current.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  };
+
+  const setCachedData = (key: string, data: any) => {
+    cacheRef.current.set(key, { data, timestamp: Date.now() });
+  };
+
+  const clearCache = () => {
+    cacheRef.current.clear();
+    loadingPromisesRef.current.clear();
+  };
+
+  // Memory management - cleanup old cache entries
+  const cleanupCache = () => {
+    const now = Date.now();
+    for (const [key, value] of cacheRef.current.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        cacheRef.current.delete(key);
+      }
+    }
+  };
+
+  // Optimized parallel loading function
   const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any) => {
     try {
-      const files = await driveService.listFiles(parentDriveId);
+      const cacheKey = `files_${parentDriveId}`;
+      let files = getCachedData(cacheKey);
+      
+      if (!files) {
+        files = await driveService.listFiles(parentDriveId);
+        setCachedData(cacheKey, files);
+      }
 
-      for (const file of files) {
-        if (file.mimeType === 'application/vnd.google-apps.folder') {
-          // Skip the Images folder as it's handled separately by ImagesSection
-          if (file.name === 'Images') {
-            continue;
+      // Separate folders and files for parallel processing
+      const folders = files.filter((file: DriveFile) => 
+        file.mimeType === 'application/vnd.google-apps.folder' && file.name !== 'Images'
+      );
+      const noteFiles = files.filter((file: DriveFile) => 
+        file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain'
+      );
+
+      // Process folders in parallel
+      const folderPromises = folders.map(async (file: DriveFile) => {
+        const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+        
+        setFolders(prevFolders => {
+          const existingFolder = prevFolders.find(f => f.driveFolderId === file.id);
+          const existingByPath = prevFolders.find(f => f.name === file.name && f.path === folderPath);
+
+          if (!existingFolder && !existingByPath) {
+            const newFolder: Folder = {
+              id: Date.now().toString() + Math.random(),
+              name: file.name,
+              path: folderPath,
+              parentId: prevFolders.find(f => f.driveFolderId === parentDriveId)?.id || 'root',
+              driveFolderId: file.id,
+              expanded: false
+            };
+            return [...prevFolders, newFolder];
+          } else if (existingByPath && !existingByPath.driveFolderId) {
+            return prevFolders.map(f => 
+              f === existingByPath ? { ...f, driveFolderId: file.id } : f
+            );
+          } else if (existingFolder && existingFolder.name !== file.name) {
+            return prevFolders.map(f => 
+              f.driveFolderId === file.id 
+                ? { ...f, name: file.name, path: folderPath }
+                : f
+            );
           }
-          
-          // It's a folder
-          const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+          return prevFolders;
+        });
 
-          // Check if folder already exists using callback to get latest state
-          setFolders(prevFolders => {
-            const existingFolder = prevFolders.find(f => f.driveFolderId === file.id);
-            // Also check by name and path to prevent duplicates with different IDs
-            const existingByPath = prevFolders.find(f => f.name === file.name && f.path === folderPath);
+        // Recursively load subfolders
+        await loadFromDrive(file.id, folderPath, driveService);
+      });
 
-            if (!existingFolder && !existingByPath) {
-              const newFolder: Folder = {
-                id: Date.now().toString() + Math.random(),
-                name: file.name,
-                path: folderPath,
-                parentId: prevFolders.find(f => f.driveFolderId === parentDriveId)?.id || 'root',
-                driveFolderId: file.id,
-                expanded: false
-              };
-
-              return [...prevFolders, newFolder];
-            } else if (existingByPath && !existingByPath.driveFolderId) {
-              // Update existing folder with Drive ID if missing
-              return prevFolders.map(f => 
-                f === existingByPath ? { ...f, driveFolderId: file.id } : f
-              );
-            } else if (existingFolder && existingFolder.name !== file.name) {
-              // Folder exists but name changed, update the name
-              return prevFolders.map(f => 
-                f.driveFolderId === file.id 
-                  ? { 
-                      ...f, 
-                      name: file.name,
-                      path: folderPath // Update path too since name changed
-                    } 
-                  : f
-              );
-            }
-            return prevFolders; // No change if folder already exists and name is the same
-          });
-
-          // Recursively load subfolders
-          await loadFromDrive(file.id, folderPath, driveService);
-        } else if (file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain') {
-          // It's a markdown file (either has .md extension, text/markdown, or text/plain mime type)
+      // Process note files in batches
+      const noteBatches = chunkArray<DriveFile>(noteFiles, BATCH_SIZE);
+      const notePromises = noteBatches.map(async (batch: DriveFile[]) => {
+        await Promise.all(batch.map(async (file: DriveFile) => {
           const notePath = parentPath;
           const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
+          
+          // Check if already loading this file
+          const loadingKey = `loading_${file.id}`;
+          if (loadingPromisesRef.current.has(loadingKey)) {
+            return;
+          }
 
-          // Check if note already exists using callback to get latest state
-          setNotes(prevNotes => {
-            const existingNote = prevNotes.find(n => n.driveFileId === file.id);
-            // Also check by title and path to prevent duplicates with different IDs
-            const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
+          const loadPromise = (async () => {
+            try {
+              const content = await driveService.getFile(file.id);
+              
+              let noteContent = content;
+              let isEncrypted = false;
+              let encryptedData: { data: string; iv: string; salt: string; tag: string; algorithm: string; iterations: number; } | undefined = undefined;
 
-            if (!existingNote && !existingByTitlePath) {
-              // Load content and create new note
-              driveService.getFile(file.id).then((content: string) => {
-                let noteContent = content;
-                let isEncrypted = false;
-                let encryptedData = undefined;
-
-                // Check if content is encrypted
-                try {
-                  const parsed = JSON.parse(content);
-                  if (parsed.encrypted === true && parsed.data) {
-                    isEncrypted = true;
-                    encryptedData = parsed.data;
-                    // For encrypted notes loaded from Drive, we don't have the original content
-                    // User will need to decrypt to restore it
-                    noteContent = `# 🔒 Encrypted Note
+              // Check if content is encrypted
+              try {
+                const parsed = JSON.parse(content);
+                if (parsed.encrypted === true && parsed.data) {
+                  isEncrypted = true;
+                  encryptedData = parsed.data;
+                  noteContent = `# 🔒 Encrypted Note
 
 This note was loaded from Google Drive in encrypted format. 
 
@@ -112,93 +169,67 @@ This note was loaded from Google Drive in encrypted format.
 3. Enter your password to restore the original content
 
 The content will then be available for viewing and editing normally.`;
-                  }
-                } catch (e) {
-                  // Not JSON, treat as regular content
                 }
+              } catch (e) {
+                // Not JSON, treat as regular content
+              }
 
-                const newNote: Note = {
-                  id: Date.now().toString() + Math.random(),
-                  title: noteTitle,
-                  content: noteContent,
-                  path: notePath,
-                  driveFileId: file.id,
-                  createdAt: file.createdTime,
-                  updatedAt: file.modifiedTime,
-                  isEncrypted,
-                  encryptedData
-                };
+              setNotes(prevNotes => {
+                const existingNote = prevNotes.find(n => n.driveFileId === file.id);
+                const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
 
-                setNotes(currentNotes => {
-                  // Double check to avoid race condition
-                  const stillNotExists = !currentNotes.find(n => n.driveFileId === file.id);
-                  if (stillNotExists) {
-                    return [...currentNotes, newNote];
+                if (!existingNote && !existingByTitlePath) {
+                  const newNote: Note = {
+                    id: Date.now().toString() + Math.random(),
+                    title: noteTitle,
+                    content: noteContent,
+                    path: notePath,
+                    driveFileId: file.id,
+                    createdAt: file.createdTime,
+                    updatedAt: file.modifiedTime,
+                    isEncrypted,
+                    encryptedData
+                  };
+                  return [...prevNotes, newNote];
+                } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
+                  return prevNotes.map(n => 
+                    n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
+                  );
+                } else if (existingNote) {
+                  const needsUpdate = existingNote.content !== noteContent || 
+                                     existingNote.title !== noteTitle ||
+                                     existingNote.isEncrypted !== isEncrypted;
+                  if (needsUpdate) {
+                    return prevNotes.map(n => 
+                      n.driveFileId === file.id 
+                        ? { 
+                            ...n, 
+                            title: noteTitle,
+                            content: noteContent,
+                            updatedAt: file.modifiedTime,
+                            isEncrypted,
+                            encryptedData
+                          } 
+                        : n
+                    );
                   }
-                  return currentNotes;
-                });
-              }).catch((error: any) => {
-                console.error('Failed to load note content for', noteTitle, ':', error);
+                }
+                return prevNotes;
               });
-
-              return prevNotes; // Return unchanged as we're loading content async
-            } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
-              // Update existing note with Drive ID if missing
-              return prevNotes.map(n => 
-                n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
-              );
-            } else if (existingNote) {
-              // Note exists, check if content or title changed before updating
-              driveService.getFile(file.id).then((content: string) => {
-                setNotes(currentNotes => {
-                  const currentNote = currentNotes.find(n => n.driveFileId === file.id);
-                  if (currentNote) {
-                    let noteContent = content;
-                    let isEncrypted = false;
-                    let encryptedData = undefined;
-
-                    // Check if content is encrypted
-                    try {
-                      const parsed = JSON.parse(content);
-                      if (parsed.encrypted === true && parsed.data) {
-                        isEncrypted = true;
-                        encryptedData = parsed.data;
-                        // For encrypted notes, we show placeholder content locally
-                        noteContent = '🔒 This note is encrypted. Right-click to decrypt.';
-                      }
-                    } catch (e) {
-                      // Not JSON, treat as regular content
-                    }
-
-                    const needsUpdate = currentNote.content !== noteContent || 
-                                       currentNote.title !== noteTitle ||
-                                       currentNote.isEncrypted !== isEncrypted;
-                    if (needsUpdate) {
-                      // Update if content, title, or encryption status changed
-                      return currentNotes.map(n => 
-                        n.driveFileId === file.id 
-                          ? { 
-                              ...n, 
-                              title: noteTitle, // Update title if changed
-                              content: noteContent,
-                              updatedAt: file.modifiedTime,
-                              isEncrypted,
-                              encryptedData
-                            } 
-                          : n
-                      );
-                    }
-                  }
-                  return currentNotes; // No change if content and title are the same
-                });
-              }).catch((error: any) => {
-                console.error('Failed to update note content for', noteTitle, ':', error);
-              });
+            } catch (error) {
+              console.error('Failed to load note content for', noteTitle, ':', error);
             }
-            return prevNotes; // No change if note already exists
-          });
-        }
-      }
+          })();
+
+          loadingPromisesRef.current.set(loadingKey, loadPromise);
+          await loadPromise;
+          loadingPromisesRef.current.delete(loadingKey);
+        }));
+      });
+
+      // Wait for all operations to complete
+      await Promise.all([...folderPromises, ...notePromises]);
+      
     } catch (error) {
       console.error('Failed to load from Drive:', error);
     }
@@ -273,9 +304,8 @@ The content will then be available for viewing and editing normally.`;
         // Clear folder and note cache
         localStorage.removeItem('folders-cache');
         localStorage.removeItem('notes-cache');
-  // Clear persisted UI data so we reload from Drive cleanly
-  localStorage.removeItem('notes-new');
-  localStorage.removeItem('folders-new');
+        localStorage.removeItem('notes-new');
+        localStorage.removeItem('folders-new');
         
         // Clear image cache
         localStorage.removeItem('image-thumbnail-cache');
@@ -283,7 +313,7 @@ The content will then be available for viewing and editing normally.`;
         // Clear sync status flags
         localStorage.removeItem('has-synced-with-drive');
         localStorage.removeItem('has-synced-love-drive');
-  localStorage.removeItem('has-synced-drive');
+        localStorage.removeItem('has-synced-drive');
         
         // Clear other data cache items (but preserve auth tokens)
         const keysToRemove = [];
@@ -301,6 +331,9 @@ The content will then be available for viewing and editing normally.`;
         
         console.log('Cleared data cache (preserved authentication tokens)');
       }
+      
+      // Clear in-memory cache
+      clearCache();
       
       setSyncProgress(10);
       
@@ -360,8 +393,8 @@ The content will then be available for viewing and editing normally.`;
       
       setSyncProgress(60);
 
-      // Load all folders first
-      for (const folder of driveFolders) {
+      // Load all folders in parallel
+      const folderPromises = driveFolders.map(async (folder: any) => {
         const folderPath = folder.path;
         const parentFolder = driveFolders.find(f => f.id === folder.parents?.[0]) || { path: '' };
         const parentPath = parentFolder.path;
@@ -381,32 +414,33 @@ The content will then be available for viewing and editing normally.`;
           }
           return prevFolders;
         });
-      }
+      });
       
       setSyncProgress(70);
 
-      // Load all notes
-      for (const file of driveFiles) {
-        try {
-          const content = await driveModule.driveService.getFile(file.id);
-          const noteTitle = file.title;
-          const notePath = file.path;
-          
-          setNotes(prevNotes => {
-            const existingNote = prevNotes.find(n => n.driveFileId === file.id);
-            if (!existingNote) {
-              let noteContent = content;
-              let isEncrypted = false;
-              let encryptedData = undefined;
+      // Load all notes in batches
+      const noteBatches = chunkArray(driveFiles, BATCH_SIZE);
+      const notePromises = noteBatches.map(async (batch) => {
+        await Promise.all(batch.map(async (file: any) => {
+          try {
+            const content = await driveModule.driveService.getFile(file.id);
+            const noteTitle = file.title;
+            const notePath = file.path;
+            
+            setNotes(prevNotes => {
+              const existingNote = prevNotes.find(n => n.driveFileId === file.id);
+              if (!existingNote) {
+                let noteContent = content;
+                let isEncrypted = false;
+                let encryptedData = undefined;
 
-              // Check if content is encrypted
-              try {
-                const parsed = JSON.parse(content);
-                if (parsed.encrypted === true && parsed.data) {
-                  isEncrypted = true;
-                  encryptedData = parsed.data;
-                  // For encrypted notes loaded from Drive, we don't have the original content
-                  noteContent = `# 🔒 Encrypted Note
+                // Check if content is encrypted
+                try {
+                  const parsed = JSON.parse(content);
+                  if (parsed.encrypted === true && parsed.data) {
+                    isEncrypted = true;
+                    encryptedData = parsed.data;
+                    noteContent = `# 🔒 Encrypted Note
 
 This note was loaded from Google Drive in encrypted format. 
 
@@ -416,30 +450,34 @@ This note was loaded from Google Drive in encrypted format.
 3. Enter your password to restore the original content
 
 The content will then be available for viewing and editing normally.`;
+                  }
+                } catch (e) {
+                  // Not JSON, treat as regular content
                 }
-              } catch (e) {
-                // Not JSON, treat as regular content
-              }
 
-              const newNote: Note = {
-                id: Date.now().toString() + Math.random(),
-                title: noteTitle,
-                content: noteContent,
-                path: notePath,
-                driveFileId: file.id,
-                createdAt: file.createdTime,
-                updatedAt: file.modifiedTime,
-                isEncrypted,
-                encryptedData
-              };
-              return [...prevNotes, newNote];
-            }
-            return prevNotes;
-          });
-        } catch (error) {
-          console.error('Failed to load note content for', file.title, ':', error);
-        }
-      }
+                const newNote: Note = {
+                  id: Date.now().toString() + Math.random(),
+                  title: noteTitle,
+                  content: noteContent,
+                  path: notePath,
+                  driveFileId: file.id,
+                  createdAt: file.createdTime,
+                  updatedAt: file.modifiedTime,
+                  isEncrypted,
+                  encryptedData
+                };
+                return [...prevNotes, newNote];
+              }
+              return prevNotes;
+            });
+          } catch (error) {
+            console.error('Failed to load note content for', file.title, ':', error);
+          }
+        }));
+      });
+
+      // Wait for all operations to complete
+      await Promise.all([...folderPromises, ...notePromises]);
       
       setSyncProgress(90);
       
@@ -615,5 +653,7 @@ The content will then be available for viewing and editing normally.`;
     forceSync,
     clearCacheAndSync,
     loadFromDrive,
+    clearCache,
+    cleanupCache,
   };
 }; 

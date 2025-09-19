@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { EditorView } from '@codemirror/view';
-import type { CMEditorApi } from '../components/CMEditor';
+import type { CMEditorApi } from '../components/editor/CMEditor';
 import { tableOperations } from '../utils/tableOperations';
 
 export const useTableToolbar = (cmApiRef?: React.RefObject<CMEditorApi | undefined>) => {

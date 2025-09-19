@@ -3,7 +3,7 @@
 import React from 'react';
 import { Pencil, Trash2, X, Link2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useThemeSettings } from '../hooks';
+import { useThemeSettings } from '../../hooks';
 import { getEvent } from '@/app/lib/googleCalendar';
 import { summarizeRRuleLong } from './EventEditor';
 

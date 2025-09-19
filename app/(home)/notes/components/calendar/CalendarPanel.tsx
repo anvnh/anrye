@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { CalendarProvider } from '../../../components/calendar/contexts/CalendarContext';
-import { ClientContainer } from '../../../components/calendar/components/ClientContainer';
+import { CalendarProvider } from '../../../../components/calendar/contexts/CalendarContext';
+import { ClientContainer } from '../../../../components/calendar/components/ClientContainer';
 import { listEvents, CalendarEvent } from '@/app/lib/googleCalendar';
-import { useThemeSettings } from '../hooks';
-import type { TCalendarView } from '../../../components/calendar/types';
+import { useThemeSettings } from '../../hooks';
+import type { TCalendarView } from '../../../../components/calendar/types';
 import { startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarPanelProps {

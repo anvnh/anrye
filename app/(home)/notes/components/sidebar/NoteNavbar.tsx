@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays, MoreHorizontal, Eye } from 'lucide-react';
-import { ShareDropdown } from './ShareDropdown';
-import SettingsDropdown from './SettingsDropdown';
-import { Note } from './types';
+import { ShareDropdown } from '../forms/ShareDropdown';
+import SettingsDropdown from '../forms/SettingsDropdown';
+import { Note } from '../types';
 import { driveService } from '@/app/lib/googleDrive';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
