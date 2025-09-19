@@ -10,11 +10,11 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import { NoteSidebarProps, Note, Folder } from './types';
-import { MobileItemMenu } from './MobileFileOperations';
-import { NoteEncryptionDialog, EncryptionStatusBadge } from './NoteEncryption';
-import MoveDrawer from './MoveDrawer';
-import { ImagesSection } from './ImagesSection';
+import { NoteSidebarProps, Note, Folder } from '../types';
+import { MobileItemMenu } from '../forms/MobileFileOperations';
+import { NoteEncryptionDialog, EncryptionStatusBadge } from '../modals/NoteEncryption';
+import MoveDrawer from '../modals/MoveDrawer';
+import { ImagesSection } from '../images/ImagesSection';
 import {
   DropdownMenu,
   DropdownMenuTrigger,

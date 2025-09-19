@@ -25,8 +25,8 @@ import {
   MessageSquare,
   ClipboardList
 } from 'lucide-react';
-import FoldableHeading from '../components/FoldableHeading';
-import { CheckboxItem } from '../components/CheckboxItem';
+import FoldableHeading from '../components/editor/FoldableHeading';
+import { CheckboxItem } from '../components/ui/CheckboxItem';
 import { CheckboxProvider } from '../context/CheckboxContext';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
@@ -784,7 +784,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
 
             // Use the optimized image component
             const OptimizedImage = React.useMemo(() => {
-              return React.lazy(() => import('../components/OptimizedImage').then(module => ({ default: module.default })));
+              return React.lazy(() => import('../components/images/OptimizedImage').then(module => ({ default: module.default })));
             }, []);
 
             return (
@@ -808,7 +808,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 {/* Modals for editing and lightbox */}
                 {isEditorOpen && (
                   // @ts-ignore dynamic import path
-                  React.createElement(require('../components/ImageEditor').default, {
+                  React.createElement(require('../components/images/ImageEditor').default, {
                     src: loadedImageUrl || (src as string),
                     driveFileId: (src as string).match(/id=([^&]+)/)?.[1],
                     onClose: () => setIsEditorOpen(false),
@@ -833,7 +833,7 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
                 )}
                 {isLightboxOpen && (
                   // @ts-ignore dynamic import path
-                  React.createElement(require('../components/ImageLightbox').default, {
+                  React.createElement(require('../components/images/ImageLightbox').default, {
                     src: editedImageUrl || loadedImageUrl || (src as string),
                     alt,
                     onClose: () => setIsLightboxOpen(false),

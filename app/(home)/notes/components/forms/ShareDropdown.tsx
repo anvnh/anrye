@@ -6,7 +6,7 @@ import { Share, Copy, Eye, Lock, Globe, User, CheckCircle2Icon, ChevronDownIcon,
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { TimePicker } from './TimePicker';
+import { TimePicker } from '../calendar/TimePicker';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {

@@ -8,10 +8,10 @@ import { useDrive } from '../../lib/driveContext';
 import { driveService } from '../../lib/googleDrive';
 import '../../lib/types';
 import { NoteSidebar, NotePreview, NoteSplitEditor, NoteRegularEditor, CalendarPanel } from './components';
-import RenameDialog from './components/RenameDialog';
-import NoteNavbar from './components/NoteNavbar';
-import { LoadingSpinner } from './components/LoadingSpinner';
-import { ImageManager } from './components/ImageManager';
+import RenameDialog from './components/modals/RenameDialog';
+import NoteNavbar from './components/sidebar/NoteNavbar';
+import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { ImageManager } from './components/images/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import PWALoadingState from '../../components/PWALoadingState';
 
