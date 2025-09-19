@@ -3,6 +3,8 @@ import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
 import { createNoteTemplate } from '../../utils/core/noteTemplate';
+import { useStorageSettings } from '../settings/useStorageSettings';
+import { tursoService } from '../../services/tursoService';
 
 export const useNoteOperations = (
   notes: Note[],
@@ -21,6 +23,7 @@ export const useNoteOperations = (
   setEditTitle: (title: string) => void
 ) => {
   const { isSignedIn } = useDrive();
+  const { currentProvider } = useStorageSettings();
 
   const createNote = useCallback(async (newNoteName: string) => {
     if (!newNoteName.trim()) return;
@@ -38,17 +41,30 @@ export const useNoteOperations = (
 
       setSyncProgress(50);
 
+      // Generate a stable ID once for both DB and local state when needed
+      const newId = Date.now().toString();
       let driveFileId;
-      if (isSignedIn && parentDriveId) {
+      if (currentProvider === 'google-drive' && isSignedIn && parentDriveId) {
         setSyncProgress(60);
         // Ensure the filename has .md extension
         const fileName = newNoteName.endsWith('.md') ? newNoteName : `${newNoteName}.md`;
         driveFileId = await driveService.uploadFile(fileName, initialContent, parentDriveId);
         setSyncProgress(80);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(60);
+        await tursoService.connect();
+        const parentAppFolder = folders.find(f => f.path === selectedPath);
+        await tursoService.saveNote({
+          id: newId,
+          title: newNoteName,
+          content: initialContent,
+          folderId: parentAppFolder && parentAppFolder.id !== 'root' ? parentAppFolder.id : undefined,
+        });
+        setSyncProgress(80);
       }
 
       const newNote: Note = {
-        id: Date.now().toString(),
+        id: newId,
         title: newNoteName,
         content: initialContent,
         path: selectedPath,
@@ -76,7 +92,7 @@ export const useNoteOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [notes, folders, selectedPath, isSignedIn, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setEditTitle, setEditContent]);
+  }, [notes, folders, selectedPath, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setEditTitle, setEditContent]);
 
   const createNoteFromCurrentContent = useCallback(async () => {
     const title = selectedNote ? `${selectedNote.title} - Copy` : 'New Note';
@@ -91,9 +107,11 @@ export const useNoteOperations = (
 
       setSyncProgress(30);
 
+      // Generate a stable ID once for both DB and local state when needed
+      const newId = Date.now().toString();
       let driveFileId: string | undefined;
 
-      if (isSignedIn && parentDriveId) {
+      if (currentProvider === 'google-drive' && isSignedIn && parentDriveId) {
         setSyncProgress(50);
         // Ensure the filename has .md extension
         const fileName = title.endsWith('.md') ? title : `${title}.md`;
@@ -103,10 +121,21 @@ export const useNoteOperations = (
           parentDriveId
         );
         setSyncProgress(80);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(60);
+        await tursoService.connect();
+        const parentAppFolder = folders.find(f => f.path === selectedPath);
+        await tursoService.saveNote({
+          id: newId,
+          title,
+          content,
+          folderId: parentAppFolder && parentAppFolder.id !== 'root' ? parentAppFolder.id : undefined,
+        });
+        setSyncProgress(80);
       }
 
       const newNote: Note = {
-        id: Date.now().toString(),
+        id: newId,
         title,
         content,
         path: selectedPath,
@@ -134,7 +163,7 @@ export const useNoteOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [selectedNote, editContent, folders, selectedPath, isSignedIn, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setEditTitle, setEditContent]);
+  }, [selectedNote, editContent, folders, selectedPath, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setEditTitle, setEditContent]);
 
   const saveNote = useCallback(async () => {
     if (!selectedNote) return;
@@ -159,8 +188,8 @@ export const useNoteOperations = (
 
       setSyncProgress(30);
 
-      // Update in Drive if signed in
-      if (isSignedIn) {
+      // Persist depending on provider
+      if (currentProvider === 'google-drive' && isSignedIn) {
         try {
           if (selectedNote.driveFileId) {
             setSyncProgress(50);
@@ -227,6 +256,17 @@ export const useNoteOperations = (
             updatedNote = { ...updatedNote, driveFileId: undefined };
           }
         }
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(60);
+        await tursoService.connect();
+        const parentAppFolder = folders.find(f => f.path === (selectedNote.path || ''));
+        await tursoService.saveNote({
+          id: updatedNote.id,
+          title: updatedNote.title,
+          content: updatedNote.content,
+          folderId: parentAppFolder && parentAppFolder.id !== 'root' ? parentAppFolder.id : undefined,
+        });
+        setSyncProgress(85);
       }
 
       setSyncProgress(90);
@@ -253,7 +293,7 @@ export const useNoteOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [selectedNote, editContent, editTitle, notes, folders, isSignedIn, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setIsSplitMode]);
+  }, [selectedNote, editContent, editTitle, notes, folders, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setIsSplitMode]);
 
   const deleteNote = useCallback(async (noteId: string) => {
     try {
@@ -264,11 +304,16 @@ export const useNoteOperations = (
 
       setSyncProgress(30);
 
-      // Delete from Drive if signed in and has Drive file ID
-      if (isSignedIn && note?.driveFileId) {
+      // Delete from remote storage
+      if (currentProvider === 'google-drive' && isSignedIn && note?.driveFileId) {
         setSyncProgress(50);
         await driveService.deleteFile(note.driveFileId);
         setSyncProgress(80);
+      } else if (currentProvider === 'r2-turso' && note) {
+        setSyncProgress(60);
+        await tursoService.connect();
+        await tursoService.deleteNote(note.id);
+        setSyncProgress(85);
       }
 
       setNotes(notes.filter(note => note.id !== noteId));
@@ -289,7 +334,7 @@ export const useNoteOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [notes, selectedNote, isSignedIn, setIsLoading, setSyncProgress, setNotes, setSelectedNote]);
+  }, [notes, selectedNote, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote]);
 
   const renameNote = useCallback(async (noteId: string, currentTitle: string, newName: string) => {
     const noteToRename = notes.find(n => n.id === noteId);
@@ -299,8 +344,8 @@ export const useNoteOperations = (
       setIsLoading(true);
       setSyncProgress(10);
 
-      // Update note title in Drive if signed in and has Drive file ID
-      if (isSignedIn && noteToRename.driveFileId) {
+      // Update remote title
+      if (currentProvider === 'google-drive' && isSignedIn && noteToRename.driveFileId) {
         setSyncProgress(30);
         // Ensure the new name has .md extension if the original file had .md
         const originalName = currentTitle;
@@ -310,6 +355,21 @@ export const useNoteOperations = (
           : newName;
         await driveService.renameFile(noteToRename.driveFileId, newFileName);
         setSyncProgress(60);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(40);
+        await tursoService.connect();
+        const hasOriginalExtension = currentTitle.endsWith('.md');
+        const nextName = hasOriginalExtension && !newName.endsWith('.md') ? `${newName}.md` : newName;
+        await tursoService.saveNote({
+          id: noteToRename.id,
+          title: nextName,
+          content: noteToRename.content,
+          folderId: (() => {
+            const parentAppFolder = folders.find(f => f.path === noteToRename.path);
+            return parentAppFolder && parentAppFolder.id !== 'root' ? parentAppFolder.id : undefined;
+          })(),
+        });
+        setSyncProgress(70);
       }
 
       // Ensure the new name has .md extension if the original file had .md
@@ -346,7 +406,7 @@ export const useNoteOperations = (
         setIsLoading(false);
       }, 700);
     }
-  }, [notes, selectedNote, isSignedIn, setIsLoading, setSyncProgress, setNotes, setSelectedNote]);
+  }, [notes, selectedNote, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote]);
 
   return {
     createNote,
