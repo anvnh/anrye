@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Image as ImageIcon, Eye, Download, Trash2 } from 'lucide-react';
 import { DriveImage } from '../../types';
-import { driveService } from '../../../../../lib/googleDrive';
+import { driveService } from '../../../services/googleDrive';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import dynamic from 'next/dynamic';
 import { imageLoadingManager } from '../../../utils';

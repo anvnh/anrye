@@ -21,7 +21,7 @@ import {
   ImageInfo
 } from '../../../utils/images/imageUtils';
 import { Note } from '../../types';
-import { driveService } from '@/app/lib/googleDrive';
+import { driveService } from '@/app/(home)/notes/services/googleDrive';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import dynamic from 'next/dynamic';
 import { OptimizedImage } from '../display/OptimizedImage';

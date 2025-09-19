@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, RotateCw, RotateCcw, Save } from 'lucide-react';
 import ColorPicker from '../../ui/ColorPicker';
-import { driveService } from '@/app/lib/googleDrive';
+import { driveService } from '@/app/(home)/notes/services/googleDrive';
 
 interface ImageEditorProps {
   src: string; // original image URL (can be blob or web URL)
