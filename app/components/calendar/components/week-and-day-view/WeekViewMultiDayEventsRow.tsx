@@ -4,7 +4,7 @@ import { parseISO, startOfDay, startOfWeek, endOfWeek, addDays, differenceInDays
 import { MonthEventBadge } from "../month-view/MonthEventBadge";
 
 import type { IEvent } from "../../interfaces";
-import { useThemeSettings } from "@/app/(home)/notes/hooks/useThemeSettings";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { cn } from "@/lib/utils";
 
 interface IProps {
