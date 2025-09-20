@@ -14,6 +14,7 @@ import { StorageProvider } from '../../types/storage';
 import { CheckCircle, XCircle, Loader2, Settings, Cloud, Database, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeSettings } from '../../hooks/ui/useThemeSettings';
+import Image from 'next/image';
 
 interface StorageSwitcherProps {
   className?: string;
@@ -33,9 +34,10 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
     updateR2Config,
     updateTursoConfig,
     testConnection,
+    isProviderTesting,
+    successAlert,
   } = useStorageSettings();
 
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleProviderSwitch = async (provider: StorageProvider) => {
@@ -45,30 +47,21 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
   };
 
   const handleTestConnection = async (provider: StorageProvider) => {
-    setIsTestingConnection(true);
-    try {
       await testConnection(provider);
-    } finally {
-      setIsTestingConnection(false);
-    }
-  };
-
-  const getStatusIcon = (provider: StorageProvider) => {
-    if (provider === currentProvider) {
-      return storageStatus.isConnected ? (
-        <CheckCircle className="h-5 w-5 text-green-500" />
-      ) : (
-        <XCircle className="h-5 w-5 text-red-500" />
-      );
-    }
-    return null;
   };
 
   const getStatusBadge = (provider: StorageProvider) => {
     if (provider === currentProvider) {
       return (
-        <Badge variant={storageStatus.isConnected ? "default" : "destructive"}>
-          {storageStatus.isConnected ? "Active" : "Disconnected"}
+        <Badge 
+          variant={storageStatus.isConnected ? "default" : "destructive"}
+          className={cn(
+            "text-[13px]",
+            notesTheme === 'light' ? 'text-black' : 'text-white',
+            storageStatus.isConnected ? 'bg-green-500' : 'bg-red-500'
+          )}
+        >
+          {storageStatus.isConnected ? "Connected" : "Disconnected"}
         </Badge>
       );
     }
@@ -106,6 +99,16 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         </Button>
       </div>
 
+      {/* Success Alert */}
+      {successAlert.show && (
+        <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription>
+            {successAlert.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {storageStatus.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -118,6 +121,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           const provider = key as StorageProvider;
           const isCurrent = provider === currentProvider;
           const isConfigured = config.isConfigured;
+          const isTesting = isProviderTesting(provider);
 
           return (
             <Card 
@@ -125,7 +129,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
               className={cn(
                 "cursor-pointer transition-all duration-200 border-none",
                 isCurrent 
-                  ? (notesTheme === 'light' ? 'bg-black text-white' : 'bg-gray-100 text-black')
+                  ? (notesTheme === 'light' ? 'bg-black text-white' : 'bg-gray-300 text-black')
                   : (notesTheme === 'light' ? 'bg-white text-black' : 'bg-secondary text-white'),
                 'hover:shadow-md'
               )}
@@ -133,7 +137,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{config.icon}</span>
+                  {/* <span className="text-2xl">{config.icon}</span> */}
+                  <Image
+                    src={config.icon}
+                    alt={config.displayName}
+                    width={config.displayName === 'Cloudflare R2 + Turso' ? 80 : 34}
+                    height={config.displayName === 'Cloudflare R2 + Turso' ? 80 : 34}
+                  />
                   <div>
                     <CardTitle className="text-base">{config.displayName}</CardTitle>
                     <CardDescription className={cn(
@@ -157,7 +167,6 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                       disabled={storageStatus.isLoading}
                     />
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(provider)}
                       {getStatusBadge(provider)}
                       <Button
                         variant="outline"
@@ -171,9 +180,9 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                           e.stopPropagation();
                           handleTestConnection(provider);
                         }}
-                        disabled={!isConfigured || isTestingConnection}
+                        disabled={!isConfigured || isProviderTesting(provider)}
                       >
-                        {isTestingConnection ? (
+                        {isTesting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           'Test'

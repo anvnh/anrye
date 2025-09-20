@@ -4,7 +4,7 @@ export { useThemeSettings } from './ui/useThemeSettings';
 export { useDriveSync } from './features/useDriveSync';
 export { useNoteOperations } from './core/useNoteOperations';
 export { useFolderOperations } from './core/useFolderOperations';
-export { useDragAndDrop } from './interactions/useDragAndDrop';
+export { useDragAndDrop } from './interactions/useMoveOperations';
 export { useKeyboardShortcuts } from './interactions/useKeyboardShortcuts';
 export { useSidebarResize } from './ui/useSidebarResize';
 export { useResponsiveLayout } from './ui/useResponsiveLayout';
