@@ -29,8 +29,8 @@ export const useDragAndDrop = (
   }, []);
 
   const handleDrop = useCallback(async (
-    e: React.DragEvent, 
-    targetFolderId: string, 
+    e: React.DragEvent,
+    targetFolderId: string,
     draggedItem: { type: 'note' | 'folder', id: string } | null,
     setDraggedItem: (item: { type: 'note' | 'folder', id: string } | null) => void,
     setDragOver: (id: string | null) => void,
@@ -43,10 +43,10 @@ export const useDragAndDrop = (
     if (!draggedItem) return;
 
     // Start progress
-    try { setSyncProgress(10); } catch {}
+    try { setSyncProgress(10); } catch { }
 
     // Handle drop to root
-  if (targetFolderId === 'root') {
+    if (targetFolderId === 'root') {
       const targetFolder = folders.find(f => f.id === 'root');
       if (!targetFolder) return;
 
@@ -54,11 +54,11 @@ export const useDragAndDrop = (
         setIsLoading(true);
         setSyncProgress(20);
 
-    if (draggedItem.type === 'note') {
+        if (draggedItem.type === 'note') {
           // Move note to root
           const note = notes.find(n => n.id === draggedItem.id);
           if (note && note.path !== '') {
-      const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
+            const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
             // Move on Google Drive if signed in and both have Drive IDs
             if (currentProvider === 'google-drive' && isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
               try {
@@ -223,11 +223,11 @@ export const useDragAndDrop = (
       setIsLoading(true);
       setSyncProgress(20);
 
-    if (draggedItem.type === 'note') {
+      if (draggedItem.type === 'note') {
         // Move note to new folder
         const note = notes.find(n => n.id === draggedItem.id);
         if (note && note.path !== targetFolder.path) {
-      const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
+          const finalTitle = newTitle && newTitle.trim() ? newTitle.trim() : note.title;
           // Move on Google Drive if signed in and both have Drive IDs
           if (currentProvider === 'google-drive' && isSignedIn && note.driveFileId && targetFolder.driveFolderId) {
             try {
