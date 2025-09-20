@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { StorageProvider, StorageConfig, StorageStatus } from '../../types/storage';
 
+import { driveService } from '../../services/googleDrive';
+import { tursoService } from '../../services/tursoService';
+
 const STORAGE_PROVIDER_KEY = 'storage-provider';
 const R2_CONFIG_KEY = 'r2-config';
 const TURSO_CONFIG_KEY = 'turso-config';
@@ -12,6 +15,13 @@ export const useStorageSettings = () => {
     }
     return 'google-drive';
   });
+
+  const [testingProviders, setTestingProviders] = useState<StorageProvider[]>([]);
+
+  const [successAlert, setSuccessAlert] = useState<{
+    show: boolean;
+    message: string;
+  }>({ show: false, message: '' });
 
   const [storageStatus, setStorageStatus] = useState<StorageStatus>(() => {
     // Initialize with safe defaults
@@ -59,16 +69,16 @@ export const useStorageSettings = () => {
       provider: 'google-drive',
       isConfigured: true,
       displayName: 'Google Drive',
-      description: 'Store your notes and images in Google Drive',
-      icon: '📁',
+      description: 'Store both notes and images in Google Drive',
+      icon: '/providers/googledrive.png',
     },
     'r2-turso': {
       provider: 'r2-turso',
-      isConfigured: r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey && 
-                   tursoConfig.url && tursoConfig.token,
+      isConfigured: r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey &&
+        tursoConfig.url && tursoConfig.token,
       displayName: 'Cloudflare R2 + Turso',
-      description: 'Store images in R2 and notes in Turso database',
-      icon: '☁️',
+      description: 'Store notes in Turso and images in R2',
+      icon: '/providers/cloudflareturso.png',
     }
   }), [r2Config, tursoConfig]);
 
@@ -79,7 +89,7 @@ export const useStorageSettings = () => {
       try {
         // Notify other hook instances in the same tab
         window.dispatchEvent(new CustomEvent('storage-provider-changed', { detail: { provider: currentProvider } }));
-      } catch {}
+      } catch { }
     }
   }, [currentProvider]);
 
@@ -94,7 +104,7 @@ export const useStorageSettings = () => {
         if (provider && provider !== currentProvider) {
           setCurrentProvider(provider);
         }
-      } catch {}
+      } catch { }
     };
 
     const handleStorage = (e: StorageEvent) => {
@@ -142,7 +152,7 @@ export const useStorageSettings = () => {
 
   const switchProvider = useCallback(async (provider: StorageProvider) => {
     setStorageStatus(prev => ({ ...prev, isLoading: true, error: undefined }));
-    
+
     try {
       // Here you would implement the actual switching logic
       // For now, we'll just update the provider
@@ -151,12 +161,12 @@ export const useStorageSettings = () => {
         localStorage.setItem(STORAGE_PROVIDER_KEY, provider);
         try {
           window.dispatchEvent(new CustomEvent('storage-provider-changed', { detail: { provider } }));
-        } catch {}
+        } catch { }
       }
-      
+
       // Simulate connection check
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const config = storageConfigs[provider];
       setStorageStatus({
         currentProvider: provider,
@@ -181,30 +191,89 @@ export const useStorageSettings = () => {
   }, []);
 
   const testConnection = useCallback(async (provider: StorageProvider) => {
-    setStorageStatus(prev => ({ ...prev, isLoading: true, error: undefined }));
-    
+    setTestingProviders(prev => [...new Set(prev), provider]);
+
+    // setStorageStatus(prev => ({ ...prev, isLoading: true, error: undefined }));
+
     try {
-      // Here you would implement actual connection testing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      if (provider === 'google-drive') {
+        // Test Google Drive connection
+        const isSignedIn = await driveService.isSignedIn();
+        if (!isSignedIn) {
+          throw new Error('Not signed in to Google Drive');
+        }
+
+        // Try to list files to verify connection
+        await driveService.listFiles();
+
+      } else if (provider === 'r2-turso') {
+        // Test R2 + Turso connection
+        if (!r2Config.bucket || !r2Config.accessKeyId || !r2Config.secretAccessKey) {
+          throw new Error('R2 configuration incomplete');
+        }
+
+        if (!tursoConfig.url || !tursoConfig.token) {
+          throw new Error('Turso configuration incomplete');
+        }
+
+        // Test Turso connection
+        await tursoService.connect();
+
+        const testResponse = await fetch('/api/storage/r2/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bucket: r2Config.bucket,
+            accessKeyId: r2Config.accessKeyId,
+            secretAccessKey: r2Config.secretAccessKey,
+          }),
+        });
+
+        if (!testResponse.ok) {
+          const errorData = await testResponse.json();
+          throw new Error(errorData.error || 'R2 connection failed');
+        }
+      }
+
+      // If we reach here, the test was successful
       setStorageStatus(prev => ({
         ...prev,
         isConnected: true,
-        isLoading: false,
+        error: undefined,
       }));
+
+      setSuccessAlert({
+        show: true,
+        message: `Connection test successful for ${provider === 'google-drive' ? 'Google Drive' : 'R2 + Turso'}`
+      });
       
+      setTimeout(() => {
+        setSuccessAlert({ show: false, message: '' });
+      }, 3000);
+
       return true;
+
     } catch (error) {
       setStorageStatus(prev => ({
         ...prev,
         isConnected: false,
-        isLoading: false,
         error: error instanceof Error ? error.message : 'Connection test failed',
       }));
-      
+
       return false;
+    } finally {
+      setTestingProviders(prev => {
+        const newSet = prev.filter(p => p !== provider);
+        return newSet;
+      });
     }
   }, []);
+
+  const isProviderTesting = useCallback((provider: StorageProvider) => {
+    return testingProviders.includes(provider);
+  }, [testingProviders]);
 
   return {
     currentProvider,
@@ -216,5 +285,7 @@ export const useStorageSettings = () => {
     updateR2Config,
     updateTursoConfig,
     testConnection,
+    isProviderTesting,
+    successAlert,
   };
 };
