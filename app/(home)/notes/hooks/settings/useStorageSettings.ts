@@ -287,5 +287,6 @@ export const useStorageSettings = () => {
     testConnection,
     isProviderTesting,
     successAlert,
+    setSuccessAlert,
   };
 };

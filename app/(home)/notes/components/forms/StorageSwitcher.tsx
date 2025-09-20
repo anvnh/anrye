@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useStorageSettings } from '../../hooks/settings/useStorageSettings';
 import { StorageProvider } from '../../types/storage';
-import { CheckCircle, XCircle, Loader2, Settings, Cloud, Database, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, Settings, Cloud, Database, AlertCircle, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeSettings } from '../../hooks/ui/useThemeSettings';
 import Image from 'next/image';
@@ -23,6 +23,9 @@ interface StorageSwitcherProps {
 export function StorageSwitcher({ className }: StorageSwitcherProps) {
 
   const { notesTheme } = useThemeSettings();
+
+  const [fileUploadError, setFileUploadError] = useState<string>('');
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const {
     currentProvider,
@@ -36,6 +39,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
     testConnection,
     isProviderTesting,
     successAlert,
+    setSuccessAlert,
   } = useStorageSettings();
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -50,6 +54,84 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
       await testConnection(provider);
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    setFileUploadError('');
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      let bucketName = '';
+      let accessKeyId = '';
+      let secretAccessKey = '';
+      let databaseUrl = '';
+      let authToken = '';
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('BUCKET_NAME=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          bucketName = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('ACCESS_KEY_ID=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          accessKeyId = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('SECRET_ACCESS_KEY=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          secretAccessKey = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('DATABASE_URL=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          databaseUrl = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('AUTH_TOKEN=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          authToken = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '');
+        }
+      }
+
+      if (!bucketName || !accessKeyId || !secretAccessKey || !databaseUrl || !authToken) {
+        throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN');
+      }
+
+      updateR2Config({
+        bucket: bucketName,
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
+      });
+
+      updateTursoConfig({
+        url: databaseUrl,
+        token: authToken,
+      });
+
+      setSuccessAlert({
+        show: true,
+        message: 'Configuration file uploaded successfully! All fields have been filled.'
+      });
+
+      setTimeout(() => {
+        setSuccessAlert({ show: false, message: '' });
+      }, 3000);
+
+    } catch (error) {
+      setFileUploadError(error instanceof Error ? error.message : 'Failed to parse file');
+    } finally {
+      setIsUploadingFile(false);
+      event.target.value = '';
+    }
+  };
+
   const getStatusBadge = (provider: StorageProvider) => {
     if (provider === currentProvider) {
       return (
@@ -58,10 +140,10 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           className={cn(
             "text-[13px]",
             notesTheme === 'light' ? 'text-black' : 'text-white',
-            storageStatus.isConnected ? 'bg-green-500' : 'bg-red-500'
+            storageStatus.isConnected ? 'bg-green-400' : 'bg-red-500'
           )}
         >
-          {storageStatus.isConnected ? "Connected" : "Disconnected"}
+          {storageStatus.isConnected ? "Active" : "Inactive"}
         </Badge>
       );
     }
@@ -185,7 +267,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                         {isTesting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          'Test'
+                          'Test Connection'
                         )}
                       </Button>
                     </div>
@@ -214,6 +296,41 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
               <Cloud className="h-4 w-4 mr-2" />
               Cloudflare R2 Configuration
             </h4>
+            
+            <div className="mb-6 p-4 border-2 border-dashed border-gray-700 rounded-lg">
+              <label htmlFor="config-file-upload" className="flex flex-col items-center justify-center w-full cursor-pointer">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-4 text-gray-500" />
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">Click to upload</span> configuration file
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Upload a .txt file with BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN
+                  </p>
+                </div>
+                <input 
+                  id="config-file-upload" 
+                  type="file" 
+                  className="hidden" 
+                  accept=".txt"
+                  onChange={handleFileUpload}
+                  disabled={isUploadingFile}
+                />
+              </label>
+              {isUploadingFile && (
+                <div className="flex items-center justify-center mt-2">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-gray-600">Processing file...</span>
+                </div>
+              )}
+              {fileUploadError && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{fileUploadError}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="r2-bucket" className={cn(
@@ -314,7 +431,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           </div>
 
           <Alert className={cn(
-            "border-none",
+            "border-none mb-8",
             notesTheme === 'light' ? 'bg-main' : 'bg-white'
           )}>
             <AlertCircle className="h-4 w-4" />
