@@ -231,7 +231,7 @@ class GoogleDriveService {
 
   private async refreshWithRefreshToken(): Promise<boolean> {
     try {
-      const r = await fetch("/api/auth/google/token", { method: "POST" });
+      const r = await fetch("/api/auth/google/drive/token", { method: "POST" });
       if (!r.ok) return false;
       const j = await r.json();
       if (!j?.access_token) return false;
@@ -303,7 +303,7 @@ class GoogleDriveService {
       const origin = encodeURIComponent(
         typeof window !== "undefined" ? window.location.pathname : "/"
       );
-      window.location.href = `/api/auth/google?origin=${origin}`;
+      window.location.href = `/api/auth/google/drive?origin=${origin}`;
       return false;
     } catch {
       return false;

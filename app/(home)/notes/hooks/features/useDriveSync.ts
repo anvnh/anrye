@@ -299,6 +299,14 @@ The content will then be available for viewing and editing normally.`;
       setIsLoading(true);
       setSyncProgress(5);
       
+      // Check if user is signed in first
+      if (!isSignedIn) {
+        // console.log('User not signed in, skipping Drive sync');
+        setSyncProgress(100);
+        setIsLoading(false);
+        return;
+      }
+      
       // Clear data cache only (preserve authentication tokens)
       if (typeof window !== 'undefined') {
         // Clear folder and note cache
@@ -485,7 +493,7 @@ The content will then be available for viewing and editing normally.`;
       setIsInitialized(true);
       setSyncProgress(100);
       
-      console.log('Cache cleared and fresh sync completed successfully');
+      // console.log('Cache cleared and fresh sync completed successfully');
       
     } catch (error) {
       console.error('Clear cache and sync failed:', error);
