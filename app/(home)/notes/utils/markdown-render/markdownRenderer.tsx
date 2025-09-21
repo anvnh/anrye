@@ -696,17 +696,45 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
             }
 
             // Regular link
-            return (
-              <a
-                href={href}
-                className="text-blue-400 hover:text-blue-300 underline transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-                {...props}
-              >
-                {children}
-              </a>
-            );
+          return (
+            <a
+              href={href}
+              className="text-blue-400 hover:text-blue-300 underline transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                try {
+                  const hrefStr = typeof href === 'string' ? href : '';
+                  const isExternal = /^([a-z]+:)?\/\//i.test(hrefStr) || hrefStr.startsWith('mailto:');
+                  const isHash = hrefStr.startsWith('#');
+                  // For external links or hash anchors, allow default behavior
+                  if (isExternal || isHash) return;
+
+                  // Heuristic: treat non-external links as potential note titles and navigate in-place
+                  const titleFromChildren = Array.isArray(children)
+                    ? children.map((c: unknown) => getTextContent(c)).join('')
+                    : getTextContent(children as unknown);
+
+                  const target = (notes || []).find(n => n.title.toLowerCase() === titleFromChildren.toLowerCase());
+                  if (target && onNavigateToNote) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onNavigateToNote(target.id);
+                    return;
+                  }
+
+                  // Prevent opening a blank /notes tab if href accidentally points to the notes route
+                  if (hrefStr === '/notes' || hrefStr === '/notes/') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                } catch { /* noop */ }
+              }}
+              {...props}
+            >
+              {children}
+            </a>
+          );
           },
           strong: ({ children, ...props }) => (
             <strong className="font-bold text-white" {...props}>{children}</strong>

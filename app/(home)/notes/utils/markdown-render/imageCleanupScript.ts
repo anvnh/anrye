@@ -1,4 +1,4 @@
-import { driveService } from '@/app/lib/googleDrive';
+import { driveService } from '../../services/googleDrive';
 import { 
   extractImagesFromMarkdown, 
   removeAllImagesFromMarkdown,
