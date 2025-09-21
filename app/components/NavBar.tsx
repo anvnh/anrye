@@ -75,7 +75,7 @@ export default function Navbar() {
                 : 'text-gray-300 hover:text-white'
                 }`}
             >
-              Google Drive Notes
+              Notes
             </Link>
 
             {/* Google Drive Status */}
@@ -168,7 +168,7 @@ export default function Navbar() {
                   }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Google Drive Notes
+                Notes
               </Link>
             </div>
 
