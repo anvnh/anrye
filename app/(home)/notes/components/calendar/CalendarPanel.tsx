@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CalendarProvider } from '../../../../components/calendar/contexts/CalendarContext';
+import { CalendarAuthProvider, useCalendarAuth } from '@/app/lib/calendarAuthContext';
 import { ClientContainer } from '../../../../components/calendar/components/ClientContainer';
 import { listEvents, CalendarEvent } from '@/app/lib/googleCalendar';
 import { useThemeSettings } from '../../hooks';
@@ -16,7 +17,7 @@ interface CalendarPanelProps {
   onClose?: () => void;
 }
 
-const CalendarPanel: React.FC<CalendarPanelProps> = ({
+const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
   onPrev,
   onNext,
   onToday,
@@ -24,6 +25,7 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
   onClose
 }) => {
   const { notesTheme } = useThemeSettings();
+  const { isAuthenticated } = useCalendarAuth();
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [view, setView] = React.useState<TCalendarView>('week');
@@ -57,6 +59,12 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
 
   // Get events from cache or fetch if not available
   const getEventsForRange = async (startDate: Date, endDate: Date, forceRefresh = false): Promise<CalendarEvent[]> => {
+    // Check if user is authenticated first
+    if (!isAuthenticated) {
+      console.log('User not authenticated for calendar, returning empty events');
+      return [];
+    }
+
     const cacheKey = getCacheKey(startDate, endDate);
 
     // Week view: always fetch fresh (skip cache)
@@ -269,6 +277,14 @@ const CalendarPanel: React.FC<CalendarPanelProps> = ({
         {/* Calendar Container */}
         <ClientContainer view={view} onViewChange={handleViewChange} loading={loading} onDateChange={handleDateChange} onClose={onClose} />
     </CalendarProvider>
+  );
+};
+
+const CalendarPanel: React.FC<CalendarPanelProps> = (props) => {
+  return (
+    <CalendarAuthProvider>
+      <CalendarPanelContent {...props} />
+    </CalendarAuthProvider>
   );
 };
 
