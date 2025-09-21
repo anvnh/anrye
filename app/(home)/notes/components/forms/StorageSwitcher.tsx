@@ -10,10 +10,12 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useStorageSettings } from '../../hooks/settings/useStorageSettings';
+import { useSecureStorage } from '../../hooks/security/useSecureStorage';
 import { StorageProvider } from '../../types/storage';
 import { CheckCircle, XCircle, Loader2, Settings, Cloud, Database, AlertCircle, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useThemeSettings } from '../../hooks/ui/useThemeSettings';
+import { SecureInput } from './SecureInput';
 import Image from 'next/image';
 
 interface StorageSwitcherProps {
@@ -31,16 +33,24 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
     currentProvider,
     storageStatus,
     storageConfigs,
-    r2Config,
-    tursoConfig,
     switchProvider,
-    updateR2Config,
-    updateTursoConfig,
     testConnection,
     isProviderTesting,
     successAlert,
     setSuccessAlert,
   } = useStorageSettings();
+
+  const {
+    r2Config,
+    tursoConfig,
+    updateR2Config,
+    updateTursoConfig,
+    getMaskedR2Config,
+    getMaskedTursoConfig,
+    getPlainR2Config,
+    getPlainTursoConfig,
+    isInitialized: isSecureStorageInitialized,
+  } = useSecureStorage();
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -51,7 +61,29 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
   };
 
   const handleTestConnection = async (provider: StorageProvider) => {
-      await testConnection(provider);
+    if (provider === 'google-drive') {
+      await testConnection('google-drive');
+    } else if (provider === 'r2-turso') {
+      // Use plain values for API calls
+      const plainR2Config = getPlainR2Config();
+      const plainTursoConfig = getPlainTursoConfig();
+      
+      // Temporarily update the storage settings with plain values for testing
+      const originalR2Config = { ...r2Config };
+      const originalTursoConfig = { ...tursoConfig };
+      
+      // Update with plain values for testing
+      await updateR2Config(plainR2Config);
+      await updateTursoConfig(plainTursoConfig);
+      
+      try {
+        await testConnection('r2-turso');
+      } finally {
+        // Restore original values
+        await updateR2Config(originalR2Config);
+        await updateTursoConfig(originalTursoConfig);
+      }
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,6 +203,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           variant="outline"
           size="sm"
           onClick={() => setShowAdvanced(!showAdvanced)}
+          disabled={!isSecureStorageInitialized}
           className={cn(
             "text-sm text-muted-foreground",
             notesTheme === 'light' ? 'text-black' : 'text-white'
@@ -178,6 +211,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         >
           <Settings className="h-4 w-4 mr-2" />
           {showAdvanced ? 'Hide' : 'Show'} Advanced
+          {!isSecureStorageInitialized && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
         </Button>
       </div>
 
@@ -349,16 +383,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="r2-access-key" className={cn(
-                  "text-sm font-medium",
-                  notesTheme === 'light' ? 'text-black' : 'text-white'
-                )}>Access Key ID</Label>
-                <Input
+                <SecureInput
                   id="r2-access-key"
-                  type="password"
+                  label="Access Key ID"
                   value={r2Config.accessKeyId}
-                  onChange={(e) => updateR2Config({ accessKeyId: e.target.value })}
+                  onChange={(value) => updateR2Config({ accessKeyId: value })}
                   placeholder="Access Key ID"
+                  isSensitive={true}
                   className={cn(
                     "border-gray-700",
                     notesTheme === 'light' ? 'text-black' : 'text-white'
@@ -366,16 +397,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="r2-secret-key" className={cn(
-                  "text-sm font-medium",
-                  notesTheme === 'light' ? 'text-black' : 'text-white'
-                )}>Secret Access Key</Label>
-                <Input
+                <SecureInput
                   id="r2-secret-key"
-                  type="password"
+                  label="Secret Access Key"
                   value={r2Config.secretAccessKey}
-                  onChange={(e) => updateR2Config({ secretAccessKey: e.target.value })}
+                  onChange={(value) => updateR2Config({ secretAccessKey: value })}
                   placeholder="Secret Access Key"
+                  isSensitive={true}
                   className={cn(
                     "border-gray-700",
                     notesTheme === 'light' ? 'text-black' : 'text-white'
@@ -395,15 +423,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
             </h4>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="turso-url" className={cn(
-                  "text-sm font-medium",
-                  notesTheme === 'light' ? 'text-black' : 'text-white'
-                )}>Database URL</Label>
-                <Input
+                <SecureInput
                   id="turso-url"
+                  label="Database URL"
                   value={tursoConfig.url}
-                  onChange={(e) => updateTursoConfig({ url: e.target.value })}
+                  onChange={(value) => updateTursoConfig({ url: value })}
                   placeholder="libsql://your-db.turso.io"
+                  isSensitive={false}
                   className={cn(
                     "border-gray-700",
                     notesTheme === 'light' ? 'text-black' : 'text-white'
@@ -411,16 +437,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="turso-token" className={cn(
-                  "text-sm font-medium",
-                  notesTheme === 'light' ? 'text-black' : 'text-white'
-                )}>Auth Token</Label>
-                <Input
+                <SecureInput
                   id="turso-token"
-                  type="password"
+                  label="Auth Token"
                   value={tursoConfig.token}
-                  onChange={(e) => updateTursoConfig({ token: e.target.value })}
+                  onChange={(value) => updateTursoConfig({ token: value })}
                   placeholder="Auth Token"
+                  isSensitive={true}
                   className={cn(
                     "border-gray-700",
                     notesTheme === 'light' ? 'text-black' : 'text-white'
@@ -432,15 +455,17 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
 
           <Alert className={cn(
             "border-none mb-8",
-            notesTheme === 'light' ? 'bg-main' : 'bg-white'
+            notesTheme === 'light' ? 'bg-main' : 'bg-secondary'
           )}>
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className={cn(
+              "h-4 w-4",
+            )} />
             <AlertDescription className={cn(
               "text-sm",
-              notesTheme === 'light' ? 'text-white' : 'text-black'
+              notesTheme === 'light' ? 'text-white' : 'text-white'
             )}>
-              <strong>Note:</strong> Your credentials are stored locally in your browser. 
-              Make sure to keep them secure and don't share them with others.
+              <strong>Security Note:</strong> Your credentials are now encrypted and stored locally in your browser. 
+              Keep your device secure and don't share credentials.
             </AlertDescription>
           </Alert>
         </div>
