@@ -139,7 +139,7 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
         setIsNavigating(false);
       }
     }, 150); // 150ms debounce
-  }, [getEventsForRange]);
+  }, [getEventsForRange, isAuthenticated]);
 
   // Preload events for adjacent weeks/months (optimized)
   const preloadAdjacentEvents = React.useCallback(async (centerDate: Date, viewType: TCalendarView) => {
@@ -165,7 +165,7 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
       // Load in background without blocking
       getEventsForRange(nextMonthStart, nextMonthEnd).catch(console.error);
     }
-  }, [getEventsForRange]);
+  }, [getEventsForRange, isAuthenticated]);
 
   // Handle date changes from calendar navigation
   const handleDateChange = (newDate: Date) => {
@@ -261,7 +261,7 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
     };
 
     fetchEvents();
-  }, [effectiveDate, view, isInitialLoading]);
+  }, [effectiveDate, view, isInitialLoading, isAuthenticated]);
 
   // Preload events when view changes (optimized)
   React.useEffect(() => {
