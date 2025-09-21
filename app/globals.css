@@ -182,11 +182,18 @@ body {
 /* Sidebar container */
 .notes-sidebar {
   background-color: #18181B;
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 .notes-light .notes-sidebar {
   background-color: #ffffff;
   border-color: #e5e7eb !important;
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Ensure all sidebar elements use the correct font */
+.notes-sidebar * {
+  font-family: inherit;
 }
 
 .notes-light .notes-header {
@@ -619,7 +626,7 @@ body {
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 }
 

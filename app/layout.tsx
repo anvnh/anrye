@@ -1,17 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DriveProvider } from "./lib/driveContext";
 import Script from "next/script";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: 'swap',
   preload: true,
   adjustFontFallback: true,
-  fallback: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial']
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif']
 });
 
 const geistMono = Geist_Mono({
@@ -74,7 +74,7 @@ export default function RootLayout({
         <link rel="mask-icon" href="/icons/icon-192x192.png" color="#222831" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${inter.variable} ${geistMono.variable} antialiased min-h-screen`}
         style={{ backgroundColor: '#222831' }}
         suppressHydrationWarning={true}
       >
