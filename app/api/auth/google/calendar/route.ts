@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const appOrigin = url.origin;
-  const redirectUri = `${appOrigin}/api/auth/google/callback`;
+  const redirectUri = `${appOrigin}/api/auth/google/calendar/callback`;
 
   // Get 'origin' (path to return after login), only allow internal paths
   const rawOriginPath = url.searchParams.get("origin") || "/";
@@ -31,13 +31,9 @@ export async function GET(req: Request) {
     "openid",
     "email",
     "profile",
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly",
-    // Calendar scopes for read/write access
     "https://www.googleapis.com/auth/calendar",
   ].join(" ");
 
-  // Tham số OAuth (offline + consent để lấy refresh_token)
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -52,12 +48,12 @@ export async function GET(req: Request) {
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
   const resp = NextResponse.redirect(googleAuthUrl);
-  resp.cookies.set("oauth_state", signed, {
+  resp.cookies.set("oauth_state_cal", signed, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 10 * 60, // 10 phút
+    maxAge: 10 * 60,
   });
 
   return resp;

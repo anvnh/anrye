@@ -36,7 +36,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        const resp = await fetch("/api/auth/google/token", { method: "POST" });
+        const resp = await fetch("/api/auth/google/drive/token", { method: "POST" });
         if (!cancelled && resp.ok) {
           const data = await resp.json();
           if (data?.access_token) {
@@ -90,7 +90,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       const origin = encodeURIComponent(
         typeof window !== "undefined" ? window.location.pathname : "/"
       );
-      window.location.href = `/api/auth/google?origin=${origin}`;
+      window.location.href = `/api/auth/google/drive?origin=${origin}`;
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +135,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const refreshToken = async () => {
     setIsLoading(true);
     try {
-      const resp = await fetch("/api/auth/google/token", { method: "POST" });
+      const resp = await fetch("/api/auth/google/drive/token", { method: "POST" });
       setIsSignedIn(resp.ok);
     } catch {
       setIsSignedIn(false);

@@ -3,19 +3,19 @@ import { cookies } from "next/headers";
 
 export async function GET(req: Request) {
   const c = await cookies();
-  const hasRefresh = !!c.get("gd_refresh")?.value;
+  const hasRefresh = !!c.get("gc_refresh")?.value;
 
-  // Ghép tất cả cookie của user để forward
+  // Cookie header is used to forward the user's cookies to the server
   const cookieHeader = c.getAll().map((x) => `${x.name}=${x.value}`).join("; ");
 
   let tokenOk = false;
   let accessSample = "";
   try {
     const origin = new URL(req.url).origin;
-    const r = await fetch(`${origin}/api/auth/google/drive/token`, {
+    const r = await fetch(`${origin}/api/auth/google/calendar/token`, {
       method: "POST",
       headers: {
-        Cookie: cookieHeader,          // <- QUAN TRỌNG: forward cookie người dùng
+        Cookie: cookieHeader, // User's cookies
         "Content-Type": "application/json",
       },
     });

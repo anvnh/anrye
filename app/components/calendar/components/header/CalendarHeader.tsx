@@ -14,6 +14,7 @@ import type { TCalendarView } from "../../types";
 
 import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
+import { useCalendarAuth } from "@/app/lib/calendarAuthContext";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
@@ -31,9 +32,14 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
 
   const { notesTheme } = useThemeSettings();
   const { setSelectedDate } = useCalendar();
+  const { isAuthenticated, isLoading: authLoading, userInfo, authenticate, disconnect } = useCalendarAuth();
 
   const handleCalendarSync = () => {
-    window.location.href = "/api/auth/google/calendar";
+    if (isAuthenticated) {
+      disconnect();
+    } else {
+      authenticate();
+    }
   }
 
   return (
@@ -69,20 +75,31 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
       <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:justify-between">
         <div className="flex w-full items-center gap-1.5">
 
-          <Button 
-            className="flex items-center rounded-md bg-calendar-button-with-hover px-4"
-            onClick={handleCalendarSync}
-          >
-            <Image
-              src="/providers/google-calendar.png"
-              alt="Google Calendar"
-              width={40}
-              height={40}
-            />
-            <span className="font-bold text-[14px]">
-              Sync with Google Calendar
-            </span>
-          </Button>
+          <div className="flex flex-col items-center gap-1">
+            <Button 
+              className="flex items-center rounded-md bg-calendar-button-with-hover pl-4 pr-5"
+              onClick={handleCalendarSync}
+              disabled={authLoading}
+            >
+              <Image
+                src="/providers/google-calendar.png"
+                alt="Google Calendar"
+                width={40}
+                height={40}
+              />
+              <span className="font-bold text-[14px]">
+                {isAuthenticated 
+                  ? (userInfo?.name ? `Disconnect ${userInfo.name}` : "Disconnect Google Calendar")
+                  : "Sync with Google Calendar"
+                }
+              </span>
+            </Button>
+            {/* {isAuthenticated && userInfo?.email && (
+              <span className="text-xs text-muted-foreground">
+                Connected as {userInfo.email}
+              </span>
+            )} */}
+          </div>
 
           <div className="inline-flex first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none">
             <Button

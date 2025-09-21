@@ -781,7 +781,7 @@ export default function NotesPage() {
             const origin = encodeURIComponent(
               typeof window !== "undefined" ? window.location.pathname : "/"
             );
-            window.location.href = `/api/auth/google?origin=${origin}`;
+            window.location.href = `/api/auth/google/drive?origin=${origin}`;
           }}
           onSignOut={signOut}
           onEncryptNote={handleEncryptNote}

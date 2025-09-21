@@ -1,4 +1,3 @@
-// app/api/auth/google/callback/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyValue, parseState } from "@/app/lib/authCookies";
@@ -6,14 +5,14 @@ import { verifyValue, parseState } from "@/app/lib/authCookies";
 export async function GET(req: Request) {
     const url = new URL(req.url);
     const appOrigin = url.origin;
-    const redirectUri = `${appOrigin}/api/auth/google/callback`;
+    const redirectUri = `${appOrigin}/api/auth/google/calendar/callback`;
 
     const code = url.searchParams.get("code");
     const stateFromGoogle = url.searchParams.get("state") || "";
 
-    // --- Read & validate oauth_state cookie ---
+    // --- Read & validate oauth_state_cal cookie ---
     const cookieStore = await cookies(); // NOTE: await because cookies() returns a Promise in your Next version
-    const signedState = cookieStore.get("oauth_state")?.value || "";
+    const signedState = cookieStore.get("oauth_state_cal")?.value || "";
 
     if (!signedState) {
         return NextResponse.redirect(`${appOrigin}?auth_error=missing_state_cookie`);
@@ -22,33 +21,33 @@ export async function GET(req: Request) {
     const rawState = verifyValue(signedState, process.env.JWT_SECRET!);
     if (!rawState) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=bad_state_sig`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
     const parsed = parseState(rawState); // { uuid, timestamp, origin }
     if (!parsed) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=bad_state_parse`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
     // TTL 10 phút
     if (Date.now() - parsed.timestamp > 10 * 60 * 1000) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=state_expired`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
     if (!stateFromGoogle || parsed.uuid !== stateFromGoogle) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=state_mismatch`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
     if (!code) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=missing_code`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
@@ -67,7 +66,7 @@ export async function GET(req: Request) {
 
     if (!tokenResp.ok) {
         const r = NextResponse.redirect(`${appOrigin}?auth_error=token_exchange_failed`);
-        r.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+        r.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
         return r;
     }
 
@@ -88,10 +87,10 @@ export async function GET(req: Request) {
 
     // Store/keep refresh token in HttpOnly cookie
     // If Google doesn't return a new refresh_token, keep the existing one if present
-    const existingRefresh = cookieStore.get("gd_refresh")?.value || null;
+    const existingRefresh = cookieStore.get("gc_refresh")?.value || null;
     const refreshToStore = tokens.refresh_token || existingRefresh || null;
     if (refreshToStore) {
-        res.cookies.set("gd_refresh", refreshToStore, {
+        res.cookies.set("gc_refresh", refreshToStore, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
@@ -100,8 +99,8 @@ export async function GET(req: Request) {
         });
     }
 
-    // Clear oauth_state cookie
-    res.cookies.set("oauth_state", "", { path: "/", maxAge: 0 });
+    // Clear oauth_state_cal cookie
+    res.cookies.set("oauth_state_cal", "", { path: "/", maxAge: 0 });
 
     return res;
 }
