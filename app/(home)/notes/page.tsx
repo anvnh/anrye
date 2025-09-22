@@ -247,6 +247,9 @@ export default function NotesPage() {
 
   const { currentProvider } = useStorageSettings();
 
+  // Resize handle
+  useSidebarResize(isResizing, setIsResizing, setSidebarWidth);
+
   const initRanRef = useRef(false);
 
   const {
@@ -401,13 +404,13 @@ export default function NotesPage() {
         // Check if we have local data to migrate
         const localNotes = localStorage.getItem('notes-new');
         const localFolders = localStorage.getItem('folders-new');
-        
+
         if (localNotes && localFolders) {
           setSyncProgress(50);
           // Migrate local data to Turso
           const parsedNotes = JSON.parse(localNotes);
           const parsedFolders = JSON.parse(localFolders);
-          
+
           // Filter out root folder and migrate folders
           const foldersToMigrate = parsedFolders.filter((f: any) => f.id !== 'root');
           for (const folder of foldersToMigrate) {
@@ -417,7 +420,7 @@ export default function NotesPage() {
               parentId: folder.parentId === 'root' ? undefined : folder.parentId,
             });
           }
-          
+
           setSyncProgress(70);
           // Migrate notes
           for (const note of parsedNotes) {
@@ -428,7 +431,7 @@ export default function NotesPage() {
               folderId: note.path ? foldersToMigrate.find((f: any) => f.path === note.path)?.id : undefined,
             });
           }
-          
+
           setSyncProgress(80);
           // Clear local caches after successful migration
           localStorage.removeItem('notes-new');
@@ -642,7 +645,7 @@ export default function NotesPage() {
 
       // Update local notes
       setNotes(notes.map(note => note.id === noteId ? updatedNote : note));
-      
+
       // Update selected note if it's the one being encrypted
       if (selectedNote?.id === noteId) {
         setSelectedNote(updatedNote);
@@ -688,7 +691,7 @@ export default function NotesPage() {
 
       // Update local notes
       setNotes(notes.map(note => note.id === noteId ? updatedNote : note));
-      
+
       // Update selected note if it's the one being decrypted
       if (selectedNote?.id === noteId) {
         setSelectedNote(updatedNote);
@@ -884,8 +887,8 @@ export default function NotesPage() {
               }}
               isEditing={false}
               editTitle=""
-              setEditTitle={() => {}}
-              setIsSplitMode={() => {}}
+              setEditTitle={() => { }}
+              setIsSplitMode={() => { }}
               isSplitMode={false}
               notesTheme={notesTheme}
               setNotesTheme={setNotesTheme}
@@ -902,18 +905,18 @@ export default function NotesPage() {
               themeOptions={themeOptions}
               tabSize={tabSize}
               setTabSize={setTabSize}
-              saveNote={() => {}}
-              cancelEdit={() => {}}
-              startEdit={() => {}}
+              saveNote={() => { }}
+              cancelEdit={() => { }}
+              startEdit={() => { }}
               isMobileSidebarOpen={isMobileSidebarOpen}
               onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-              onCloseNote={() => {}}
+              onCloseNote={() => { }}
               isSidebarHidden={isSidebarHidden}
               onToggleSidebar={toggleSidebar}
               onOpenImageManager={() => setIsImageManagerOpen(true)}
               onOpenCalendar={() => setIsCalendarOpen(true)}
               isPreviewMode={false}
-              setIsPreviewMode={() => {}}
+              setIsPreviewMode={() => { }}
               showLastUpdated={false}
             />
           )}

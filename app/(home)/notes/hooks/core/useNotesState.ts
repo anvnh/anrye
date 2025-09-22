@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Note, Folder } from '../../components/types';
+import { useDebounce } from '@/app/lib/hooks';
 
 export const useNotesState = () => {
   // Core data state
@@ -39,7 +40,16 @@ export const useNotesState = () => {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
   // Sidebar resize state
-  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-width');
+      return saved ? parseInt(saved, 10) : 320;
+    }
+    return 320;
+  });
+
+  const [debounceSidebarWidth] = useDebounce(sidebarWidth, 300);
+
   const [isResizing, setIsResizing] = useState(false);
 
   // Rename dialog state
@@ -53,6 +63,11 @@ export const useNotesState = () => {
   // Image manager state
   const [isImageManagerOpen, setIsImageManagerOpen] = useState(false);
   const [isImagesSectionExpanded, setIsImagesSectionExpanded] = useState(false);
+
+  // Save debounce sidebar width
+  useEffect(() => {
+    localStorage.setItem('sidebar-width', debounceSidebarWidth.toString());
+  }, [debounceSidebarWidth]);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -133,16 +148,6 @@ export const useNotesState = () => {
       localStorage.setItem('folders-new', JSON.stringify(uniqueFolders));
     }
   }, [folders]);
-
-  // Save sidebar width to localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar-width', sidebarWidth.toString());
-  }, [sidebarWidth]);
-
-  // Save sidebar visibility to localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar-hidden', isSidebarHidden.toString());
-  }, [isSidebarHidden]);
 
   // Save selected note to localStorage
   useEffect(() => {

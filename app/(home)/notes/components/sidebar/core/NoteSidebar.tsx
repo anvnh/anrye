@@ -335,15 +335,6 @@ export default function NoteSidebar({
     return notesToFilter.filter(note => note.path === path);
   };
 
-  // const getSubfolders = (parentPath: string) => {
-  //   return folders.filter(folder => {
-  //     if (parentPath === '') {
-  //       return folder.parentId === 'root' && folder.id !== 'root';
-  //     }
-  //     return folder.path.startsWith(parentPath + '/') &&
-  //       folder.path.split('/').length === parentPath.split('/').length + 1;
-  //   });
-  // };
   const getSubfolders = (parentPath: string, foldersToFilter = folders) => {
     return foldersToFilter.filter(folder => {
       if (parentPath === '') {
@@ -396,11 +387,10 @@ export default function NoteSidebar({
       return Number.isFinite(t) ? t : 0;
     };
 
-    // Nếu timeSort đang bật → áp dụng cho cả folder + file
     if (timeSort !== 'none') {
       const folderTime = (f: Folder) =>
         folderUpdatedAtMap.get(f.path) ??
-        getTime((f as any).updatedAt); // fallback nếu Folder có updatedAt
+        getTime((f as any).updatedAt);
 
       const noteTime = (n: Note) => getTime((n as any).updatedAt);
 
@@ -411,7 +401,6 @@ export default function NoteSidebar({
       sortedSubfolders.sort((a, b) => cmp(folderTime(a), folderTime(b)));
       sortedNotes.sort((a, b) => cmp(noteTime(a), noteTime(b)));
     } else {
-      // Không sort theo thời gian → dùng 2 state riêng
       // Folders: A→Z / Z→A
       sortedSubfolders.sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
@@ -425,7 +414,6 @@ export default function NoteSidebar({
         );
         if (fileSort === 'za') sortedNotes.reverse();
       } else {
-        // (Dự phòng nếu còn giá trị cũ)
         sortedNotes.sort((a, b) =>
           a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
         );
@@ -593,10 +581,10 @@ export default function NoteSidebar({
                     <span className="truncate">{note.title}</span>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {note.isEncrypted && (
-                        <EncryptionStatusBadge 
-                          isEncrypted={true} 
+                        <EncryptionStatusBadge
+                          isEncrypted={true}
                           isUnlocked={note.isUnlocked || false}
-                          className="text-xs px-1 py-0" 
+                          className="text-xs px-1 py-0"
                         />
                       )}
                       {pinnedNoteIds.has(note.id) && (
@@ -767,14 +755,18 @@ export default function NoteSidebar({
             ${isMobileSidebarOpen ? 'block' : 'hidden lg:block'}
             lg:relative lg:translate-x-0
             ${isMobileSidebarOpen ? 'fixed left-0 top-0 h-full' : ''}
-            ${isSidebarHidden ? 'lg:hidden' : ''}
-            shadow-xl
-            transition-all duration-300 ease-in-out
+            ${isSidebarHidden ? 'lg:hidden' : ''} shadow-xl
             `}
             style={{
               width: `${sidebarWidth}px`
             }}
           >
+
+            <div
+              className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 transition-colors z-10"
+              onMouseDown={() => onSetIsResizing(true)}
+            />
+
             <div className="px-6 py-4 border-b border-gray-600/50 flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">

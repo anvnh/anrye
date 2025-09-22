@@ -10,7 +10,8 @@ export const useSidebarResize = (
       if (!isResizing) return;
 
       const newWidth = e.clientX;
-      if (newWidth >= 200 && newWidth <= 600) { // Min 200px, Max 600px
+      // Minimum 200px, Maximum 600px
+      if (newWidth >= 200 && newWidth <= 600) {
         setSidebarWidth(newWidth);
       }
     };
@@ -30,6 +31,9 @@ export const useSidebarResize = (
     }
 
     return () => {
+      // if(rafRef) {
+      //   cancleAnimationFrame(rafRef.current);
+      // }
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
