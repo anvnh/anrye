@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { useThemeSettings } from '../../../hooks';
 
 interface FoldableHeadingProps {
   level: 1 | 2 | 3 | 4 | 5 | 6;
@@ -21,6 +21,8 @@ const FoldableHeading: React.FC<FoldableHeadingProps> = ({
   const [isFolded, setIsFolded] = useState(false);
   const [hasContent, setHasContent] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  const { notesTheme } = useThemeSettings();
 
   // Check if this heading has content below it (not just another heading of same or higher level)
   useEffect(() => {
@@ -101,13 +103,11 @@ const FoldableHeading: React.FC<FoldableHeadingProps> = ({
     }
   };
 
-  const iconSize = level <= 2 ? 16 : 14;
-
   const renderHeading = () => {
     const props = {
       ref: headingRef,
       id,
-      className: `relative group cursor-pointer hover:bg-gray-900/40 hover:bg-opacity-20 rounded px-1 -mx-1 transition-all duration-200 ${className}`,
+      className: `relative group cursor-pointer px-1 -mx-1 transition-all duration-200 ${className}`,
       onClick: handleToggle
     };
 
