@@ -106,17 +106,14 @@ export function SettingsPage({
         
         <Tabs defaultValue="appearance" className="w-full">
           <TabsList className={cn(
-            "grid w-full grid-cols-4 h-10 p-1 rounded-md",
+            "grid w-full grid-cols-3 h-10 p-1 rounded-md",
             notesTheme === 'light' ? 'bg-white' : 'bg-secondary'
           )}>
             <TabsTrigger value="appearance">
-              Appearance
+              Appearance & Editor
             </TabsTrigger>
             <TabsTrigger value="storage">
               Storage
-            </TabsTrigger>
-            <TabsTrigger value="editor">
-              Editor
             </TabsTrigger>
             <TabsTrigger value="about">
               About
@@ -124,6 +121,7 @@ export function SettingsPage({
           </TabsList>
           
           <TabsContent value="appearance" className="space-y-6">
+            {/* Theme Settings Section */}
             <div className="space-y-4">
               <h3 className={cn(
                 "text-lg font-semibold",
@@ -177,13 +175,8 @@ export function SettingsPage({
                 </div>
               </div>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="storage" className="space-y-6">
-            <StorageSwitcher />
-          </TabsContent>
-          
-          <TabsContent value="editor" className="space-y-6">
+
+            {/* Editor Settings Section */}
             <div className="space-y-4">
               <h3 className={cn(
                 "text-lg font-semibold",
@@ -308,6 +301,11 @@ export function SettingsPage({
               </div>
             </div>
           </TabsContent>
+          
+          <TabsContent value="storage" className="space-y-6">
+            <StorageSwitcher />
+          </TabsContent>
+          
           
           <TabsContent value="about" className="space-y-6">
             <div className="space-y-4">
