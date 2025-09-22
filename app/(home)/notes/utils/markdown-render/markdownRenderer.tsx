@@ -42,6 +42,8 @@ import 'prismjs/components/prism-sql';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTableScrollbar } from '../../hooks/ui/useTableScrollbar';
+import { cn } from '@/lib/utils';
+import { useThemeSettings } from '../../hooks';
 
 interface MarkdownRendererProps {
   content: string;
@@ -390,6 +392,8 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
     return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
   };
 
+  const { notesTheme } = useThemeSettings();
+
   return (
     <CheckboxProvider
       selectedNote={selectedNote}
@@ -413,7 +417,10 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
               <FoldableHeading
                 level={1}
                 id={id}
-                className="text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2"
+                className={cn(
+                  "text-3xl font-bold text-white mb-6 mt-8 border-b border-gray-600 pb-2", 
+                  notesTheme === 'light' ? 'text-black' : 'text-white hover:bg-[#3B82F6]/10'
+                )}
               >
                 {children}
               </FoldableHeading>
