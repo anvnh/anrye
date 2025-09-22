@@ -7,7 +7,7 @@ Start writing your note here...
 
 - **Bold text** and *italic text*
 - [Links](https://example.com)
-- [[Wiki-style links]] to other notes (type [[ to see autocomplete!)
+- [[Wiki-style links]] to other notes 
 - \`inline code\`
 - Lists and checkboxes
 - Tables
@@ -81,24 +81,10 @@ $$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$
 
 $$\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}$$
 
-$$\\begin{pmatrix}
-a & b \\\\
-c & d
-\\end{pmatrix}
-\\begin{pmatrix}
-x \\\\
-y
-\\end{pmatrix}
-=
-\\begin{pmatrix}
-ax + by \\\\
-cx + dy
-\\end{pmatrix}$$
-
 ## Code Example
 
 \`\`\`javascript
-
+console.log("Hello, world!");
 \`\`\`
 
 ## Table Example
