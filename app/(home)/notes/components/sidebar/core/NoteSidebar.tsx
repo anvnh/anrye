@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '@/app/lib/hooks/useDebounce';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search, Lock, Unlock, Shield } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search, Lock, Unlock, Shield, Network } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -15,6 +15,7 @@ import { MobileItemMenu } from '../../forms/MobileFileOperations';
 import { NoteEncryptionDialog, EncryptionStatusBadge } from '../../modals/NoteEncryption';
 import MoveDrawer from '../../modals/MoveDrawer';
 import { ImagesSection } from '../../images/management/ImagesSection';
+import GraphDialog from '../../modals/GraphDialog';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -310,6 +311,9 @@ export default function NoteSidebar({
   // Move dialog state and handlers (works on both mobile and desktop)
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [moveItem, setMoveItem] = useState<{ item: Note | Folder; type: 'note' | 'folder' } | null>(null);
+
+  // Graph dialog state
+  const [isGraphOpen, setIsGraphOpen] = useState(false);
 
   const handleMobileMove = (item: Note | Folder, type: 'note' | 'folder') => {
     setMoveItem({ item, type });
@@ -793,6 +797,14 @@ export default function NoteSidebar({
                 </div>
 
                 <div className="flex items-center gap-2 rounded-2xl">
+                  {/* Graph Button */}
+                  <button
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-700/60 rounded-2xl"
+                    onClick={() => setIsGraphOpen(true)}
+                    title="Open knowledge graph"
+                  >
+                    <Network size={18} />
+                  </button>
                   {/* Drive Button (Dropdown) */}
                   {isSignedIn ? (
                     <DropdownMenu>
@@ -1114,6 +1126,21 @@ export default function NoteSidebar({
           setMoveItem(null);
         }}
         onMove={handleMoveConfirm}
+      />
+
+      {/* Graph Dialog */}
+      <GraphDialog
+        isOpen={isGraphOpen}
+        onClose={() => setIsGraphOpen(false)}
+        notes={notes}
+        selectedNoteId={selectedNote?.id}
+        onSelectNote={(noteId: string) => {
+          const n = notes.find(x => x.id === noteId);
+          if (n) {
+            onSelectNote(n);
+            setIsGraphOpen(false);
+          }
+        }}
       />
     </>
   );
