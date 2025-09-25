@@ -12,10 +12,12 @@ import { ChangeBadgeVariantInput } from "../ChangeBadgeVariantInput";
 import type { IEvent } from "../../interfaces";
 import type { TCalendarView } from "../../types";
 
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
+import { useCalendarAuth } from "@/app/lib/calendarAuthContext";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 
 interface IProps {
   view: TCalendarView;
@@ -30,6 +32,15 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
 
   const { notesTheme } = useThemeSettings();
   const { setSelectedDate } = useCalendar();
+  const { isAuthenticated, isLoading: authLoading, userInfo, authenticate, disconnect } = useCalendarAuth();
+
+  const handleCalendarSync = () => {
+    if (isAuthenticated) {
+      disconnect();
+    } else {
+      authenticate();
+    }
+  }
 
   return (
     <div className={cn(
@@ -39,8 +50,8 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
       <div className="flex items-center gap-3">
         <TodayButton />
 
-        <Badge 
-          variant="outline" 
+        <Badge
+          variant="outline"
           className={cn(
             "border-none px-5 py-3 cursor-pointer",
             notesTheme === "light" ? "light-bg-calendar-button text-black" : "bg-calendar-button-with-hover text-white"
@@ -60,8 +71,36 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
         )}
       </div>
 
+
       <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:justify-between">
         <div className="flex w-full items-center gap-1.5">
+
+          <div className="flex flex-col items-center gap-1">
+            <Button 
+              className="flex items-center rounded-md bg-calendar-button-with-hover pl-4 pr-5"
+              onClick={handleCalendarSync}
+              disabled={authLoading}
+            >
+              <Image
+                src="/providers/google-calendar.png"
+                alt="Google Calendar"
+                width={40}
+                height={40}
+              />
+              <span className="font-bold text-[14px]">
+                {isAuthenticated 
+                  ? (userInfo?.name ? `Disconnect ${userInfo.name}` : "Disconnect Google Calendar")
+                  : "Sync with Google Calendar"
+                }
+              </span>
+            </Button>
+            {/* {isAuthenticated && userInfo?.email && (
+              <span className="text-xs text-muted-foreground">
+                Connected as {userInfo.email}
+              </span>
+            )} */}
+          </div>
+
           <div className="inline-flex first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none">
             <Button
               aria-label="View by day"
@@ -124,7 +163,10 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
           {/* Badge Variant Settings */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={notesTheme === "light" ? "light-outline" : "outline"} size="icon" className="h-9 w-9">
+              <Button 
+                variant={notesTheme === "light" ? "light-outline" : "dark-outline"} 
+                size="icon" className="h-9 w-9"
+              >
                 <Settings className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -144,9 +186,9 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
           {/* Add Event Button */}
           <AddEventDialog>
             <Button className={cn(
-              notesTheme === "light" 
-                ? "light-bg-calendar-button-with-hover text-black" 
-                : "bg-calendar-button text-white"
+              notesTheme === "light"
+                ? "light-bg-calendar-button-with-hover text-black"
+                : "bg-calendar-button-with-hover text-white"
             )}>
               <Plus />
               Add Event
@@ -157,7 +199,7 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
           {onClose && (
             <Button
               onClick={onClose}
-              variant={notesTheme === "light" ? "light-outline" : "outline"}
+              variant={notesTheme === "light" ? "light-outline" : "dark-outline"}
               size="icon"
               className="h-9 w-9"
               title="Close Calendar"

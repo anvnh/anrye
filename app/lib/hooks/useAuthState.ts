@@ -36,7 +36,7 @@ export function useAuthState(options: UseAuthStateOptions = {}) {
           const tokens = JSON.parse(tempTokens);
           if (tokens.access_token) {
             // Process temporary tokens
-            const { driveService } = await import('../googleDrive');
+            const { driveService } = await import('../../(home)/notes/services/googleDrive');
             const success = await driveService.signIn();
             setIsAuthenticated(!!success);
             setIsLoading(false);
@@ -104,7 +104,7 @@ export function useAuthState(options: UseAuthStateOptions = {}) {
       setIsInitialized(true);
 
       // Validate token in background
-      const { driveService } = await import('../googleDrive');
+      const { driveService } = await import('../../(home)/notes/services/googleDrive');
       const isValid = await driveService.isSignedIn();
       
       if (isValid) {

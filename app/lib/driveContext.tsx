@@ -23,10 +23,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false); // Track if auth has been properly initialized
 
   // Lazy-load the Google Drive module only when needed
-  let driveModulePromise: Promise<typeof import('./googleDrive')> | null = null;
+  let driveModulePromise: Promise<typeof import('../(home)/notes/services/googleDrive')> | null = null;
   const loadDriveModule = () => {
     if (!driveModulePromise) {
-      driveModulePromise = import('./googleDrive');
+      driveModulePromise = import('../(home)/notes/services/googleDrive');
     }
     return driveModulePromise;
   };
@@ -36,8 +36,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
 
     async function init() {
       try {
-        // hỏi server lấy access_token dựa trên refresh cookie HttpOnly
-        const resp = await fetch("/api/auth/google/token", { method: "POST" });
+        const resp = await fetch("/api/auth/google/drive/token", { method: "POST" });
         if (!cancelled && resp.ok) {
           const data = await resp.json();
           if (data?.access_token) {
@@ -91,9 +90,8 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       const origin = encodeURIComponent(
         typeof window !== "undefined" ? window.location.pathname : "/"
       );
-      window.location.href = `/api/auth/google?origin=${origin}`;
+      window.location.href = `/api/auth/google/drive?origin=${origin}`;
     } finally {
-      // sẽ redirect nên đoạn sau thường không chạy; để an toàn vẫn reset
       setIsLoading(false);
     }
   };
@@ -124,7 +122,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       await mod.driveService.signOut();
 
       // Clear image cache when signing out
-      const { imageLoadingManager } = await import('../(home)/notes/_utils/imageLoadingManager');
+      const { imageLoadingManager } = await import('../(home)/notes/utils/images/imageLoadingManager');
       imageLoadingManager.clearCache();
       // Clear any temporary tokens from previous auth attempts
       try {
@@ -137,7 +135,7 @@ export function DriveProvider({ children }: { children: ReactNode }) {
   const refreshToken = async () => {
     setIsLoading(true);
     try {
-      const resp = await fetch("/api/auth/google/token", { method: "POST" });
+      const resp = await fetch("/api/auth/google/drive/token", { method: "POST" });
       setIsSignedIn(resp.ok);
     } catch {
       setIsSignedIn(false);

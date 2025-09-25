@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 
-import { useDisclosure } from "@/app/(home)/notes/_hooks/useDisclosure";
+import { useDisclosure } from "@/app/(home)/notes/hooks";
 
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";

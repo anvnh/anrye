@@ -5,7 +5,7 @@ import { useCalendar } from "../../contexts/CalendarContext";
 import { DayCell } from "./DayCell";
 
 import { getCalendarCells, calculateMonthEventPositions } from "../../helpers";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { cn } from "@/lib/utils";
 
 import type { IEvent } from "../../interfaces";

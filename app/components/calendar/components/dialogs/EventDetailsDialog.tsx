@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import type { IEvent } from "../../interfaces";
 import { cn } from "@/lib/utils";
 import { Noto_Serif_Thai } from "next/font/google";
-import { useThemeSettings } from "@/app/(home)/notes/_hooks/useThemeSettings";
+import { useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
 import { deleteEvent as deleteGCalEvent, deleteRecurringScope, getEvent as getGCalEvent } from "@/app/lib/googleCalendar";
 import { 

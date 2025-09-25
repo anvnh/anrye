@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   let accessSample = "";
   try {
     const origin = new URL(req.url).origin;
-    const r = await fetch(`${origin}/api/auth/google/token`, {
+    const r = await fetch(`${origin}/api/auth/google/drive/token`, {
       method: "POST",
       headers: {
         Cookie: cookieHeader,          // <- QUAN TRỌNG: forward cookie người dùng

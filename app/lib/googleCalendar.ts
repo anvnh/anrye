@@ -1,7 +1,5 @@
 'use client';
 
-import { driveService } from './googleDrive';
-
 export interface CalendarEvent {
   id: string;
   summary: string;
@@ -39,16 +37,15 @@ function getLocalTimeZone(): string {
   }
 }
 
+async function getCalendarBearer(): Promise<string> {
+  const r = await fetch("/api/auth/google/calendar/token", { method: "POST" });
+  if (!r.ok) throw new Error("NO_CALENDAR_TOKEN");
+  const j = await r.json();
+  return j.access_token as string;
+}
+
 function ensureBearer(): Promise<string> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const token = await driveService.getAccessToken();
-      if (!token) return reject(new Error('NO_TOKEN'));
-      resolve(token);
-    } catch (e) {
-      reject(e);
-    }
-  });
+  return getCalendarBearer();
 }
 
 function mapEvent(e: GoogleCalendarEvent): CalendarEvent | null {
@@ -81,10 +78,11 @@ async function calendarFetch(input: string, init?: RequestInit): Promise<Respons
 
   let r = await doFetch(token);
   if (r.status === 401 || r.status === 403) {
-    const ok = await driveService.refreshAccessToken();
-    if (ok) {
-      const token2 = await ensureBearer();
+    try {
+      const token2 = await getCalendarBearer();
       r = await doFetch(token2);
+    } catch {
+      // Token refresh failed, return original response
     }
   }
   return r;

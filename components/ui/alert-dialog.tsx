@@ -5,7 +5,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { useThemeSettings } from "@/app/(home)/notes/_hooks/useThemeSettings"
+import { useThemeSettings } from "@/app/(home)/notes/hooks"
 
 function AlertDialog({
   ...props
