@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyValue, parseState } from "@/app/lib/authCookies";
+import { getBaseUrl } from "@/app/lib/env";
 
 export async function GET(req: Request) {
     const url = new URL(req.url);
-    const appOrigin = url.origin;
+    const base = getBaseUrl(req) || url.origin;
+    const appOrigin = base;
     const redirectUri = `${appOrigin}/api/auth/google/drive/callback`;
 
     const code = url.searchParams.get("code");

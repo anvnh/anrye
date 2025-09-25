@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { signValue } from "@/app/lib/authCookies";
+import { getBaseUrl, needsBaseRedirect } from "@/app/lib/env";
 import { randomUUID } from "crypto";
 
 export async function GET(req: Request) {
@@ -13,9 +14,16 @@ export async function GET(req: Request) {
     return new NextResponse("Missing JWT_SECRET", { status: 500 });
   }
 
-  const url = new URL(req.url);
-  const appOrigin = url.origin;
+  const redirectCheck = needsBaseRedirect(req);
+  if (redirectCheck.redirect && redirectCheck.target) {
+    return NextResponse.redirect(redirectCheck.target);
+  }
+
+  const base = getBaseUrl(req);
+  const appOrigin = base || new URL(req.url).origin;
   const redirectUri = `${appOrigin}/api/auth/google/drive/callback`;
+
+  const url = new URL(req.url);
 
   // Get 'origin' (path to return after login), only allow internal paths
   const rawOriginPath = url.searchParams.get("origin") || "/";
