@@ -14,3 +14,38 @@ export function isGoogleClientIdConfigured(): boolean {
   const clientId = getGoogleClientId();
   return !!(clientId && clientId.trim() !== '');
 }
+
+// Determine a stable base URL for OAuth flows.
+// Priority:
+// 1. Explicit OAUTH_BASE_URL (no trailing slash)
+// 2. req.url origin (fallback)
+// NOTE: If the incoming request origin differs from configured base, caller may choose to redirect
+export function getBaseUrl(req?: Request): string {
+  const configured = (process.env.OAUTH_BASE_URL || '').trim().replace(/\/$/, '');
+  if (configured) return configured;
+  if (req) {
+    try {
+      const u = new URL(req.url);
+      return u.origin;
+    } catch {
+      // ignore
+    }
+  }
+  return '';
+}
+
+// Utility to decide if we should force migrate the flow to the configured base domain.
+export function needsBaseRedirect(req: Request): { redirect: boolean; target?: string } {
+  const configured = (process.env.OAUTH_BASE_URL || '').trim().replace(/\/$/, '');
+  if (!configured) return { redirect: false };
+  try {
+    const u = new URL(req.url);
+    if (u.origin !== configured) {
+      // Reconstruct same path+query on configured base
+      return { redirect: true, target: `${configured}${u.pathname}${u.search}` };
+    }
+  } catch {
+    return { redirect: false };
+  }
+  return { redirect: false };
+}
