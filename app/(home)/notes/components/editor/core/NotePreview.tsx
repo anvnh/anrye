@@ -54,7 +54,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState('');
-  
+
   const outlineRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -70,23 +70,23 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
 
   // notes Theme
   const { notesTheme } = useThemeSettings();
-  
+
   // Reset decrypted content when selectedNote changes
   useEffect(() => {
     setDecryptedContent(null);
     setPassword('');
     setError('');
-    
+
     // Reset unlocked state when switching notes
     if (selectedNote.isEncrypted && selectedNote.isUnlocked) {
-      setNotes(prevNotes => 
-        prevNotes.map(note => 
-          note.id === selectedNote.id 
+      setNotes(prevNotes =>
+        prevNotes.map(note =>
+          note.id === selectedNote.id
             ? { ...note, isUnlocked: false }
             : note
         )
       );
-      
+
       setSelectedNote(prev => prev ? { ...prev, isUnlocked: false } : null);
     }
   }, [selectedNote.id]);
@@ -94,30 +94,30 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
   // Handle unlock
   const handleUnlock = async () => {
     if (!password || !selectedNote.encryptedData) return;
-    
+
     setIsUnlocking(true);
     setError('');
-    
+
     const result = await decrypt(selectedNote.encryptedData, password);
     if (result.success && result.data) {
       setDecryptedContent(result.data);
       setError('');
-      
+
       // Update the note to mark it as unlocked
-      setNotes(prevNotes => 
-        prevNotes.map(note => 
-          note.id === selectedNote.id 
+      setNotes(prevNotes =>
+        prevNotes.map(note =>
+          note.id === selectedNote.id
             ? { ...note, isUnlocked: true }
             : note
         )
       );
-      
+
       // Update selectedNote to reflect the unlocked state
       setSelectedNote(prev => prev ? { ...prev, isUnlocked: true } : null);
     } else {
       setError('Invalid password. Please try again.');
     }
-    
+
     setIsUnlocking(false);
   };
 
@@ -319,14 +319,14 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
       {isEncrypted && !decryptedContent && (
         <div className="flex items-center justify-center h-full p-8">
           <div className={cn(
-            "w-full max-w-md space-y-4 p-6 border rounded-lg", 
+            "w-full max-w-md space-y-4 p-6 border rounded-lg",
             notesTheme === "light" ? "" : "bg-red-50 text-white border-gray-700"
           )}>
             <div className="flex items-center gap-2 text-red-800">
               <Lock className="h-5 w-5" />
               <span className="font-medium text-lg">This note is encrypted</span>
             </div>
-            
+
             <div className="space-y-3">
               <Label htmlFor="unlock-password" className="text-sm text-gray-700">
                 Enter password to view content:
@@ -353,18 +353,18 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
                   >
                     {showPassword ? (
                       <EyeOff className={cn(
-                      "h-4 w-4 transition-colors duration-200",
-                      notesTheme === "light" ? "group-hover:text-gray-600" : "text-black group-hover:text-gray-500"
-                      )}/>
+                        "h-4 w-4 transition-colors duration-200",
+                        notesTheme === "light" ? "group-hover:text-gray-600" : "text-black group-hover:text-gray-500"
+                      )} />
                     ) : (
                       <Eye className={cn(
                         "h-4 w-4 transition-colors duration-200",
                         notesTheme === "light" ? "group-hover:text-gray-600" : "text-black group-hover:text-gray-500"
-                      )}/>
+                      )} />
                     )}
                   </Button>
                 </div>
-                <Button 
+                <Button
                   onClick={handleUnlock}
                   disabled={!password || isUnlocking}
                   size="sm"
@@ -376,7 +376,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
                   {isUnlocking ? 'Unlocking...' : 'Unlock'}
                 </Button>
               </div>
-              
+
               {error && (
                 <Alert variant="destructive" className="mt-2">
                   <AlertTriangle className="h-4 w-4" />
@@ -384,7 +384,7 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
                 </Alert>
               )}
             </div>
-            
+
             <p className="text-xs text-gray-600">
               * File on Google Drive remains encrypted
             </p>
@@ -421,79 +421,74 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             )}
           </div>
 
-      {/* Mobile Backlinks Overlay */}
-      {isBacklinksOpen && (
-        <div className="lg:hidden absolute inset-0 z-40">
-          {/* Backdrop */}
-          <div
-            ref={backlinksBackdropRef}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsBacklinksOpen(false)}
-          />
+          {/* Mobile Backlinks Overlay */}
+          {isBacklinksOpen && (
+            <div className="lg:hidden absolute inset-0 z-40">
+              {/* Backdrop */}
+              <div
+                ref={backlinksBackdropRef}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsBacklinksOpen(false)}
+              />
 
-          {/* Backlinks Panel */}
-          <div
-            ref={backlinksRef}
-            className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-l border-gray-700 shadow-xl"
-          >
-            {/* Swipe indicator */}
-            <div className="absolute top-4 left-2 w-1 h-8 bg-gray-500/30 rounded-full"></div>
-            <div className="h-full pb-[env(safe-area-inset-bottom)] flex flex-col">
-              {/* simple segmented buttons */}
-              <div className="sticky top-0 z-10 bg-main/80 backdrop-blur border-b border-gray-700/50 p-2 text-sm text-gray-300">Backlinks</div>
-
-              <div className="flex-1 overflow-y-auto">
-                <BacklinksPanel
-                  selectedNote={selectedNote}
-                  allNotes={notes}
-                  isMobile={true}
-                  onClose={() => setIsBacklinksOpen(false)}
-                  onNavigateToNote={(noteId) => {
-                    handleNavigateToNote(noteId);
-                    setIsBacklinksOpen(false);
-                  }}
-                />
+              {/* Backlinks Panel */}
+              <div
+                ref={backlinksRef}
+                className="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-l border-gray-700 shadow-xl"
+              >
+                {/* Swipe indicator */}
+                <div className="absolute top-4 left-2 w-1 h-8 bg-gray-500/30 rounded-full"></div>
+                <div className="h-full pb-[env(safe-area-inset-bottom)] flex flex-col">
+                  <div className="flex-1 overflow-y-auto">
+                    <BacklinksPanel
+                      selectedNote={selectedNote}
+                      allNotes={notes}
+                      isMobile={true}
+                      onClose={() => setIsBacklinksOpen(false)}
+                      onNavigateToNote={(noteId) => {
+                        handleNavigateToNote(noteId);
+                        setIsBacklinksOpen(false);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Mobile Outline Overlay */}
-      {hasOutline && isOutlineOpen && (
-        <div className="lg:hidden absolute inset-0 z-40">
-          {/* Backdrop */}
-          <div
-            ref={backdropRef}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsOutlineOpen(false)}
-          />
+          {/* Mobile Outline Overlay */}
+          {hasOutline && isOutlineOpen && (
+            <div className="lg:hidden absolute inset-0 z-40">
+              {/* Backdrop */}
+              <div
+                ref={backdropRef}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsOutlineOpen(false)}
+              />
 
-          {/* Outline Panel */}
-          <div
-            ref={outlineRef}
-            className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
-          >
-            <div className="h-full pb-[env(safe-area-inset-bottom)]">
+              {/* Outline Panel */}
+              <div
+                ref={outlineRef}
+                className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-main border-r border-gray-700 shadow-xl"
+              >
+                <div className="h-full pb-[env(safe-area-inset-bottom)]">
+                  <NoteOutlineSidebar content={contentToRender} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Note Content */}
+          <div className="flex h-full">
+            {/* Desktop Outline Sidebar */}
+            <div className="w-60 flex-shrink-0 hidden lg:block">
               <NoteOutlineSidebar content={contentToRender} />
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Note Content */}
-      <div className="flex h-full">
-        {/* Desktop Outline Sidebar */}
-        {hasOutline && (
-          <div className="w-60 flex-shrink-0 hidden lg:block">
-            <NoteOutlineSidebar content={contentToRender} />
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div className={`flex-1 px-4 sm:px-8 md:px-16 lg:px-8 xl:px-16 py-6 overflow-y-auto`}>
-          <div className="prose prose-invert max-w-none pb-4" style={{ fontSize: previewFontSize }}>
-            <style jsx>{`
+            {/* Main Content */}
+            <div className={`flex-1 px-4 sm:px-8 md:px-16 lg:px-8 xl:px-16 py-6 overflow-y-auto`}>
+              <div className="prose prose-invert max-w-none pb-4" style={{ fontSize: previewFontSize }}>
+                <style jsx>{`
           /* Mobile optimizations - respect font-size settings */
           @media (max-width: 640px) {
             .prose {
@@ -595,24 +590,24 @@ export const NotePreview: React.FC<NotePreviewProps> = ({
             box-sizing: border-box !important;
           }
         `}</style>
-            {memoizedMarkdown}
-          </div>
-        </div>
+                {memoizedMarkdown}
+              </div>
+            </div>
 
-        {/* Desktop Right Sidebar: Backlinks only */}
-        <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
-          <div className="h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto">
-              <BacklinksPanel
-                selectedNote={selectedNote}
-                allNotes={notes}
-                isMobile={false}
-                onNavigateToNote={handleNavigateToNote}
-              />
+            {/* Desktop Right Sidebar: Backlinks only */}
+            <div className="w-72 flex-shrink-0 hidden lg:block border-l border-gray-600/30">
+              <div className="h-full flex flex-col">
+                <div className="flex-1 overflow-y-auto">
+                  <BacklinksPanel
+                    selectedNote={selectedNote}
+                    allNotes={notes}
+                    isMobile={false}
+                    onNavigateToNote={handleNavigateToNote}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
         </>
       )}
     </div>

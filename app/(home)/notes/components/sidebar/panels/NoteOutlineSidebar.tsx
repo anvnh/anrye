@@ -163,19 +163,18 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
     }
   };
 
-  // Don't render if no headings found
-  if (outline.length === 0) {
-    return null;
-  }
-
   return (
     <div className="h-full w-full px-4 py-6 overflow-hidden flex flex-col">
       {/* Header */}
       <div className="pb-2 border-b border-gray-600/30">
         <div className="flex items-center gap-2">
-          <List size={14} className="text-blue-400" />
-          <h3 className="text-xs font-medium text-white">Outline</h3>
-          <span className="text-xs text-gray-500">({outline.length})</span>
+          <List size={14} className="text-gray-500" />
+          <h3 className="text-xs font-medium text-white">
+            Outline
+          </h3>
+          <span className="text-xs text-gray-500">
+            ({outline.length})
+          </span>
         </div>
       </div>
 

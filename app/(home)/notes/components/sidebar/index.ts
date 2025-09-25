@@ -3,7 +3,7 @@ export { default as NoteSidebar } from './core/NoteSidebar';
 
 // Navigation components
 export { default as NoteNavbar } from './navigation/NoteNavbar';
-export { default as NoteOutline } from './navigation/NoteOutline';
+export { default as NoteOutline } from './navigation/NoteOutlineMobile';
 
 // Sidebar panels
 export { default as BacklinksPanel } from './panels/BacklinksPanel';

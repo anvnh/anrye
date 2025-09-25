@@ -46,7 +46,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
       // Ignore indented code blocks (4+ leading spaces or a tab)
       if (/^(\t| {4,})/.test(line)) return;
 
-  const match = line.match(/^(#{1,6})\s+(.+)$/);
+      const match = line.match(/^(#{1,6})\s+(.+)$/);
       if (match) {
         const level = match[1].length;
         const rawTitle = match[2].trim();
@@ -57,7 +57,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
           .replace(/\s+/g, '-')
           .replace(/--+/g, '-')
           .trim();
-        
+
         headings.push({
           id,
           title: cleanTitle,
@@ -66,7 +66,7 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
         });
       }
     });
-    
+
     return headings;
   }, [content]);
 
@@ -122,8 +122,8 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
   const scrollToHeading = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ 
-        behavior: 'smooth', 
+      element.scrollIntoView({
+        behavior: 'smooth',
         block: 'start',
         inline: 'nearest'
       });
@@ -145,11 +145,11 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-30"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Outline Content */}
           <div className="fixed top-4 right-4 w-80 max-h-[70vh] bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-40 overflow-hidden">
             {/* Header */}
@@ -157,7 +157,9 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
               <div className="flex items-center gap-2">
                 <List size={16} className="text-blue-400" />
                 <h3 className="text-base font-semibold text-white">Outline</h3>
-                <span className="text-xs text-gray-400">({outline.length})</span>
+                <span className="text-xs text-gray-400">
+                  ({outline.length})
+                </span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
@@ -166,12 +168,12 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
                 <X size={16} />
               </button>
             </div>
-            
+
             {/* Outline List */}
             <div className="overflow-y-auto p-2" style={{ maxHeight: 'calc(70vh - 60px)' }}>
               {outline.map((item, index) => {
                 const isActive = activeHeading === item.id;
-                
+
                 return (
                   <button
                     key={index}
@@ -181,13 +183,13 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
                     }}
                     className={`
                       w-full text-left py-2 px-2 rounded transition-colors text-sm group border-l-2
-                      ${isActive 
-                        ? 'bg-blue-600 bg-opacity-20 text-blue-300 border-blue-400' 
+                      ${isActive
+                        ? 'bg-blue-600 bg-opacity-20 text-blue-300 border-blue-400'
                         : 'hover:bg-gray-700 text-gray-300 hover:text-white border-transparent hover:border-blue-400'
                       }
                     `}
-                    style={{ 
-                      paddingLeft: `${8 + (item.level - 1) * 12}px` 
+                    style={{
+                      paddingLeft: `${8 + (item.level - 1) * 12}px`
                     }}
                     title={`Jump to: ${item.title}`}
                   >
@@ -196,10 +198,10 @@ const NoteOutline: React.FC<NoteOutlineProps> = ({ content }) => {
                         text-xs px-1.5 py-0.5 rounded text-center min-w-[20px] mt-0.5 font-mono
                         ${isActive
                           ? 'bg-blue-500 text-white'
-                          : item.level === 1 ? 'bg-blue-600 text-white' : 
-                            item.level === 2 ? 'bg-blue-500 text-white' : 
-                            item.level === 3 ? 'bg-blue-400 text-white' : 
-                            'bg-gray-600 text-gray-300'}
+                          : item.level === 1 ? 'bg-blue-600 text-white' :
+                            item.level === 2 ? 'bg-blue-500 text-white' :
+                              item.level === 3 ? 'bg-blue-400 text-white' :
+                                'bg-gray-600 text-gray-300'}
                       `}>
                         {item.level}
                       </span>
