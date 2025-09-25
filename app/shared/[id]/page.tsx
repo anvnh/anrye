@@ -5,8 +5,8 @@ import 'katex/dist/katex.min.css';
 import '@/app/(home)/notes/notes.css';
 import { useParams } from 'next/navigation';
 import { gsap } from 'gsap';
-import { MemoizedMarkdown } from '@/app/(home)/notes/_utils';
-import NoteOutlineSidebar from '@/app/(home)/notes/components/NoteOutlineSidebar';
+import { MemoizedMarkdown } from '@/app/(home)/notes/utils';
+import { NoteOutlineSidebar } from '@/app/(home)/notes/components';
 import { Note } from '@/app/(home)/notes/components/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon, Settings2Icon } from 'lucide-react';

@@ -16,8 +16,8 @@ export const findBacklinks = (targetNote: Note, allNotes: Note[]): BacklinkInfo[
   const backlinks: BacklinkInfo[] = [];
   const targetTitle = targetNote.title;
   
-  // Create a single case-insensitive pattern to avoid duplicates
-  const wikilinkPattern = new RegExp(`\\[\\[${escapeRegExp(targetTitle)}\\]\\]`, 'gi');
+  const escapedTitle = escapeRegExp(targetTitle);
+  const wikilinkPattern = new RegExp(`\\[\\[${escapedTitle}\\]\\]`, 'gi');
   
   allNotes.forEach(note => {
     if (note.id === targetNote.id) return; // Skip self-references
