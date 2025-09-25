@@ -1,5 +1,4 @@
 # AnRye - Advanced Note-Taking Platform
-
 <div align="center">
   <img src="public/favicon.ico" alt="AnRye Logo" width="80" height="80">
   <h3>Your intelligent workspace for notes, code, and collaboration</h3>
