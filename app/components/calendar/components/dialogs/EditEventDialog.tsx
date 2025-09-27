@@ -17,6 +17,8 @@ import { SingleDayPicker } from "@/components/ui/single-day-picker";
 import { Form, FormField, FormLabel, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogClose, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { CustomRecurrenceEditor, rruleWeekly, summarizeRRule } from "../shared/CustomRecurrenceEditor";
+import { ColorPicker } from "../shared/ColorPicker";
 
 import { eventSchema } from "../../schemas";
 
@@ -226,7 +228,9 @@ export function EditEventDialog({ children, event }: IProps) {
                   <FormControl>
                     <Input 
                       id="title" 
-                      placeholder="Enter a title" data-invalid={fieldState.invalid} {...field} />
+                      placeholder="Enter a title" data-invalid={fieldState.invalid} {...field} 
+                      className="border-gray-700 border-2"
+                    />
                   </FormControl>
 
                   <FormMessage />
@@ -277,6 +281,7 @@ export function EditEventDialog({ children, event }: IProps) {
                   <FormItem className="flex-1">
                     <FormControl>
                       <TimeInput
+                        className="[&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none"
                         value={field.value as TimeValue}
                         onChange={value => {
                           field.onChange(value);
@@ -308,9 +313,10 @@ export function EditEventDialog({ children, event }: IProps) {
                 render={({ field, fieldState }) => (
                   <FormItem className="flex-1">
                     <FormControl>
+
                       <TimeInput
                         className={cn(
-                          "border-gray-600",
+                          "border-gray-600 [&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none",
                         )}
                         value={field.value as TimeValue}
                         onChange={field.onChange} hourCycle={12} data-invalid={fieldState.invalid}
@@ -330,67 +336,11 @@ export function EditEventDialog({ children, event }: IProps) {
                 <FormItem>
                   <FormLabel>Color</FormLabel>
                   <FormControl>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        data-invalid={fieldState.invalid}
-                        className={cn(
-                          "border-none",
-                          notesTheme === "light" ? "bg-white" : "bg-calendar-button"
-                        )}>
-                        <SelectValue placeholder="Select an option" />
-                      </SelectTrigger>
-
-                      <SelectContent className="z-[9999]">
-                        <SelectItem value="blue">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-blue-600" />
-                            Blue
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="green">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-green-600" />
-                            Green
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="red">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-red-600" />
-                            Red
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="yellow">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-yellow-600" />
-                            Yellow
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="purple">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-purple-600" />
-                            Purple
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="orange">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-orange-600" />
-                            Orange
-                          </div>
-                        </SelectItem>
-
-                        <SelectItem value="gray">
-                          <div className="flex items-center gap-2">
-                            <div className="size-3.5 rounded-full bg-neutral-600" />
-                            Gray
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <ColorPicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      notesTheme={notesTheme}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -494,269 +444,5 @@ export function EditEventDialog({ children, event }: IProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// ===== Recurrence helpers (copied from Add Event Dialog) =====
-function rruleWeekly(d: Date) {
-  const map = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-  return `RRULE:FREQ=WEEKLY;BYDAY=${map[d.getDay()]}`;
-}
-
-function summarizeRRule(rrule: string, baseDate: Date): string {
-  try {
-    const raw = rrule.startsWith('RRULE:') ? rrule.substring(6) : rrule;
-    const kv = new Map<string, string>();
-    raw.split(';').forEach(p => {
-      const [k, v] = p.split('=');
-      kv.set((k || '').toUpperCase(), v || '');
-    });
-    const freq = kv.get('FREQ') || 'DAILY';
-    const interval = parseInt(kv.get('INTERVAL') || '1', 10);
-    const until = kv.get('UNTIL');
-    const count = kv.get('COUNT');
-    const endsPart = (() => {
-      if (until) {
-        const y = Number(until.slice(0, 4));
-        const m = Number(until.slice(4, 6));
-        const d = Number(until.slice(6, 8));
-        const hh = Number(until.slice(9, 11) || '0');
-        const mm = Number(until.slice(11, 13) || '0');
-        const ss = Number(until.slice(13, 15) || '0');
-        const dt = new Date(Date.UTC(y, m - 1, d, hh, mm, ss));
-        return ` until ${dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
-      }
-      if (count) {
-        const c = parseInt(count, 10);
-        return ` for ${c} occurrence${c > 1 ? 's' : ''}`;
-      }
-      return '';
-    })();
-    if (freq === 'DAILY') {
-      if (interval === 1) {
-        return `Repeat every day${endsPart}`;
-      } else {
-        return `Repeat every ${interval} days${endsPart}`;
-      }
-    }
-    if (freq === 'WEEKLY') {
-      const mapNames: Record<string, string> = { SU: 'Sunday', MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday', FR: 'Friday', SA: 'Saturday' };
-      const byday = (kv.get('BYDAY') || '').split(',').filter(Boolean);
-      
-      if (byday.length === 0) {
-        // No specific days, use the base date
-        const dayName = mapNames[['SU','MO','TU','WE','TH','FR','SA'][baseDate.getDay()]];
-        if (interval === 1) {
-          return `Repeat every week on ${dayName}${endsPart}`;
-        } else {
-          return `Repeat every ${interval} weeks on ${dayName}${endsPart}`;
-        }
-      } else {
-        // Multiple days - show all of them
-        const dayNames = byday.map(d => mapNames[d]).join(', ');
-        if (interval === 1) {
-          return `Repeat every week on ${dayNames}${endsPart}`;
-        } else {
-          return `Repeat every ${interval} weeks on ${dayNames}${endsPart}`;
-        }
-      }
-    }
-    if (freq === 'MONTHLY') {
-      if (interval === 1) {
-        return `Repeat every month on day ${baseDate.getDate()}${endsPart}`;
-      } else {
-        return `Repeat every ${interval} months on day ${baseDate.getDate()}${endsPart}`;
-      }
-    }
-    if (freq === 'YEARLY') {
-      if (interval === 1) {
-        return `Repeat every year on ${baseDate.getDate()}/${baseDate.getMonth() + 1}${endsPart}`;
-      } else {
-        return `Repeat every ${interval} years on ${baseDate.getDate()}/${baseDate.getMonth() + 1}${endsPart}`;
-      }
-    }
-    return 'Custom…';
-  } catch {
-    return 'Custom…';
-  }
-}
-
-type CustomRecurrenceEditorProps = {
-  initialStart: Date;
-  notesTheme: 'light' | 'dark';
-  onCancel: () => void;
-  onDone: (rrule: string | null) => void;
-  initialRRule?: string;
-};
-
-function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
-  const { initialStart, notesTheme, onCancel, onDone, initialRRule } = props;
-  const weekdayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-
-  const [freq, setFreq] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('WEEKLY');
-  const [interval, setInterval] = useState<number>(1);
-  const [days, setDays] = useState<string[]>([weekdayMap[initialStart.getDay()]]);
-  const [endMode, setEndMode] = useState<'never' | 'until' | 'count'>('never');
-  const [untilDate, setUntilDate] = useState<string>('');
-  const [count, setCount] = useState<number>(10);
-
-  useEffect(() => {
-    if (!initialRRule) return;
-    const raw = initialRRule.startsWith('RRULE:') ? initialRRule.substring(6) : initialRRule;
-    const map = new Map<string, string>();
-    raw.split(';').forEach(p => {
-      const [k, v] = p.split('=');
-      if (k && v) map.set(k.toUpperCase(), v);
-    });
-    const f = (map.get('FREQ') as any) || 'WEEKLY';
-    setFreq(f);
-    const iv = parseInt(map.get('INTERVAL') || '1', 10);
-    if (!Number.isNaN(iv)) setInterval(Math.max(1, iv));
-    if (f === 'WEEKLY') {
-      const byday = (map.get('BYDAY') || '').split(',').filter(Boolean);
-      if (byday.length > 0) setDays(byday);
-    }
-    if (map.has('UNTIL')) {
-      const until = map.get('UNTIL')!; // YYYYMMDDTHHMMSSZ
-      const y = until.slice(0, 4);
-      const m = until.slice(4, 6);
-      const d = until.slice(6, 8);
-      setEndMode('until');
-      setUntilDate(`${y}-${m}-${d}`);
-    } else if (map.has('COUNT')) {
-      setEndMode('count');
-      const c = parseInt(map.get('COUNT') || '10', 10);
-      if (!Number.isNaN(c)) setCount(Math.max(1, c));
-    } else {
-      setEndMode('never');
-    }
-  }, [initialRRule]);
-
-  function toggleDay(d: string) {
-    setDays(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
-  }
-
-  function toUntilUTC(yyyyMmDd: string): string | null {
-    if (!yyyyMmDd) return null;
-    const [y, m, d] = yyyyMmDd.split('-').map(Number);
-    if (!y || !m || !d) return null;
-    const dt = new Date(y, (m - 1), d, 23, 59, 59, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}${pad(dt.getUTCSeconds())}Z`;
-  }
-
-  function buildRule(): string {
-    const parts: string[] = [`FREQ=${freq}`, `INTERVAL=${Math.max(1, Number(interval) || 1)}`];
-    if (freq === 'WEEKLY') {
-      const selected = days.length > 0 ? days.slice().sort() : [weekdayMap[initialStart.getDay()]];
-      parts.push(`BYDAY=${selected.join(',')}`);
-    }
-    if (freq === 'MONTHLY') {
-      parts.push(`BYMONTHDAY=${initialStart.getDate()}`);
-    }
-    if (freq === 'YEARLY') {
-      parts.push(`BYMONTH=${initialStart.getMonth() + 1}`);
-      parts.push(`BYMONTHDAY=${initialStart.getDate()}`);
-    }
-    if (endMode === 'until') {
-      const u = toUntilUTC(untilDate);
-      if (u) parts.push(`UNTIL=${u}`);
-    } else if (endMode === 'count') {
-      parts.push(`COUNT=${Math.max(1, Number(count) || 1)}`);
-    }
-    const rule = `RRULE:${parts.join(';')}`;
-    return rule;
-  }
-
-
-
-  const dayChips = ['Su','Mo','Tu','We','Th','Fr','Sa'].map((short, idx) => {
-    const d = ['SU','MO','TU','WE','TH','FR','SA'][idx];
-    return (
-      <button
-        key={d}
-        type="button"
-        onClick={() => toggleDay(d)}
-        className={`px-2 py-1 rounded-full text-xs border ${days.includes(d) ? (notesTheme === 'light' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-600 text-white border-blue-600') : (notesTheme === 'light' ? 'bg-white text-black border-gray-300' : 'bg-main text-white border-gray-600')}`}
-        title={["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][idx]}
-      >
-        {short}
-      </button>
-    );
-  });
-
-  return (
-    <div className={`rounded-md p-3 border ${notesTheme === 'light' ? 'bg-white text-black border-gray-200' : 'bg-secondary border-gray-700'}`}>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>
-          Repeat every
-        </Label>
-        <Input
-          type="number"
-          min={1}
-          value={interval}
-          onChange={(e) => setInterval(Number(e.target.value))}
-          className={`${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
-        />
-        <select
-          className={`rounded px-2 py-2 text-sm ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
-          value={freq}
-          onChange={(e) => setFreq(e.target.value as any)}
-        >
-          <option value="DAILY">day(s)</option>
-          <option value="WEEKLY">week(s)</option>
-          <option value="MONTHLY">month(s)</option>
-          <option value="YEARLY">year(s)</option>
-        </select>
-      </div>
-
-      {freq === 'WEEKLY' && (
-        <div className="mt-3 space-y-2">
-          <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>Repeat on</Label>
-          <div className="flex flex-wrap gap-2">
-            {dayChips}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 space-y-2">
-        <Label className={notesTheme === 'light' ? 'text-black/80' : 'text-gray-300'}>Ends</Label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="rr-end" checked={endMode === 'never'} onChange={() => setEndMode('never')} />
-            <span>Never</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="rr-end" checked={endMode === 'until'} onChange={() => setEndMode('until')} />
-            <span>On date</span>
-            <Input
-              type="date"
-              value={untilDate}
-              onChange={(e) => setUntilDate(e.target.value)}
-              className={`ml-2 w-auto ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
-              disabled={endMode !== 'until'}
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="rr-end" checked={endMode === 'count'} onChange={() => setEndMode('count')} />
-            <span>After</span>
-            <Input
-              type="number"
-              min={1}
-              value={count}
-              onChange={(e) => setCount(Number(e.target.value))}
-              className={`ml-2 w-auto ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
-              disabled={endMode !== 'count'}
-            />
-            <span>occurrence(s)</span>
-          </label>
-        </div>
-      </div>
-
-      <div className="mt-3 flex justify-end gap-2">
-        <Button variant="ghost" type="button" onClick={onCancel} className={`${notesTheme === 'light' ? 'text-black/75' : ''}`}>Cancel</Button>
-        <Button type="button" onClick={() => onDone(buildRule())} className={`${notesTheme === 'light' ? 'light-bg-calendar-button text-black/75' : 'bg-calendar-button text-white'}`}>Done</Button>
-      </div>
-    </div>
   );
 }
