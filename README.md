@@ -53,7 +53,7 @@ TURSO_DATABASE_URL=""
 
 TURSO_AUTH_TOKEN=""
 
-<image goes here>
+![Storage Options](./assets/storage.png)
 
 ## Run Locally
 
