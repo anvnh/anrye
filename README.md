@@ -60,25 +60,25 @@ TURSO_AUTH_TOKEN=""
 Clone the project
 
 ```bash
-    git clone https://github.com/anvnh/anrye.git
+git clone https://github.com/anvnh/anrye.git
 ```
 
 Go to the project directory
 
 ```bash
-    cd anrye
+cd anrye
 ```
 
 Install dependencies
 
 ```bash
-    pnpm install
+pnpm install
 ```
 
 Start the server
 
 ```bash
-  pnpm dev
+pnpm dev
 ```
 
 
