@@ -3,6 +3,7 @@ import { StorageProvider, StorageConfig, StorageStatus } from '../../types/stora
 
 import { driveService } from '../../services/googleDrive';
 import { tursoService } from '../../services/tursoService';
+import { secureLocalStorage } from '../../utils/security/secureLocalStorage';
 
 const STORAGE_PROVIDER_KEY = 'storage-provider';
 const R2_CONFIG_KEY = 'r2-config';
@@ -33,35 +34,36 @@ export const useStorageSettings = () => {
     };
   });
 
-  const [r2Config, setR2Config] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(R2_CONFIG_KEY);
-      return stored ? JSON.parse(stored) : {
-        bucket: '',
-        accessKeyId: '',
-        secretAccessKey: '',
-      };
-    }
-    return {
-      bucket: '',
-      accessKeyId: '',
-      secretAccessKey: '',
-    };
-  });
+  const [r2Config, setR2Config] = useState(() => ({
+    bucket: '',
+    region: 'auto',
+    accessKeyId: '',
+    secretAccessKey: '',
+  }));
 
-  const [tursoConfig, setTursoConfig] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(TURSO_CONFIG_KEY);
-      return stored ? JSON.parse(stored) : {
-        url: '',
-        token: '',
-      };
-    }
-    return {
-      url: '',
-      token: '',
-    };
-  });
+  const [tursoConfig, setTursoConfig] = useState(() => ({
+    url: '',
+    token: '',
+  }));
+
+  // Initial secure load + migrate plaintext if present
+  useEffect(() => {
+    (async () => {
+      if (typeof window === 'undefined') return;
+      await Promise.all([
+        secureLocalStorage.migrateIfPlaintext(R2_CONFIG_KEY),
+        secureLocalStorage.migrateIfPlaintext(TURSO_CONFIG_KEY),
+      ]);
+
+      const [r2, turso] = await Promise.all([
+        secureLocalStorage.getJSON<typeof r2Config>(R2_CONFIG_KEY),
+        secureLocalStorage.getJSON<typeof tursoConfig>(TURSO_CONFIG_KEY),
+      ]);
+
+      setR2Config(r2 || { bucket: '', region: 'auto', accessKeyId: '', secretAccessKey: '' });
+      setTursoConfig(turso || { url: '', token: '' });
+    })();
+  }, []);
 
   // Storage configurations - memoized to prevent recreation on every render
   const storageConfigs: Record<StorageProvider, StorageConfig> = useMemo(() => ({
@@ -74,8 +76,10 @@ export const useStorageSettings = () => {
     },
     'r2-turso': {
       provider: 'r2-turso',
-      isConfigured: r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey &&
-        tursoConfig.url && tursoConfig.token,
+      isConfigured: Boolean(
+        r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey &&
+        tursoConfig.url && tursoConfig.token
+      ),
       displayName: 'Cloudflare R2 + Turso',
       description: 'Store notes in Turso and images in R2',
       icon: '/providers/cloudflareturso.png',
@@ -124,18 +128,20 @@ export const useStorageSettings = () => {
     };
   }, [currentProvider]);
 
-  // Save R2 config to localStorage
+  // Save R2 config securely
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(R2_CONFIG_KEY, JSON.stringify(r2Config));
-    }
+    (async () => {
+      if (typeof window === 'undefined') return;
+      await secureLocalStorage.setJSON(R2_CONFIG_KEY, r2Config);
+    })();
   }, [r2Config]);
 
-  // Save Turso config to localStorage
+  // Save Turso config securely
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TURSO_CONFIG_KEY, JSON.stringify(tursoConfig));
-    }
+    (async () => {
+      if (typeof window === 'undefined') return;
+      await secureLocalStorage.setJSON(TURSO_CONFIG_KEY, tursoConfig);
+    })();
   }, [tursoConfig]);
 
   // Update storage status when provider changes
@@ -226,6 +232,7 @@ export const useStorageSettings = () => {
           },
           body: JSON.stringify({
             bucket: r2Config.bucket,
+            region: r2Config.region,
             accessKeyId: r2Config.accessKeyId,
             secretAccessKey: r2Config.secretAccessKey,
           }),

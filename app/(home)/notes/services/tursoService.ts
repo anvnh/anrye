@@ -1,3 +1,6 @@
+import { decryptSensitiveData, isEncryptedData, generateEncryptionPassword } from '../utils/security/encryption';
+import { secureLocalStorage } from '../utils/security/secureLocalStorage';
+
 interface TursoConfig {
   url: string;
   token: string;
@@ -23,22 +26,29 @@ interface Folder {
 class TursoService {
   private config: TursoConfig | null = null;
 
-  constructor() {
-    this.loadConfig();
-  }
+  constructor() {}
 
-  private loadConfig() {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('turso-config');
-      if (stored) {
-        this.config = JSON.parse(stored);
+  private async loadConfig(): Promise<void> {
+    if (typeof window === 'undefined') return;
+  const stored = localStorage.getItem('turso-config');
+    if (!stored) return;
+    try {
+      if (isEncryptedData(stored)) {
+    const password = generateEncryptionPassword();
+        const decrypted = await decryptSensitiveData(stored, password);
+        this.config = JSON.parse(decrypted);
+      } else {
+    this.config = JSON.parse(stored);
+    await secureLocalStorage.setJSON('turso-config', this.config);
       }
+    } catch {
+      this.config = null;
     }
   }
 
   private async executeQuery(query: string, params: any[] = []): Promise<any> {
     // Always refresh config from localStorage in case settings changed
-    this.loadConfig();
+    await this.loadConfig();
 
     if (!this.config) {
       throw new Error('Turso configuration not found');
@@ -217,6 +227,8 @@ class TursoService {
   }
 
   private async ensureConfigured(): Promise<void> {
+    // Refresh latest config from localStorage in case it was updated recently
+    await this.loadConfig();
     if (!this.config) {
       throw new Error('Turso is not configured. Please set up your Turso credentials in settings.');
     }

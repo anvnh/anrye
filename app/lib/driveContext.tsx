@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { isEncryptedData } from '../(home)/notes/utils/security/encryption';
+import { secureLocalStorage } from '../(home)/notes/utils/security/secureLocalStorage';
 
 interface DriveContextType {
   isSignedIn: boolean;
@@ -65,10 +67,10 @@ export function DriveProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // Check for both regular tokens and temporary tokens
-      const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
+  const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
       const tempTokens = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_tokens_temp') : null;
 
-      if (!tokenRaw && !tempTokens) {
+  if (!tokenRaw && !tempTokens) {
         setIsSignedIn(false);
         return;
       }
@@ -192,7 +194,14 @@ export function DriveProvider({ children }: { children: ReactNode }) {
       if (!tokenRaw) {
         return { hasAccessToken: false, hasRefreshToken: false };
       }
-      const token = JSON.parse(tokenRaw);
+      let token: any = null;
+      if (isEncryptedData(tokenRaw)) {
+        // Note: this is a sync function. We cannot await; give best-effort by returning minimal info.
+        // For more detail, the UI can call driveService.getTokenStatus() which performs async work.
+        return { hasAccessToken: true, hasRefreshToken: true };
+      } else {
+        token = JSON.parse(tokenRaw);
+      }
       const now = Date.now();
       const accessLeft = token.expires_at ? token.expires_at - now : 0;
       const refreshLeft = token.refresh_expires_at ? token.refresh_expires_at - now : 0;

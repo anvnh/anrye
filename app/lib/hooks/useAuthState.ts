@@ -1,4 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { secureLocalStorage } from '../../(home)/notes/utils/security/secureLocalStorage';
+import { isEncryptedData } from '../../(home)/notes/utils/security/encryption';
+
+type TokenData = {
+  access_token: string;
+  refresh_token?: string;
+  expires_at: number;
+  refresh_expires_at?: number;
+};
 
 interface UseAuthStateOptions {
   onAuthSuccess?: () => void;
@@ -57,23 +66,23 @@ export function useAuthState(options: UseAuthStateOptions = {}) {
         }
       }
 
-      // Check for existing tokens
-      const tokenRaw = localStorage.getItem('google_drive_token');
-      if (!tokenRaw) {
+      // Check for existing tokens (encrypted or plaintext)
+      const tokenRawLocal = localStorage.getItem('google_drive_token');
+      let tokenData: TokenData | null = null;
+      if (!tokenRawLocal) {
         setIsAuthenticated(false);
         setIsLoading(false);
         setIsInitialized(true);
         onAuthFailure?.();
         return;
       }
-
-      // Validate token structure
-      let tokenData;
       try {
-        tokenData = JSON.parse(tokenRaw);
-        if (!tokenData.access_token) {
-          throw new Error('Invalid token structure');
+        if (isEncryptedData(tokenRawLocal)) {
+          tokenData = await secureLocalStorage.getJSON<TokenData>('google_drive_token');
+        } else {
+          tokenData = JSON.parse(tokenRawLocal);
         }
+        if (!tokenData || !tokenData.access_token) throw new Error('Invalid token structure');
       } catch (e) {
         console.error('Invalid token in localStorage:', e);
         localStorage.removeItem('google_drive_token');

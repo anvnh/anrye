@@ -50,10 +50,10 @@ class ActivityService {
 
   async getRecentActivities(limit: number = 9): Promise<Activity[]> {
     try {
-      const activities: Activity[] = [];
-      // Cheap pre-check: avoid importing Drive if no token
-      const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
-      if (!tokenRaw) {
+  const activities: Activity[] = [];
+  // Cheap pre-check: avoid importing Drive if no token
+  const tokenRaw = typeof window !== 'undefined' ? window.localStorage.getItem('google_drive_token') : null;
+  if (!tokenRaw) {
         return this.getMockActivities();
       }
 

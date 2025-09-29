@@ -98,6 +98,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
       const lines = text.split('\n');
       let bucketName = '';
       let accessKeyId = '';
+      let region = 'auto';
       let secretAccessKey = '';
       let databaseUrl = '';
       let authToken = '';
@@ -119,6 +120,11 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           secretAccessKey = value.startsWith('"') && value.endsWith('"') 
             ? value.slice(1, -1) 
             : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('REGION=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          region = value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value.replace(/['"]/g, '') || 'auto';
         } else if (trimmedLine.startsWith('DATABASE_URL=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
           databaseUrl = value.startsWith('"') && value.endsWith('"') 
@@ -133,11 +139,12 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
       }
 
       if (!bucketName || !accessKeyId || !secretAccessKey || !databaseUrl || !authToken) {
-        throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN');
+        throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN (optional REGION, default auto)');
       }
 
       updateR2Config({
         bucket: bucketName,
+        region,
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
       });
