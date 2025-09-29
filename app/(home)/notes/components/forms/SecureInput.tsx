@@ -95,7 +95,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "pr-20", // Space for buttons (2 buttons: eye + clear)
+            "pr-20",
             isSensitive && !isFocused && "font-mono tracking-wider",
             className
           )}
