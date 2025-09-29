@@ -25,8 +25,31 @@ interface IProps {
 export function ClientContainer({ view, onViewChange, loading = false, onDateChange, onClose }: IProps) {
   const { selectedDate, events } = useCalendar();
 
+  // Helper function to identify birthday events
+  const isBirthdayEvent = (event: any) => {
+    const title = event.title.toLowerCase();
+    return title.includes('birthday') || title.includes('happy birthday') || title.includes('bday');
+  };
+
+  // Helper function to identify task events
+  const isTaskEvent = (event: any) => {
+    const title = event.title.toLowerCase();
+    return title.includes('task') || title.includes('todo') || title.includes('reminder') || 
+           title.includes('deadline') || title.includes('assignment') || title.includes('homework');
+  };
+
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
+      // Exclude birthday events completely
+      if (isBirthdayEvent(event)) {
+        return false;
+      }
+
+      // Exclude task events completely
+      if (isTaskEvent(event)) {
+        return false;
+      }
+
       const eventStartDate = parseISO(event.startDate);
       const eventEndDate = parseISO(event.endDate);
 

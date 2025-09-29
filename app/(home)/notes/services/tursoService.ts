@@ -1,3 +1,6 @@
+import { decryptSensitiveData, isEncryptedData, generateEncryptionPassword } from '../utils/security/encryption';
+import { secureLocalStorage } from '../utils/security/secureLocalStorage';
+
 interface TursoConfig {
   url: string;
   token: string;
@@ -23,42 +26,82 @@ interface Folder {
 class TursoService {
   private config: TursoConfig | null = null;
 
-  constructor() {
-    this.loadConfig();
-  }
+  constructor() {}
 
-  private loadConfig() {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('turso-config');
-      if (stored) {
-        this.config = JSON.parse(stored);
+  private async loadConfig(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Use secureLocalStorage to get the configuration
+      const configData = await secureLocalStorage.getJSON<{ url: string; token: string }>('turso-config');
+      
+      if (!configData) {
+        console.log('Turso: No config found in secure storage');
+        return;
       }
+
+      if (configData && typeof configData === 'object' && configData.url && configData.token) {
+        this.config = configData;
+        console.log('Turso: Loaded config from secure storage:', { 
+          url: this.config?.url ? 'present' : 'missing',
+          token: this.config?.token ? 'present' : 'missing'
+        });
+      } else {
+        console.warn('Turso: Invalid config format in secure storage');
+        this.config = null;
+      }
+    } catch (error) {
+      console.warn('Turso: Failed to load config from secure storage:', error);
+      this.config = null;
     }
   }
 
   private async executeQuery(query: string, params: any[] = []): Promise<any> {
     // Always refresh config from localStorage in case settings changed
-    this.loadConfig();
+    await this.loadConfig();
 
     if (!this.config) {
-      throw new Error('Turso configuration not found');
+      throw new Error('Turso configuration not found. Please configure Turso in settings.');
     }
 
-    const response = await fetch('/api/storage/turso/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Turso-URL': this.config.url,
-        'X-Turso-Token': this.config.token,
-      },
-      body: JSON.stringify({ query, params }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Turso query failed: ${response.statusText}`);
+    if (!this.config.url || !this.config.token) {
+      throw new Error('Turso configuration is incomplete. Please check your settings.');
     }
 
-    return response.json();
+    try {
+      const response = await fetch('/api/storage/turso/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Turso-URL': this.config.url,
+          'X-Turso-Token': this.config.token,
+        },
+        body: JSON.stringify({ query, params }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Turso query failed: ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error) {
+            errorMessage = `Turso query failed: ${errorData.error}`;
+          }
+        } catch {
+          // Use the original error message if parsing fails
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Turso query failed: ${error}`);
+    }
   }
 
   async initializeDatabase(): Promise<void> {
@@ -212,11 +255,15 @@ class TursoService {
     this.config = null;
     
     if (typeof window !== 'undefined') {
+      // Clear from both secure storage and regular localStorage for compatibility
+      await secureLocalStorage.setJSON('turso-config', null);
       localStorage.removeItem('turso-config');
     }
   }
 
   private async ensureConfigured(): Promise<void> {
+    // Refresh latest config from secure storage in case it was updated recently
+    await this.loadConfig();
     if (!this.config) {
       throw new Error('Turso is not configured. Please set up your Turso credentials in settings.');
     }

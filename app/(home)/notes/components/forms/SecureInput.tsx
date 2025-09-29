@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Lock, Unlock } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SecureInputProps {
@@ -95,7 +95,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "pr-20", // Space for buttons
+            "pr-20",
             isSensitive && !isFocused && "font-mono tracking-wider",
             className
           )}
@@ -104,7 +104,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
         />
         
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {isSensitive && showMaskToggle && (
+          {isSensitive && showMaskToggle && value && (
             <Button
               type="button"
               variant="ghost"
@@ -112,6 +112,7 @@ export const SecureInput: React.FC<SecureInputProps> = ({
               onClick={toggleVisibility}
               className="h-8 w-8 p-0 hover:bg-gray-700/50"
               tabIndex={-1}
+              title={isVisible ? "Hide value" : "Show value"}
             >
               {isVisible ? (
                 <EyeOff className="h-4 w-4" />
@@ -127,14 +128,11 @@ export const SecureInput: React.FC<SecureInputProps> = ({
               variant="ghost"
               size="sm"
               onClick={clearValue}
-              className="h-8 w-8 p-0 hover:bg-gray-700/50"
+              className="h-8 w-8 p-0 hover:bg-red-700/50"
               tabIndex={-1}
+              title="Clear value"
             >
-              {isSensitive ? (
-                <Lock className="h-4 w-4" />
-              ) : (
-                <Unlock className="h-4 w-4" />
-              )}
+              <X className="h-4 w-4" />
             </Button>
           )}
         </div>

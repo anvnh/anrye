@@ -4,6 +4,7 @@ import "./globals.css";
 import { DriveProvider } from "./lib/driveContext";
 import Script from "next/script";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import NotificationIntegration from "./components/NotificationIntegration";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -79,7 +80,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <DriveProvider>
-          {children}
+          <NotificationIntegration>
+            {children}
+          </NotificationIntegration>
         </DriveProvider>
         <PWAInstallPrompt />
         {process.env.NODE_ENV === 'production' && (
@@ -139,24 +142,34 @@ export default function RootLayout({
                       // Check for temporary tokens
                       const tempTokens = localStorage.getItem('google_drive_tokens_temp');
                       if (tempTokens) {
-                        const tokens = JSON.parse(tempTokens);
-                        if (tokens.access_token) {
-                          return true;
+                        try {
+                          const tokens = JSON.parse(tempTokens);
+                          if (tokens && tokens.access_token) {
+                            return true;
+                          }
+                        } catch (parseError) {
+                          console.warn('PWA: Invalid temp tokens format, removing:', parseError);
+                          localStorage.removeItem('google_drive_tokens_temp');
                         }
                       }
                       
                       // Check for existing tokens
                       const tokenRaw = localStorage.getItem('google_drive_token');
                       if (tokenRaw) {
-                        const tokenData = JSON.parse(tokenRaw);
-                        if (tokenData.access_token) {
-                          const now = Date.now();
-                          const isExpired = tokenData.expires_at && tokenData.expires_at < now;
-                          const hasRefreshToken = tokenData.refresh_token && tokenData.refresh_expires_at && tokenData.refresh_expires_at > now;
-                          
-                          if (!isExpired || hasRefreshToken) {
-                            return true;
+                        try {
+                          const tokenData = JSON.parse(tokenRaw);
+                          if (tokenData && tokenData.access_token) {
+                            const now = Date.now();
+                            const isExpired = tokenData.expires_at && tokenData.expires_at < now;
+                            const hasRefreshToken = tokenData.refresh_token && tokenData.refresh_expires_at && tokenData.refresh_expires_at > now;
+                            
+                            if (!isExpired || hasRefreshToken) {
+                              return true;
+                            }
                           }
+                        } catch (parseError) {
+                          console.warn('PWA: Invalid token format, removing:', parseError);
+                          localStorage.removeItem('google_drive_token');
                         }
                       }
                       

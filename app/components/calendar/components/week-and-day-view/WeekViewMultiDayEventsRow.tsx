@@ -75,11 +75,11 @@ export function WeekViewMultiDayEventsRow({ selectedDate, multiDayEvents }: IPro
     });
   }, [multiDayEvents, weekStart, weekEnd]);
 
+  const { notesTheme } = useThemeSettings();
+
   if (!hasEventsInWeek) {
     return null;
   }
-
-  const { notesTheme } = useThemeSettings();
 
   return (
     <div className="hidden overflow-hidden sm:flex">

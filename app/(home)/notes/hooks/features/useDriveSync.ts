@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
+import { notifySyncStatus } from '../../../../lib/notificationHelpers';
 
 // Lazy load the drive service
 const loadDriveService = async () => {
@@ -20,8 +21,12 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   return chunks;
 };
 
-const BATCH_SIZE = 10; // Process 10 files at a time
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+const BATCH_SIZE = 5; // Reduced batch size to prevent rate limiting
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache
+const MAX_CONCURRENT_REQUESTS = 3; // Limit concurrent API requests
+const REQUEST_DELAY = 100; // 100ms delay between batches
+const CACHE_VERSION = '1.0.0'; // Cache version for migration
+const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB max cache size
 
 // Type definitions for Drive files
 interface DriveFile {
@@ -44,47 +49,322 @@ export const useDriveSync = (
   const { isSignedIn, forceReAuthenticate } = useDrive();
   const [hasSyncedWithDrive, setHasSyncedWithDrive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [notesLoadedCount, setNotesLoadedCount] = useState(0);
+  const [totalNotesCount, setTotalNotesCount] = useState(0);
   
   // Cache management
   const cacheRef = useRef<Map<string, { data: any, timestamp: number }>>(new Map());
   const loadingPromisesRef = useRef<Map<string, Promise<any>>>(new Map());
+  
+  // Initialize cache from localStorage on mount
+  useEffect(() => {
+    initializeCache();
+    // Set up periodic cache cleanup
+    const cleanupInterval = setInterval(cleanupCache, 5 * 60 * 1000); // Every 5 minutes
+    return () => clearInterval(cleanupInterval);
+  }, []);
+  
+  // Request queue management for concurrency control
+  const requestQueueRef = useRef<Array<() => Promise<any>>>([]);
+  const activeRequestsRef = useRef<number>(0);
 
-  // Cache management functions
+  // Persistent cache management functions
   const getCachedData = (key: string) => {
-    const cached = cacheRef.current.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
+    // First check in-memory cache
+    const memoryCached = cacheRef.current.get(key);
+    if (memoryCached && Date.now() - memoryCached.timestamp < CACHE_TTL) {
+      return memoryCached.data;
+    }
+
+    // Check persistent cache
+    try {
+      const persistentKey = `drive_cache_${key}`;
+      const cached = localStorage.getItem(persistentKey);
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        
+        // Check cache version
+        if (parsedCache.version !== CACHE_VERSION) {
+          localStorage.removeItem(persistentKey);
+          return null;
+        }
+        
+        // Check if cache is still valid
+        if (Date.now() - parsedCache.timestamp < CACHE_TTL) {
+          // Load into memory cache for faster access
+          cacheRef.current.set(key, { data: parsedCache.data, timestamp: parsedCache.timestamp });
+          return parsedCache.data;
+        } else {
+          // Remove expired cache
+          localStorage.removeItem(persistentKey);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to read from persistent cache:', error);
+    }
+
+    // Remove expired memory cache entry
+    if (memoryCached) {
+      cacheRef.current.delete(key);
     }
     return null;
   };
 
   const setCachedData = (key: string, data: any) => {
-    cacheRef.current.set(key, { data, timestamp: Date.now() });
+    const timestamp = Date.now();
+    
+    // Update memory cache
+    cacheRef.current.set(key, { data, timestamp });
+    
+    // Update persistent cache
+    try {
+      const persistentKey = `drive_cache_${key}`;
+      const cacheData = {
+        version: CACHE_VERSION,
+        data,
+        timestamp
+      };
+      
+      // Check cache size before storing
+      const cacheSize = JSON.stringify(cacheData).length;
+      if (cacheSize > MAX_CACHE_SIZE) {
+        console.warn('Cache entry too large, skipping persistent storage');
+        return;
+      }
+      
+      localStorage.setItem(persistentKey, JSON.stringify(cacheData));
+    } catch (error) {
+      console.error('Failed to write to persistent cache:', error);
+    }
+  };
+
+  // Invalidate cache for specific folder or all folders
+  const invalidateCache = (folderId?: string) => {
+    if (folderId) {
+      // Invalidate specific folder and its children
+      const keysToDelete = Array.from(cacheRef.current.keys()).filter(key => 
+        key.includes(`files_${folderId}`) || key.includes(`_${folderId}_`)
+      );
+      keysToDelete.forEach(key => {
+        cacheRef.current.delete(key);
+        // Also remove from persistent cache
+        try {
+          localStorage.removeItem(`drive_cache_${key}`);
+        } catch (error) {
+          console.error('Failed to remove from persistent cache:', error);
+        }
+      });
+    } else {
+      // Invalidate all file caches
+      const keysToDelete = Array.from(cacheRef.current.keys()).filter(key => 
+        key.startsWith('files_')
+      );
+      keysToDelete.forEach(key => {
+        cacheRef.current.delete(key);
+        // Also remove from persistent cache
+        try {
+          localStorage.removeItem(`drive_cache_${key}`);
+        } catch (error) {
+          console.error('Failed to remove from persistent cache:', error);
+        }
+      });
+    }
   };
 
   const clearCache = () => {
+    // Clear memory cache
     cacheRef.current.clear();
     loadingPromisesRef.current.clear();
+    requestQueueRef.current = [];
+    activeRequestsRef.current = 0;
+    
+    // Clear persistent cache
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('drive_cache_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      console.error('Failed to clear persistent cache:', error);
+    }
+  };
+
+  // Initialize cache from localStorage on mount
+  const initializeCache = () => {
+    try {
+      const now = Date.now();
+      let loadedCount = 0;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('drive_cache_')) {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            try {
+              const parsedCache = JSON.parse(cached);
+              
+              // Check if cache is valid
+              if (parsedCache.version === CACHE_VERSION && 
+                  now - parsedCache.timestamp < CACHE_TTL) {
+                const cacheKey = key.replace('drive_cache_', '');
+                cacheRef.current.set(cacheKey, { 
+                  data: parsedCache.data, 
+                  timestamp: parsedCache.timestamp 
+                });
+                loadedCount++;
+              }
+            } catch (error) {
+              // Invalid cache entry, remove it
+              localStorage.removeItem(key);
+            }
+          }
+        }
+      }
+      
+      console.log(`Loaded ${loadedCount} cache entries from localStorage`);
+    } catch (error) {
+      console.error('Failed to initialize cache from localStorage:', error);
+    }
+  };
+
+  // Prefetch folder contents for better UX
+  const prefetchFolder = async (folderId: string, driveService: any) => {
+    const cacheKey = `files_${folderId}`;
+    if (getCachedData(cacheKey)) {
+      return; // Already cached
+    }
+
+    try {
+      const files = await queueRequest(() => driveService.listFiles(folderId));
+      setCachedData(cacheKey, files);
+    } catch (error) {
+      console.error('Failed to prefetch folder:', error);
+    }
+  };
+
+  // Request queue management
+  const processRequestQueue = async () => {
+    while (requestQueueRef.current.length > 0 && activeRequestsRef.current < MAX_CONCURRENT_REQUESTS) {
+      const request = requestQueueRef.current.shift();
+      if (request) {
+        activeRequestsRef.current++;
+        request()
+          .catch(error => console.error('Request failed:', error))
+          .finally(() => {
+            activeRequestsRef.current--;
+            // Process next request after a small delay
+            setTimeout(processRequestQueue, REQUEST_DELAY);
+          });
+      }
+    }
+  };
+
+  const queueRequest = (request: () => Promise<any>): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const wrappedRequest = async () => {
+        try {
+          const result = await request();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      requestQueueRef.current.push(wrappedRequest);
+      processRequestQueue();
+    });
   };
 
   // Memory management - cleanup old cache entries
   const cleanupCache = () => {
     const now = Date.now();
+    
+    // Clean up memory cache
     for (const [key, value] of cacheRef.current.entries()) {
       if (now - value.timestamp > CACHE_TTL) {
         cacheRef.current.delete(key);
       }
     }
+    
+    // Clean up persistent cache
+    try {
+      const keysToRemove = [];
+      let totalSize = 0;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('drive_cache_')) {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            try {
+              const parsedCache = JSON.parse(cached);
+              
+              // Check if cache is expired or version mismatch
+              if (parsedCache.version !== CACHE_VERSION || 
+                  now - parsedCache.timestamp > CACHE_TTL) {
+                keysToRemove.push(key);
+              } else {
+                // Calculate size for this cache entry
+                totalSize += cached.length;
+              }
+            } catch (error) {
+              // Invalid cache entry, remove it
+              keysToRemove.push(key);
+            }
+          }
+        }
+      }
+      
+      // If cache is too large, remove oldest entries
+      if (totalSize > MAX_CACHE_SIZE) {
+        const cacheEntries = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('drive_cache_')) {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+              try {
+                const parsedCache = JSON.parse(cached);
+                if (parsedCache.version === CACHE_VERSION && 
+                    now - parsedCache.timestamp <= CACHE_TTL) {
+                  cacheEntries.push({ key, timestamp: parsedCache.timestamp });
+                }
+              } catch (error) {
+                // Invalid entry, mark for removal
+                keysToRemove.push(key);
+              }
+            }
+          }
+        }
+        
+        // Sort by timestamp (oldest first) and remove oldest entries
+        cacheEntries.sort((a, b) => a.timestamp - b.timestamp);
+        const entriesToRemove = Math.floor(cacheEntries.length * 0.3); // Remove 30% of oldest entries
+        for (let i = 0; i < entriesToRemove; i++) {
+          keysToRemove.push(cacheEntries[i].key);
+        }
+      }
+      
+      // Remove marked keys
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+    } catch (error) {
+      console.error('Failed to cleanup persistent cache:', error);
+    }
   };
 
-  // Optimized parallel loading function
-  const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any) => {
+  // Optimized parallel loading function with progressive loading
+  const loadFromDrive = async (parentDriveId: string, parentPath: string, driveService: any, loadNotes: boolean = true) => {
     try {
       const cacheKey = `files_${parentDriveId}`;
       let files = getCachedData(cacheKey);
       
       if (!files) {
-        files = await driveService.listFiles(parentDriveId);
+        files = await queueRequest(() => driveService.listFiles(parentDriveId));
         setCachedData(cacheKey, files);
       }
 
@@ -96,7 +376,7 @@ export const useDriveSync = (
         file.name.endsWith('.md') || file.mimeType === 'text/markdown' || file.mimeType === 'text/plain'
       );
 
-      // Process folders in parallel
+      // Process folders first (immediate UI update)
       const folderPromises = folders.map(async (file: DriveFile) => {
         const folderPath = parentPath ? `${parentPath}/${file.name}` : file.name;
         
@@ -128,38 +408,57 @@ export const useDriveSync = (
           return prevFolders;
         });
 
-        // Recursively load subfolders
-        await loadFromDrive(file.id, folderPath, driveService);
+        // Prefetch subfolder contents for better performance
+        prefetchFolder(file.id, driveService);
+        
+        // Recursively load subfolders (folders only first)
+        await loadFromDrive(file.id, folderPath, driveService, false);
       });
 
-      // Process note files in batches
-      const noteBatches = chunkArray<DriveFile>(noteFiles, BATCH_SIZE);
-      const notePromises = noteBatches.map(async (batch: DriveFile[]) => {
-        await Promise.all(batch.map(async (file: DriveFile) => {
-          const notePath = parentPath;
-          const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
+      // Wait for folders to complete first
+      await Promise.all(folderPromises);
+
+      // Only load notes if requested (progressive loading)
+      if (loadNotes) {
+        setIsLoadingNotes(true);
+        setTotalNotesCount(noteFiles.length);
+        setNotesLoadedCount(0);
+        
+        // Use bulk loading for better performance
+        const noteBatches = chunkArray<DriveFile>(noteFiles, BATCH_SIZE);
+        
+        for (let i = 0; i < noteBatches.length; i++) {
+          const batch = noteBatches[i];
           
-          // Check if already loading this file
-          const loadingKey = `loading_${file.id}`;
-          if (loadingPromisesRef.current.has(loadingKey)) {
-            return;
+          // Check if already loading any files in this batch
+          const alreadyLoading = batch.some(file => loadingPromisesRef.current.has(`loading_${file.id}`));
+          if (alreadyLoading) {
+            continue;
           }
 
-          const loadPromise = (async () => {
+          const loadPromise = queueRequest(async () => {
             try {
-              const content = await driveService.getFile(file.id);
+              // Get all file IDs for bulk loading
+              const fileIds = batch.map(file => file.id);
+              const contents = await driveService.getFilesBulk(fileIds);
               
-              let noteContent = content;
-              let isEncrypted = false;
-              let encryptedData: { data: string; iv: string; salt: string; tag: string; algorithm: string; iterations: number; } | undefined = undefined;
+              // Process each file in the batch
+              batch.forEach((file: DriveFile) => {
+                const notePath = parentPath;
+                const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
+                const content = contents[file.id] || '';
+                
+                let noteContent = content;
+                let isEncrypted = false;
+                let encryptedData: { data: string; iv: string; salt: string; tag: string; algorithm: string; iterations: number; } | undefined = undefined;
 
-              // Check if content is encrypted
-              try {
-                const parsed = JSON.parse(content);
-                if (parsed.encrypted === true && parsed.data) {
-                  isEncrypted = true;
-                  encryptedData = parsed.data;
-                  noteContent = `# 🔒 Encrypted Note
+                // Check if content is encrypted
+                try {
+                  const parsed = JSON.parse(content);
+                  if (parsed.encrypted === true && parsed.data) {
+                    isEncrypted = true;
+                    encryptedData = parsed.data;
+                    noteContent = `# 🔒 Encrypted Note
 
 This note was loaded from Google Drive in encrypted format. 
 
@@ -169,66 +468,82 @@ This note was loaded from Google Drive in encrypted format.
 3. Enter your password to restore the original content
 
 The content will then be available for viewing and editing normally.`;
-                }
-              } catch (e) {
-                // Not JSON, treat as regular content
-              }
-
-              setNotes(prevNotes => {
-                const existingNote = prevNotes.find(n => n.driveFileId === file.id);
-                const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
-
-                if (!existingNote && !existingByTitlePath) {
-                  const newNote: Note = {
-                    id: Date.now().toString() + Math.random(),
-                    title: noteTitle,
-                    content: noteContent,
-                    path: notePath,
-                    driveFileId: file.id,
-                    createdAt: file.createdTime,
-                    updatedAt: file.modifiedTime,
-                    isEncrypted,
-                    encryptedData
-                  };
-                  return [...prevNotes, newNote];
-                } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
-                  return prevNotes.map(n => 
-                    n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
-                  );
-                } else if (existingNote) {
-                  const needsUpdate = existingNote.content !== noteContent || 
-                                     existingNote.title !== noteTitle ||
-                                     existingNote.isEncrypted !== isEncrypted;
-                  if (needsUpdate) {
-                    return prevNotes.map(n => 
-                      n.driveFileId === file.id 
-                        ? { 
-                            ...n, 
-                            title: noteTitle,
-                            content: noteContent,
-                            updatedAt: file.modifiedTime,
-                            isEncrypted,
-                            encryptedData
-                          } 
-                        : n
-                    );
                   }
+                } catch (e) {
+                  // Not JSON, treat as regular content
                 }
-                return prevNotes;
+
+                setNotes(prevNotes => {
+                  const existingNote = prevNotes.find(n => n.driveFileId === file.id);
+                  const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
+
+                  if (!existingNote && !existingByTitlePath) {
+                    const newNote: Note = {
+                      id: Date.now().toString() + Math.random(),
+                      title: noteTitle,
+                      content: noteContent,
+                      path: notePath,
+                      driveFileId: file.id,
+                      createdAt: file.createdTime,
+                      updatedAt: file.modifiedTime,
+                      isEncrypted,
+                      encryptedData
+                    };
+                    return [...prevNotes, newNote];
+                  } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
+                    return prevNotes.map(n => 
+                      n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
+                    );
+                  } else if (existingNote) {
+                    const needsUpdate = existingNote.content !== noteContent || 
+                                       existingNote.title !== noteTitle ||
+                                       existingNote.isEncrypted !== isEncrypted;
+                    if (needsUpdate) {
+                      return prevNotes.map(n => 
+                        n.driveFileId === file.id 
+                          ? { 
+                              ...n, 
+                              title: noteTitle,
+                              content: noteContent,
+                              updatedAt: file.modifiedTime,
+                              isEncrypted,
+                              encryptedData
+                            } 
+                          : n
+                      );
+                    }
+                  }
+                  return prevNotes;
+                });
+                
+                // Update loading progress
+                setNotesLoadedCount(prev => prev + 1);
               });
             } catch (error) {
-              console.error('Failed to load note content for', noteTitle, ':', error);
+              console.error('Failed to load batch content:', error);
             }
-          })();
+          });
 
-          loadingPromisesRef.current.set(loadingKey, loadPromise);
+          // Mark all files in batch as loading
+          batch.forEach(file => {
+            loadingPromisesRef.current.set(`loading_${file.id}`, loadPromise);
+          });
+          
           await loadPromise;
-          loadingPromisesRef.current.delete(loadingKey);
-        }));
-      });
-
-      // Wait for all operations to complete
-      await Promise.all([...folderPromises, ...notePromises]);
+          
+          // Clean up loading promises
+          batch.forEach(file => {
+            loadingPromisesRef.current.delete(`loading_${file.id}`);
+          });
+          
+          // Add delay between batches to prevent rate limiting
+          if (i < noteBatches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, REQUEST_DELAY));
+          }
+        }
+        
+        setIsLoadingNotes(false);
+      }
       
     } catch (error) {
       console.error('Failed to load from Drive:', error);
@@ -262,14 +577,33 @@ The content will then be available for viewing and editing normally.`;
       setSyncProgress(50);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
-        await loadFromDrive(notesFolderId, '', driveModule.driveService);
-        setSyncProgress(90);
-        setHasSyncedWithDrive(true);
+        // First load folders only (fast UI update)
+        await loadFromDrive(notesFolderId, '', driveModule.driveService, false);
+        setSyncProgress(70);
+        
+        // Then load notes in background (progressive loading)
+        loadFromDrive(notesFolderId, '', driveModule.driveService, true)
+          .then(() => {
+            setSyncProgress(90);
+            setHasSyncedWithDrive(true);
+          })
+          .catch(error => {
+            console.error('Background note loading failed:', error);
+            setSyncProgress(90);
+            setHasSyncedWithDrive(true);
+          });
       } else {
+        setSyncProgress(100);
       }
       setSyncProgress(100);
+      
+      // Notify about successful sync
+      await notifySyncStatus('success', 'Google Drive sync completed successfully');
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Google Drive sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -493,10 +827,16 @@ The content will then be available for viewing and editing normally.`;
       setIsInitialized(true);
       setSyncProgress(100);
       
+      // Notify about successful cache clear and sync
+      await notifySyncStatus('success', 'Cache cleared and fresh sync completed');
+      
       // console.log('Cache cleared and fresh sync completed successfully');
       
     } catch (error) {
       console.error('Clear cache and sync failed:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Cache clear and sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -626,8 +966,14 @@ The content will then be available for viewing and editing normally.`;
       setHasSyncedWithDrive(true);
       setSyncProgress(100);
       
+      // Notify about successful force sync
+      await notifySyncStatus('success', 'Force sync completed successfully');
+      
     } catch (error) {
       console.error('Force sync failed:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Force sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -656,11 +1002,16 @@ The content will then be available for viewing and editing normally.`;
     setHasSyncedWithDrive,
     isInitialized,
     setIsInitialized,
+    isLoadingNotes,
+    notesLoadedCount,
+    totalNotesCount,
     syncWithDrive,
     forceSync,
     clearCacheAndSync,
     loadFromDrive,
     clearCache,
     cleanupCache,
+    invalidateCache,
+    initializeCache,
   };
 }; 

@@ -1,5 +1,6 @@
 import '../../../lib/types';
 import { getGoogleClientId, isGoogleClientIdConfigured } from '../../../lib/env';
+import { encryptSensitiveData, decryptSensitiveData, isEncryptedData, generateEncryptionPassword } from '../utils/security/encryption';
 
 interface DriveFile {
   id: string;
@@ -67,10 +68,29 @@ class GoogleDriveService {
       })
     };
 
-    localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
-    // Backup token to sessionStorage for better persistence
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      sessionStorage.setItem(this.BACKUP_TOKEN_KEY, JSON.stringify(tokenData));
+    // Encrypt and store in both localStorage and sessionStorage backup
+    try {
+      const payload = JSON.stringify(tokenData);
+      const password = generateEncryptionPassword();
+      // store encrypted
+      encryptSensitiveData(payload, password).then((encrypted) => {
+        localStorage.setItem(this.TOKEN_KEY, encrypted);
+        try {
+          if (window.sessionStorage) {
+            sessionStorage.setItem(this.BACKUP_TOKEN_KEY, encrypted);
+          }
+        } catch {}
+      }).catch(() => {
+        // Fallback to plaintext only if encryption fails (avoid blocking)
+        localStorage.setItem(this.TOKEN_KEY, payload);
+        try { if (window.sessionStorage) sessionStorage.setItem(this.BACKUP_TOKEN_KEY, payload); } catch {}
+      });
+    } catch {
+      // Last resort fallback
+      try {
+        localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
+        if (window.sessionStorage) sessionStorage.setItem(this.BACKUP_TOKEN_KEY, JSON.stringify(tokenData));
+      } catch {}
     }
   }
 
@@ -84,9 +104,22 @@ class GoogleDriveService {
 
       if (savedToken) {
         try {
-          tokenData = JSON.parse(savedToken);
+          if (isEncryptedData(savedToken)) {
+            // Decrypt asynchronously, then set tokens and exit early
+            (async () => {
+              try {
+                const password = generateEncryptionPassword();
+                const plain = await decryptSensitiveData(savedToken!, password);
+                const parsed: TokenData = JSON.parse(plain);
+                this.applyLoadedToken(parsed);
+              } catch {}
+            })();
+            return; // don't proceed synchronously
+          } else {
+            tokenData = JSON.parse(savedToken);
+          }
         } catch (e) {
-          // Invalid JSON in localStorage, try backup
+          // Invalid content in localStorage, try backup
           savedToken = null;
         }
       }
@@ -96,9 +129,21 @@ class GoogleDriveService {
         const backupToken = sessionStorage.getItem(this.BACKUP_TOKEN_KEY);
         if (backupToken) {
           try {
-            tokenData = JSON.parse(backupToken);
-            // Restore to localStorage if backup is valid
-            localStorage.setItem(this.TOKEN_KEY, backupToken);
+            if (isEncryptedData(backupToken)) {
+              (async () => {
+                try {
+                  const password = generateEncryptionPassword();
+                  const plain = await decryptSensitiveData(backupToken, password);
+                  const parsed: TokenData = JSON.parse(plain);
+                  this.applyLoadedToken(parsed);
+                  localStorage.setItem(this.TOKEN_KEY, backupToken);
+                } catch {}
+              })();
+              return; // async path will set state
+            } else {
+              tokenData = JSON.parse(backupToken);
+              localStorage.setItem(this.TOKEN_KEY, backupToken);
+            }
           } catch (e) {
             // Invalid backup too
           }
@@ -154,6 +199,29 @@ class GoogleDriveService {
     }
   }
 
+  private applyLoadedToken(tokenData: TokenData) {
+    const timeUntilExpiry = tokenData.expires_at - Date.now();
+    if (timeUntilExpiry > 10 * 60 * 1000) {
+      this.accessToken = tokenData.access_token;
+      this.refreshToken = tokenData.refresh_token || null;
+    } else if (timeUntilExpiry > 0) {
+      this.accessToken = tokenData.access_token;
+      this.refreshToken = tokenData.refresh_token || null;
+    } else {
+      if (tokenData.refresh_token && tokenData.refresh_expires_at) {
+        const refreshTimeLeft = tokenData.refresh_expires_at - Date.now();
+        if (refreshTimeLeft > 0) {
+          this.refreshToken = tokenData.refresh_token;
+          this.accessToken = null;
+        } else {
+          this.clearSavedToken();
+        }
+      } else {
+        this.clearSavedToken();
+      }
+    }
+  }
+
   private async validateAndRefreshToken(): Promise<boolean> {
     try {
       const saved = localStorage.getItem(this.TOKEN_KEY);
@@ -161,8 +229,14 @@ class GoogleDriveService {
         // thử refresh từ cookie server
         return await this.refreshWithRefreshToken();
       }
-
-      const tokenData: TokenData = JSON.parse(saved);
+      let tokenData: TokenData;
+      if (isEncryptedData(saved)) {
+        const password = generateEncryptionPassword();
+        const plain = await decryptSensitiveData(saved, password);
+        tokenData = JSON.parse(plain);
+      } else {
+        tokenData = JSON.parse(saved);
+      }
       const left = tokenData.expires_at - Date.now();
       if (left > 10 * 60 * 1000) {
         this.accessToken = tokenData.access_token;
@@ -570,6 +644,38 @@ class GoogleDriveService {
     return response.body;
   }
 
+  // Bulk get multiple files at once to reduce API calls
+  async getFilesBulk(fileIds: string[]): Promise<{ [fileId: string]: string }> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+    
+    const results: { [fileId: string]: string } = {};
+    
+    // Process files in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < fileIds.length; i += batchSize) {
+      const batch = fileIds.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (fileId) => {
+        try {
+          const content = await this.getFile(fileId);
+          results[fileId] = content;
+        } catch (error) {
+          console.error(`Failed to load file ${fileId}:`, error);
+          results[fileId] = '';
+        }
+      });
+      
+      await Promise.all(batchPromises);
+      
+      // Add small delay between batches
+      if (i + batchSize < fileIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    return results;
+  }
+
   async deleteFile(fileId: string): Promise<void> {
     await this.ensureApiLoaded();
     await this.setAccessToken();
@@ -691,7 +797,8 @@ class GoogleDriveService {
     const response = await window.gapi.client.drive.files.list({
       q: query,
       fields: 'files(id,name,mimeType,parents,createdTime,modifiedTime)',
-      orderBy: 'name'
+      orderBy: 'name',
+      pageSize: 1000 // Increase page size to reduce API calls
     });
 
     return response.result.files || [];

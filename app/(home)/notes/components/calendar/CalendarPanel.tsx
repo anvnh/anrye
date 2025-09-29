@@ -8,6 +8,7 @@ import { listEvents, CalendarEvent } from '@/app/lib/googleCalendar';
 import { useThemeSettings } from '../../hooks';
 import type { TCalendarView } from '../../../../components/calendar/types';
 import { startOfWeek, endOfWeek } from 'date-fns';
+import { notifyCalendarEvent } from '../../../../lib/notificationHelpers';
 
 interface CalendarPanelProps {
   onPrev?: () => void;
@@ -58,10 +59,9 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
   };
 
   // Get events from cache or fetch if not available
-  const getEventsForRange = async (startDate: Date, endDate: Date, forceRefresh = false): Promise<CalendarEvent[]> => {
-    // Check if user is authenticated first
+  const getEventsForRange = React.useCallback(async (startDate: Date, endDate: Date, forceRefresh = false): Promise<CalendarEvent[]> => {
+    // If not authenticated, return empty events but don't block the loading process
     if (!isAuthenticated) {
-      console.log('User not authenticated for calendar, returning empty events');
       return [];
     }
 
@@ -100,7 +100,7 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
       console.error('Failed to fetch events:', error);
       return [];
     }
-  };
+  }, [isAuthenticated, eventsCache, CACHE_TTL]);
 
   // Debounced fetch function
   const debouncedFetch = React.useCallback((date: Date, viewType: TCalendarView) => {
@@ -251,6 +251,18 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
         const data = await getEventsForRange(startDate, endDate, view === 'week');
         setEvents(data);
         
+        // Notify about upcoming events (only for today's events)
+        const today = new Date();
+        const todayEvents = data.filter(event => {
+          const eventDate = new Date(event.start);
+          return eventDate.toDateString() === today.toDateString();
+        });
+        
+        // Show notification for today's events
+        for (const event of todayEvents) {
+          await notifyCalendarEvent(event.summary, new Date(event.start), false);
+        }
+        
         // Preload adjacent events in background (skips for week view)
         preloadAdjacentEvents(effectiveDate, view);
       } catch (error) {
@@ -261,7 +273,43 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
     };
 
     fetchEvents();
-  }, [effectiveDate, view, isInitialLoading, isAuthenticated]);
+  }, [effectiveDate, view, isInitialLoading]);
+
+  // Refetch events when authentication state changes
+  React.useEffect(() => {
+    if (!isInitialLoading) {
+      const refetchEvents = async () => {
+        setLoading(true);
+        try {
+          let startDate: Date, endDate: Date;
+          
+          if (view === 'month') {
+            startDate = new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(), 1);
+            endDate = new Date(effectiveDate.getFullYear(), effectiveDate.getMonth() + 1, 0, 23, 59, 59, 999);
+          } else if (view === 'day') {
+            startDate = new Date(effectiveDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(effectiveDate);
+            endDate.setHours(23, 59, 59, 999);
+          } else {
+            startDate = startOfWeek(effectiveDate, { weekStartsOn: 1 });
+            startDate.setHours(0, 0, 0, 0);
+            endDate = endOfWeek(effectiveDate, { weekStartsOn: 1 });
+            endDate.setHours(23, 59, 59, 999);
+          }
+          
+          const data = await getEventsForRange(startDate, endDate, view === 'week');
+          setEvents(data);
+        } catch (error) {
+          console.error('Failed to refetch events after auth change:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      refetchEvents();
+    }
+  }, [isAuthenticated, effectiveDate, view, isInitialLoading, getEventsForRange]);
 
   // Preload events when view changes (optimized)
   React.useEffect(() => {

@@ -121,7 +121,6 @@ export default function TermsOfService() {
                   <ul className="text-gray-300 space-y-1">
                     <li>• Rich text note creation and editing</li>
                     <li>• Markdown support with syntax highlighting</li>
-                    <li>• Code execution and testing</li>
                     <li>• File organization and management</li>
                   </ul>
                 </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '@/app/lib/hooks/useDebounce';
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search, Lock, Unlock, Shield, Network } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, FileText, FolderPlus, Trash2, Cloud, CloudOff, Edit, Type, Move, RefreshCw, PanelLeftClose, PanelLeftOpen, Home, Menu, Cog, ArrowUpDown, Star, X, Search, Lock, Unlock, Shield, Network, Copy } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -65,6 +65,7 @@ export default function NoteSidebar({
   onSignOut,
   onEncryptNote,
   onDecryptNote,
+  onDuplicateNote,
   notesTheme,
 }: NoteSidebarProps) {
 
@@ -647,6 +648,13 @@ export default function NoteSidebar({
                 >
                   <Type size={16} className="mr-2" />
                   Rename Note
+                </ContextMenuItem>
+                <ContextMenuItem
+                  className={`hover:bg-transparent hover:text-white ${notesTheme === 'light' ? 'text-black' : ''} rounded-md mx-1 my-0.5`}
+                  onClick={() => onDuplicateNote?.(note)}
+                >
+                  <Copy size={16} className="mr-2" />
+                  Duplicate Note
                 </ContextMenuItem>
                 <ContextMenuSeparator className="bg-gray-600 mx-1" />
                 <ContextMenuItem
