@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CMEditorApi } from '../core/CMEditor';
 import { 
   Bold, 
@@ -20,6 +21,7 @@ import {
   Undo,
   Redo,
   Clipboard,
+  Copy,
   Plus,
   ChevronUp,
   ChevronDown,
@@ -32,7 +34,8 @@ import {
   ArrowLeftFromLine,
   ArrowRightFromLine,
   ArrowUpFromLine,
-  ArrowDownFromLine
+  ArrowDownFromLine,
+  CheckCircle2Icon
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -44,6 +47,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 
 interface EditorToolbarProps {
@@ -68,6 +72,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widthDialogOpen, setWidthDialogOpen] = useState(false);
   const [widthInput, setWidthInput] = useState('');
+  const [showCopyAlert, setShowCopyAlert] = useState(false);
   
 
   // Translate vertical wheel to horizontal scroll for the toolbar
@@ -206,6 +211,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   }, [textareaRef, cmApiRef]);
 
+  const handleCopyAllContent = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(editContent);
+      setShowCopyAlert(true);
+      setTimeout(() => setShowCopyAlert(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy content to clipboard:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = editContent;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShowCopyAlert(true);
+      setTimeout(() => setShowCopyAlert(false), 2000);
+    }
+  }, [editContent]);
+
   // Helpers for table detection and manipulation
   const getDocHelpers = () => {
     const api = cmApiRef?.current;
@@ -305,6 +329,19 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           title="Redo (Ctrl+Y)"
         >
           <Redo size={16} />
+        </button>
+      </div>
+      
+      <div className="w-px h-6 bg-gray-600 mx-2"></div>
+      
+      {/* Copy All Content */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={handleCopyAllContent}
+          className="p-2 leading-none hover:bg-gray-700 rounded transition-colors"
+          title="Copy all content to clipboard"
+        >
+          <Copy size={16} />
         </button>
       </div>
       
@@ -954,6 +991,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Copy Notification (render in portal to avoid transform/overflow issues) */}
+      {showCopyAlert && typeof window !== 'undefined' && createPortal(
+        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+          <Alert variant="default" className="alert-custom w-80 pointer-events-auto bg-sidebar">
+            <CheckCircle2Icon className="h-5 w-5" />
+            <AlertTitle>Content copied!</AlertTitle>
+            <AlertDescription>
+              All note content has been copied to your clipboard.
+            </AlertDescription>
+          </Alert>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }; 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays, MoreHorizontal, Eye } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Save, X, XCircle, ArrowLeft, Edit, Split, Menu, PanelLeftOpen, Image as ImageIcon, CalendarDays, MoreHorizontal, Eye, Copy, CheckCircle2Icon } from 'lucide-react';
 import { ShareDropdown } from '../../forms/ShareDropdown';
 import { SettingsPage } from '../../forms/SettingsPage';
 import { Note } from '../../types';
 import { driveService } from '@/app/(home)/notes/services/googleDrive';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface NoteNavbarProps {
   selectedNote: Note;
@@ -83,6 +85,7 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
   showLastUpdated = true,
 }) => {
   const [inputWidth, setInputWidth] = useState(10);
+  const [showCopyAlert, setShowCopyAlert] = useState(false);
 
   const isNoNoteSelected = selectedNote.id === 'no-note';
 
@@ -162,6 +165,25 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
       // Note: The rename logic is now handled in the saveNote function
     } catch (error) {
       console.error('Error saving note:', error);
+    }
+  };
+
+  const handleCopyAllContent = async () => {
+    try {
+      await navigator.clipboard.writeText(selectedNote.content);
+      setShowCopyAlert(true);
+      setTimeout(() => setShowCopyAlert(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy content to clipboard:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = selectedNote.content;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShowCopyAlert(true);
+      setTimeout(() => setShowCopyAlert(false), 2000);
     }
   };
 
@@ -377,6 +399,10 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
                 <XCircle size={16} />
                 Close Note
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyAllContent} className="flex items-center gap-2 cursor-pointer mb-1">
+                <Copy size={16} />
+                Copy All Content
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenImageManager} className="flex items-center gap-2 cursor-pointer mb-1">
                 <ImageIcon size={16} />
                 Manage Images
@@ -459,6 +485,20 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
           <span className="hidden sm:inline">Last updated: </span>
           {formatLastUpdated(selectedNote.updatedAt)}
         </p>
+      )}
+
+      {/* Copy Notification (render in portal to avoid transform/overflow issues) */}
+      {showCopyAlert && typeof window !== 'undefined' && createPortal(
+        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+          <Alert variant="default" className="alert-custom w-80 pointer-events-auto bg-sidebar">
+            <CheckCircle2Icon className="h-5 w-5" />
+            <AlertTitle>Content copied!</AlertTitle>
+            <AlertDescription>
+              All note content has been copied to your clipboard.
+            </AlertDescription>
+          </Alert>
+        </div>,
+        document.body
       )}
     </div>
   );
