@@ -4,6 +4,7 @@ import "./globals.css";
 import { DriveProvider } from "./lib/driveContext";
 import Script from "next/script";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import NotificationIntegration from "./components/NotificationIntegration";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -79,7 +80,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <DriveProvider>
-          {children}
+          <NotificationIntegration>
+            {children}
+          </NotificationIntegration>
         </DriveProvider>
         <PWAInstallPrompt />
         {process.env.NODE_ENV === 'production' && (

@@ -40,6 +40,7 @@ import { createPortal } from 'react-dom';
 import { Note } from './components/types';
 import { useStorageSettings } from './hooks/settings/useStorageSettings';
 import { tursoService } from './services/tursoService';
+import { notifyNoteUpdate, notifySyncStatus } from '../../lib/notificationHelpers';
 
 // Memoized note content wrapper to prevent re-renders when folders change
 const MemoizedNoteContent = React.memo(({
@@ -526,6 +527,9 @@ export default function NotesPage() {
 
         setSyncProgress(100);
         setTimeout(() => setSyncProgress(0), 300);
+        
+        // Notify about successful sync
+        await notifySyncStatus('success', 'Data synced successfully');
       } catch (err) {
         console.error('Failed to load from Turso:', err);
         
@@ -556,6 +560,9 @@ export default function NotesPage() {
           });
           setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
         }
+        
+        // Notify about sync error
+        await notifySyncStatus('error', 'Failed to sync data');
       } finally {
         setIsLoading(false);
       }
@@ -631,6 +638,9 @@ export default function NotesPage() {
     await createNote(newNoteName);
     setIsCreatingNote(false);
     setNewNoteName('');
+    
+    // Notify about new note creation
+    await notifyNoteUpdate(newNoteName, 'created');
   };
 
   // Calendar modal state
@@ -719,6 +729,9 @@ export default function NotesPage() {
 
       setSyncProgress(100);
       setTimeout(() => setSyncProgress(0), 500);
+      
+      // Notify about note update
+      await notifyNoteUpdate(updatedNote.title, 'updated');
     } catch (error) {
       console.error('Failed to encrypt note:', error);
       setSyncProgress(0);
@@ -766,6 +779,9 @@ export default function NotesPage() {
 
       setSyncProgress(100);
       setTimeout(() => setSyncProgress(0), 500);
+      
+      // Notify about note update
+      await notifyNoteUpdate(updatedNote.title, 'updated');
     } catch (error) {
       console.error('Failed to decrypt note:', error);
       setSyncProgress(0);

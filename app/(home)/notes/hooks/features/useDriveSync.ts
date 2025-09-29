@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
+import { notifySyncStatus } from '../../../../lib/notificationHelpers';
 
 // Lazy load the drive service
 const loadDriveService = async () => {
@@ -595,8 +596,14 @@ The content will then be available for viewing and editing normally.`;
         setSyncProgress(100);
       }
       setSyncProgress(100);
+      
+      // Notify about successful sync
+      await notifySyncStatus('success', 'Google Drive sync completed successfully');
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Google Drive sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -820,10 +827,16 @@ The content will then be available for viewing and editing normally.`;
       setIsInitialized(true);
       setSyncProgress(100);
       
+      // Notify about successful cache clear and sync
+      await notifySyncStatus('success', 'Cache cleared and fresh sync completed');
+      
       // console.log('Cache cleared and fresh sync completed successfully');
       
     } catch (error) {
       console.error('Clear cache and sync failed:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Cache clear and sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -953,8 +966,14 @@ The content will then be available for viewing and editing normally.`;
       setHasSyncedWithDrive(true);
       setSyncProgress(100);
       
+      // Notify about successful force sync
+      await notifySyncStatus('success', 'Force sync completed successfully');
+      
     } catch (error) {
       console.error('Force sync failed:', error);
+      
+      // Notify about sync error
+      await notifySyncStatus('error', 'Force sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {

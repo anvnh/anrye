@@ -29,6 +29,9 @@ self.addEventListener('install', (event) => {
           .then((cache) => {
             return cache.addAll(STATIC_ASSETS);
           })
+          .then(() => {
+            return self.skipWaiting();
+          })
   );
 });
 
@@ -102,4 +105,111 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-}); 
+});
+
+// Push event - handle push notifications
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  const data = event.data.json();
+  const options = {
+    body: data.body || 'You have a new notification',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: data.badge || '/icons/icon-72x72.png',
+    image: data.image,
+    tag: data.tag || 'default',
+    requireInteraction: data.requireInteraction || false,
+    silent: data.silent || false,
+    timestamp: data.timestamp || Date.now(),
+    actions: data.actions || [],
+    data: data.data || {},
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'AnRye Notification', options)
+  );
+});
+
+// Notification click event
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const action = event.action;
+
+  // Handle different notification actions
+  if (action === 'view') {
+    // Open the app to a specific page
+    event.waitUntil(
+      clients.openWindow(data.url || '/')
+    );
+  } else if (action === 'dismiss') {
+    // Just close the notification
+    return;
+  } else {
+    // Default action - open the app
+    event.waitUntil(
+      clients.matchAll({ type: 'window' }).then((clientList) => {
+        // If app is already open, focus it
+        for (const client of clientList) {
+          if (client.url === self.location.origin && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Otherwise, open a new window
+        if (clients.openWindow) {
+          return clients.openWindow(data.url || '/');
+        }
+      })
+    );
+  }
+});
+
+// Background sync event
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(doBackgroundSync());
+  }
+});
+
+// Background sync function
+async function doBackgroundSync() {
+  try {
+    // Sync data with server
+    const response = await fetch('/api/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      // Show success notification
+      self.registration.showNotification('Sync Complete', {
+        body: 'Your data has been synced successfully',
+        icon: '/icons/icon-192x192.png',
+        tag: 'sync-success',
+      });
+    } else {
+      throw new Error('Sync failed');
+    }
+  } catch (error) {
+    console.error('Background sync failed:', error);
+    // Show error notification
+    self.registration.showNotification('Sync Failed', {
+      body: 'Failed to sync your data. Please check your connection.',
+      icon: '/icons/icon-192x192.png',
+      tag: 'sync-error',
+      requireInteraction: true,
+    });
+  }
+}
+
+// Message event - handle messages from main thread
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
