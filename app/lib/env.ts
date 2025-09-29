@@ -22,7 +22,15 @@ export function isGoogleClientIdConfigured(): boolean {
 // NOTE: If the incoming request origin differs from configured base, caller may choose to redirect
 export function getBaseUrl(req?: Request): string {
   const configured = (process.env.OAUTH_BASE_URL || '').trim().replace(/\/$/, '');
-  if (configured) return configured;
+  if (configured) {
+    // Ensure the configured URL has a protocol
+    if (configured.startsWith('http://') || configured.startsWith('https://')) {
+      return configured;
+    } else {
+      // Default to https for production
+      return `https://${configured}`;
+    }
+  }
   if (req) {
     try {
       const u = new URL(req.url);
@@ -38,17 +46,24 @@ export function getBaseUrl(req?: Request): string {
 export function needsBaseRedirect(req: Request): { redirect: boolean; target?: string } {
   const configuredRaw = (process.env.OAUTH_BASE_URL || '').trim().replace(/\/$/, '');
   if (!configuredRaw) return { redirect: false };
+  
+  // Ensure configured URL has protocol
+  const configuredUrl = configuredRaw.startsWith('http://') || configuredRaw.startsWith('https://') 
+    ? configuredRaw 
+    : `https://${configuredRaw}`;
+    
   let configured: URL | null = null;
   try {
-    configured = new URL(configuredRaw);
+    configured = new URL(configuredUrl);
   } catch {
     return { redirect: false }; // invalid configured URL, skip
   }
   try {
     const current = new URL(req.url);
-    // If hosts match (ignore protocol), no redirect
+    // If hosts match exactly (ignore protocol), no redirect
     if (current.host === configured.host) return { redirect: false };
     // Only attempt redirect for Netlify preview style domains (hash--site)
+    // This should only redirect FROM preview domains TO the configured domain
     if (current.host.includes('--')) {
       return { redirect: true, target: `${configured.origin}${current.pathname}${current.search}` };
     }
