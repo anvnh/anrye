@@ -94,11 +94,6 @@ export function CalendarHeader({ view, events, onViewChange, loading = false, on
                 }
               </span>
             </Button>
-            {/* {isAuthenticated && userInfo?.email && (
-              <span className="text-xs text-muted-foreground">
-                Connected as {userInfo.email}
-              </span>
-            )} */}
           </div>
 
           <div className="inline-flex first:rounded-r-none last:rounded-l-none [&:not(:first-child):not(:last-child)]:rounded-none">
