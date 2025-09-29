@@ -408,11 +408,87 @@ export const useNoteOperations = (
     }
   }, [notes, selectedNote, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote]);
 
+  const duplicateNote = useCallback(async (noteToDuplicate: Note) => {
+    if (!noteToDuplicate) return;
+
+    try {
+      setIsLoading(true);
+      setSyncProgress(10);
+
+      // Create a duplicate title
+      const duplicateTitle = `${noteToDuplicate.title} - Copy`;
+      
+      const parentFolder = folders.find(f => f.path === noteToDuplicate.path);
+      const parentDriveId = parentFolder?.driveFolderId;
+
+      setSyncProgress(30);
+
+      // Generate a stable ID for the duplicate
+      const newId = Date.now().toString();
+      let driveFileId: string | undefined;
+
+      if (currentProvider === 'google-drive' && isSignedIn && parentDriveId) {
+        setSyncProgress(50);
+        // Ensure the filename has .md extension
+        const fileName = duplicateTitle.endsWith('.md') ? duplicateTitle : `${duplicateTitle}.md`;
+        driveFileId = await driveService.uploadFile(
+          fileName,
+          noteToDuplicate.content,
+          parentDriveId
+        );
+        setSyncProgress(80);
+      } else if (currentProvider === 'r2-turso') {
+        setSyncProgress(60);
+        await tursoService.connect();
+        const parentAppFolder = folders.find(f => f.path === noteToDuplicate.path);
+        await tursoService.saveNote({
+          id: newId,
+          title: duplicateTitle,
+          content: noteToDuplicate.content,
+          folderId: parentAppFolder && parentAppFolder.id !== 'root' ? parentAppFolder.id : undefined,
+        });
+        setSyncProgress(80);
+      }
+
+      const duplicatedNote: Note = {
+        id: newId,
+        title: duplicateTitle,
+        content: noteToDuplicate.content,
+        path: noteToDuplicate.path,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        driveFileId,
+        isEncrypted: noteToDuplicate.isEncrypted,
+        encryptedData: noteToDuplicate.encryptedData
+      };
+
+      setNotes([...notes, duplicatedNote]);
+      setSelectedNote(duplicatedNote);
+      setIsEditing(true);
+      setEditTitle(duplicatedNote.title);
+      setEditContent(duplicatedNote.content);
+      setSyncProgress(100);
+
+      // Keep progress at 100% for a moment before hiding
+      setTimeout(() => {
+        setSyncProgress(0);
+      }, 500);
+    } catch (error) {
+      console.error('Failed to duplicate note:', error);
+    } finally {
+      // Delay hiding loading state to show completion
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 700);
+    }
+  }, [notes, folders, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setNotes, setSelectedNote, setIsEditing, setEditTitle, setEditContent]);
+
   return {
     createNote,
     createNoteFromCurrentContent,
     saveNote,
     deleteNote,
     renameNote,
+    duplicateNote,
   };
 }; 

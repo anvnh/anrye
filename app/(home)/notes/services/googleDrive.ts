@@ -644,6 +644,38 @@ class GoogleDriveService {
     return response.body;
   }
 
+  // Bulk get multiple files at once to reduce API calls
+  async getFilesBulk(fileIds: string[]): Promise<{ [fileId: string]: string }> {
+    await this.ensureApiLoaded();
+    await this.setAccessToken();
+    
+    const results: { [fileId: string]: string } = {};
+    
+    // Process files in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < fileIds.length; i += batchSize) {
+      const batch = fileIds.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (fileId) => {
+        try {
+          const content = await this.getFile(fileId);
+          results[fileId] = content;
+        } catch (error) {
+          console.error(`Failed to load file ${fileId}:`, error);
+          results[fileId] = '';
+        }
+      });
+      
+      await Promise.all(batchPromises);
+      
+      // Add small delay between batches
+      if (i + batchSize < fileIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    return results;
+  }
+
   async deleteFile(fileId: string): Promise<void> {
     await this.ensureApiLoaded();
     await this.setAccessToken();
@@ -765,7 +797,8 @@ class GoogleDriveService {
     const response = await window.gapi.client.drive.files.list({
       q: query,
       fields: 'files(id,name,mimeType,parents,createdTime,modifiedTime)',
-      orderBy: 'name'
+      orderBy: 'name',
+      pageSize: 1000 // Increase page size to reduce API calls
     });
 
     return response.result.files || [];

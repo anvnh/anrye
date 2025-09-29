@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Menu, PanelLeftOpen, Image as ImageIcon, X } from 'lucide-react';
+import { FileText, Menu, PanelLeftOpen, Image as ImageIcon, X, AlertCircle } from 'lucide-react';
 import { addDays } from 'date-fns';
 import 'katex/dist/katex.min.css';
 import { useDrive } from '../../lib/driveContext';
@@ -13,6 +13,7 @@ import NoteNavbar from './components/sidebar/navigation/NoteNavbar';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { ImageManager } from './components/images/management/ImageManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import PWALoadingState from '../../components/PWALoadingState';
 
 // Import custom hooks
@@ -35,6 +36,7 @@ import { clearAllData, setupDebugUtils } from './utils/debug/debugUtils';
 // Removed: heading-based sync is now self-contained in NoteSplitEditor
 
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Note } from './components/types';
 import { useStorageSettings } from './hooks/settings/useStorageSettings';
 import { tursoService } from './services/tursoService';
@@ -258,6 +260,7 @@ export default function NotesPage() {
     saveNote,
     deleteNote,
     renameNote,
+    duplicateNote,
   } = useNoteOperations(
     notes, setNotes, folders, selectedNote, setSelectedNote, selectedPath,
     editContent, editTitle, setIsLoading, setSyncProgress, setIsEditing,
@@ -305,6 +308,11 @@ export default function NotesPage() {
           }
         } catch (error) {
           console.error('Error processing authentication:', error);
+          setErrorNotification({
+            show: true,
+            title: 'Authentication Error',
+            message: 'Failed to process authentication. Please try signing in again.'
+          });
         }
       };
 
@@ -319,7 +327,11 @@ export default function NotesPage() {
       window.history.replaceState({}, document.title, newUrl.toString());
 
       // Google Drive authentication error
-      // You might want to show an error message to the user here
+      setErrorNotification({
+        show: true,
+        title: 'Authentication Failed',
+        message: 'Google Drive authentication failed. Please try signing in again.'
+      });
     }
   }, [checkSignInStatus]);
 
@@ -382,6 +394,16 @@ export default function NotesPage() {
     // Trigger fresh sync
     void clearCacheAndSync();
   }, [currentProvider, setNotes, setFolders, setSelectedNote, setSelectedPath, clearCacheAndSync]);
+
+  // When switching away from Google Drive, clear sidebar content immediately
+  useEffect(() => {
+    if (currentProvider === 'google-drive') return;
+    // Clear Google Drive content when switching to other providers
+    setNotes([]);
+    setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+    setSelectedNote(null);
+    setSelectedPath('');
+  }, [currentProvider, setNotes, setFolders, setSelectedNote, setSelectedPath]);
 
   // When switching to R2 + Turso, clear sidebar and load content from Turso
   useEffect(() => {
@@ -506,7 +528,34 @@ export default function NotesPage() {
         setTimeout(() => setSyncProgress(0), 300);
       } catch (err) {
         console.error('Failed to load from Turso:', err);
-        // If Turso fails, keep sidebar cleared but stop loading state
+        
+        // Provide user-friendly error message based on error type
+        if (err instanceof Error) {
+          if (err.message.includes('configuration not found') || err.message.includes('configuration is incomplete')) {
+            setErrorNotification({
+              show: true,
+              title: 'Turso Not Configured',
+              message: 'Please set up your Turso credentials in settings to use this storage provider.'
+            });
+            // Keep sidebar cleared but show root folder
+            setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+          } else {
+            setErrorNotification({
+              show: true,
+              title: 'Turso Connection Failed',
+              message: `Failed to connect to Turso: ${err.message}`
+            });
+            // Keep sidebar cleared but show root folder
+            setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+          }
+        } else {
+          setErrorNotification({
+            show: true,
+            title: 'Turso Error',
+            message: 'An unknown error occurred while connecting to Turso.'
+          });
+          setFolders([{ id: 'root', name: 'Notes', path: '', parentId: '', expanded: true }]);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -591,6 +640,23 @@ export default function NotesPage() {
   // Unsaved changes confirmation state
   const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
   const [pendingNoteToSelect, setPendingNoteToSelect] = useState<Note | null>(null);
+
+  // Error notification state
+  const [errorNotification, setErrorNotification] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+  }>({ show: false, title: '', message: '' });
+
+  // Auto-dismiss error notifications after 5 seconds
+  useEffect(() => {
+    if (errorNotification.show) {
+      const timer = setTimeout(() => {
+        setErrorNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorNotification.show]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!selectedNote) return false;
@@ -789,6 +855,7 @@ export default function NotesPage() {
           onSignOut={signOut}
           onEncryptNote={handleEncryptNote}
           onDecryptNote={handleDecryptNote}
+          onDuplicateNote={duplicateNote}
           notesTheme={notesTheme}
         />
 
@@ -1135,6 +1202,26 @@ export default function NotesPage() {
         </div>
       )
       }
+
+      {/* Error Notification */}
+      {errorNotification.show && typeof window !== 'undefined' && createPortal(
+        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+          <Alert variant="destructive" className="alert-custom w-80 pointer-events-auto bg-red-600 text-white border-red-500">
+            <AlertCircle className="h-5 w-5" />
+            <AlertTitle className="text-white">{errorNotification.title}</AlertTitle>
+            <AlertDescription className="text-red-100">
+              {errorNotification.message}
+            </AlertDescription>
+            <button
+              onClick={() => setErrorNotification(prev => ({ ...prev, show: false }))}
+              className="absolute top-2 right-2 text-white hover:text-red-200 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </Alert>
+        </div>,
+        document.body
+      )}
     </div >
   );
 }

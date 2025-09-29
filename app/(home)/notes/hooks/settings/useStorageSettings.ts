@@ -18,6 +18,8 @@ export const useStorageSettings = () => {
   });
 
   const [testingProviders, setTestingProviders] = useState<StorageProvider[]>([]);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const [successAlert, setSuccessAlert] = useState<{
     show: boolean;
@@ -62,6 +64,8 @@ export const useStorageSettings = () => {
 
       setR2Config(r2 || { bucket: '', region: 'auto', accessKeyId: '', secretAccessKey: '' });
       setTursoConfig(turso || { url: '', token: '' });
+      setIsConfigLoaded(true);
+      setIsInitialLoad(false);
     })();
   }, []);
 
@@ -76,7 +80,7 @@ export const useStorageSettings = () => {
     },
     'r2-turso': {
       provider: 'r2-turso',
-      isConfigured: Boolean(
+      isConfigured: isConfigLoaded && Boolean(
         r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey &&
         tursoConfig.url && tursoConfig.token
       ),
@@ -84,7 +88,7 @@ export const useStorageSettings = () => {
       description: 'Store notes in Turso and images in R2',
       icon: '/providers/cloudflareturso.png',
     }
-  }), [r2Config, tursoConfig]);
+  }), [r2Config, tursoConfig, isConfigLoaded]);
 
   // Save current provider to localStorage
   useEffect(() => {
@@ -128,21 +132,23 @@ export const useStorageSettings = () => {
     };
   }, [currentProvider]);
 
-  // Save R2 config securely
+  // Save R2 config securely (only after initial load)
   useEffect(() => {
+    if (isInitialLoad) return;
     (async () => {
       if (typeof window === 'undefined') return;
       await secureLocalStorage.setJSON(R2_CONFIG_KEY, r2Config);
     })();
-  }, [r2Config]);
+  }, [r2Config, isInitialLoad]);
 
-  // Save Turso config securely
+  // Save Turso config securely (only after initial load)
   useEffect(() => {
+    if (isInitialLoad) return;
     (async () => {
       if (typeof window === 'undefined') return;
       await secureLocalStorage.setJSON(TURSO_CONFIG_KEY, tursoConfig);
     })();
-  }, [tursoConfig]);
+  }, [tursoConfig, isInitialLoad]);
 
   // Update storage status when provider changes
   useEffect(() => {
@@ -152,9 +158,10 @@ export const useStorageSettings = () => {
         ...prev,
         currentProvider,
         isConnected: config.isConfigured,
+        isLoading: !isConfigLoaded,
       }));
     }
-  }, [currentProvider, storageConfigs]);
+  }, [currentProvider, storageConfigs, isConfigLoaded]);
 
   const switchProvider = useCallback(async (provider: StorageProvider) => {
     setStorageStatus(prev => ({ ...prev, isLoading: true, error: undefined }));
@@ -213,13 +220,61 @@ export const useStorageSettings = () => {
         await driveService.listFiles();
 
       } else if (provider === 'r2-turso') {
-        // Test R2 + Turso connection
-        if (!r2Config.bucket || !r2Config.accessKeyId || !r2Config.secretAccessKey) {
-          throw new Error('R2 configuration incomplete');
+        // Load configurations directly from secure storage to ensure we have the latest values
+        let [r2Data, tursoData] = await Promise.all([
+          secureLocalStorage.getJSON<typeof r2Config>(R2_CONFIG_KEY),
+          secureLocalStorage.getJSON<typeof tursoConfig>(TURSO_CONFIG_KEY),
+        ]);
+
+        // Fallback to regular localStorage if secure storage fails
+        if (!r2Data || !tursoData) {
+          console.warn('Secure storage failed, trying regular localStorage fallback');
+          const r2Raw = localStorage.getItem(R2_CONFIG_KEY);
+          const tursoRaw = localStorage.getItem(TURSO_CONFIG_KEY);
+          
+          if (r2Raw) {
+            try {
+              r2Data = JSON.parse(r2Raw);
+            } catch (e) {
+              console.error('Failed to parse R2 config from localStorage:', e);
+            }
+          }
+          
+          if (tursoRaw) {
+            try {
+              tursoData = JSON.parse(tursoRaw);
+            } catch (e) {
+              console.error('Failed to parse Turso config from localStorage:', e);
+            }
+          }
         }
 
-        if (!tursoConfig.url || !tursoConfig.token) {
-          throw new Error('Turso configuration incomplete');
+        // Debug logging to help identify the issue
+        console.log('R2 Config loaded:', { 
+          bucket: r2Data?.bucket ? 'present' : 'missing',
+          accessKeyId: r2Data?.accessKeyId ? 'present' : 'missing',
+          secretAccessKey: r2Data?.secretAccessKey ? 'present' : 'missing',
+          region: r2Data?.region || 'auto'
+        });
+        console.log('Turso Config loaded:', {
+          url: tursoData?.url ? 'present' : 'missing',
+          token: tursoData?.token ? 'present' : 'missing'
+        });
+
+        // Test R2 + Turso connection
+        if (!r2Data?.bucket || !r2Data?.accessKeyId || !r2Data?.secretAccessKey) {
+          const missingFields = [];
+          if (!r2Data?.bucket) missingFields.push('bucket');
+          if (!r2Data?.accessKeyId) missingFields.push('accessKeyId');
+          if (!r2Data?.secretAccessKey) missingFields.push('secretAccessKey');
+          throw new Error(`R2 configuration incomplete. Missing: ${missingFields.join(', ')}`);
+        }
+
+        if (!tursoData?.url || !tursoData?.token) {
+          const missingFields = [];
+          if (!tursoData?.url) missingFields.push('url');
+          if (!tursoData?.token) missingFields.push('token');
+          throw new Error(`Turso configuration incomplete. Missing: ${missingFields.join(', ')}`);
         }
 
         // Test Turso connection
@@ -231,10 +286,10 @@ export const useStorageSettings = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            bucket: r2Config.bucket,
-            region: r2Config.region,
-            accessKeyId: r2Config.accessKeyId,
-            secretAccessKey: r2Config.secretAccessKey,
+            bucket: r2Data.bucket,
+            region: r2Data.region || 'auto',
+            accessKeyId: r2Data.accessKeyId,
+            secretAccessKey: r2Data.secretAccessKey,
           }),
         });
 

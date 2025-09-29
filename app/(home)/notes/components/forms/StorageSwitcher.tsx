@@ -64,25 +64,8 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
     if (provider === 'google-drive') {
       await testConnection('google-drive');
     } else if (provider === 'r2-turso') {
-      // Use plain values for API calls
-      const plainR2Config = getPlainR2Config();
-      const plainTursoConfig = getPlainTursoConfig();
-      
-      // Temporarily update the storage settings with plain values for testing
-      const originalR2Config = { ...r2Config };
-      const originalTursoConfig = { ...tursoConfig };
-      
-      // Update with plain values for testing
-      await updateR2Config(plainR2Config);
-      await updateTursoConfig(plainTursoConfig);
-      
-      try {
-        await testConnection('r2-turso');
-      } finally {
-        // Restore original values
-        await updateR2Config(originalR2Config);
-        await updateTursoConfig(originalTursoConfig);
-      }
+      // Test connection directly without modifying configuration
+      await testConnection('r2-turso');
     }
   };
 
@@ -142,17 +125,24 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN (optional REGION, default auto)');
       }
 
-      updateR2Config({
+      console.log('Uploading R2 config:', { bucket: bucketName, region, accessKeyId: accessKeyId ? 'present' : 'missing', secretAccessKey: secretAccessKey ? 'present' : 'missing' });
+      await updateR2Config({
         bucket: bucketName,
         region,
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
       });
 
-      updateTursoConfig({
+      console.log('Uploading Turso config:', { url: databaseUrl, token: authToken ? 'present' : 'missing' });
+      await updateTursoConfig({
         url: databaseUrl,
         token: authToken,
       });
+
+      console.log('Configuration upload completed successfully');
+
+      // Small delay to ensure configuration is fully persisted
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       setSuccessAlert({
         show: true,
@@ -172,20 +162,6 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
   };
 
   const getStatusBadge = (provider: StorageProvider) => {
-    if (provider === currentProvider) {
-      return (
-        <Badge 
-          variant={storageStatus.isConnected ? "default" : "destructive"}
-          className={cn(
-            "text-[13px]",
-            notesTheme === 'light' ? 'text-black' : 'text-white',
-            storageStatus.isConnected ? 'bg-green-400' : 'bg-red-500'
-          )}
-        >
-          {storageStatus.isConnected ? "Active" : "Inactive"}
-        </Badge>
-      );
-    }
     return null;
   };
 
@@ -303,12 +279,12 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                           e.stopPropagation();
                           handleTestConnection(provider);
                         }}
-                        disabled={!isConfigured || isProviderTesting(provider)}
+                        disabled={isProviderTesting(provider)}
                       >
                         {isTesting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          'Test Connection'
+                          'Connect'
                         )}
                       </Button>
                     </div>

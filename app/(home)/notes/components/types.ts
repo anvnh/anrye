@@ -86,5 +86,6 @@ export interface NoteSidebarProps {
   onSignOut?: () => void;
   onEncryptNote?: (noteId: string, encryptedData: any) => void;
   onDecryptNote?: (noteId: string, decryptedContent: string) => void;
+  onDuplicateNote?: (note: Note) => void;
   notesTheme: 'light' | 'dark';
 }
