@@ -8,6 +8,7 @@ import { listEvents, CalendarEvent } from '@/app/lib/googleCalendar';
 import { useThemeSettings } from '../../hooks';
 import type { TCalendarView } from '../../../../components/calendar/types';
 import { startOfWeek, endOfWeek } from 'date-fns';
+import { notifyCalendarEvent } from '../../../../lib/notificationHelpers';
 
 interface CalendarPanelProps {
   onPrev?: () => void;
@@ -249,6 +250,18 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
         // Get events for the calculated range (always fresh for week view)
         const data = await getEventsForRange(startDate, endDate, view === 'week');
         setEvents(data);
+        
+        // Notify about upcoming events (only for today's events)
+        const today = new Date();
+        const todayEvents = data.filter(event => {
+          const eventDate = new Date(event.start);
+          return eventDate.toDateString() === today.toDateString();
+        });
+        
+        // Show notification for today's events
+        for (const event of todayEvents) {
+          await notifyCalendarEvent(event.summary, new Date(event.start), false);
+        }
         
         // Preload adjacent events in background (skips for week view)
         preloadAdjacentEvents(effectiveDate, view);

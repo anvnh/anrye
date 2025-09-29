@@ -8,6 +8,7 @@ import { Settings2Icon } from 'lucide-react';
 import { StorageSwitcher } from './StorageSwitcher';
 import { useStorageSettings } from '../../hooks/settings/useStorageSettings';
 import { cn } from '@/lib/utils';
+import NotificationSettings from '../../../../components/NotificationSettings';
 
 interface SettingsPageProps {
   notesTheme: 'light' | 'dark';
@@ -106,7 +107,7 @@ export function SettingsPage({
         
         <Tabs defaultValue="appearance" className="w-full">
           <TabsList className={cn(
-            "grid w-full grid-cols-3 h-10 p-1 rounded-md",
+            "grid w-full grid-cols-4 h-10 p-1 rounded-md",
             notesTheme === 'light' ? 'bg-white' : 'bg-secondary'
           )}>
             <TabsTrigger value="appearance">
@@ -114,6 +115,9 @@ export function SettingsPage({
             </TabsTrigger>
             <TabsTrigger value="storage">
               Storage
+            </TabsTrigger>
+            <TabsTrigger value="notifications">
+              Notifications
             </TabsTrigger>
             <TabsTrigger value="about">
               About
@@ -306,6 +310,9 @@ export function SettingsPage({
             <StorageSwitcher />
           </TabsContent>
           
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationSettings />
+          </TabsContent>
           
           <TabsContent value="about" className="space-y-6">
             <div className="space-y-4">
