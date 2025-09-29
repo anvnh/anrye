@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { encryptSensitiveData, decryptSensitiveData, generateEncryptionPassword, maskSensitiveData, isEncryptedData } from '../../utils/security/encryption';
+import { maskSensitiveData } from '../../utils/security/encryption';
+import { secureLocalStorage } from '../../utils/security/secureLocalStorage';
 
 interface SecureStorageConfig {
   r2Config: {
     bucket: string;
+    region: string;
     accessKeyId: string;
     secretAccessKey: string;
   };
@@ -16,114 +18,78 @@ interface SecureStorageConfig {
 interface SecureStorageState {
   r2Config: {
     bucket: string;
+    region: string;
     accessKeyId: string;
     secretAccessKey: string;
-    isEncrypted: boolean;
   };
   tursoConfig: {
     url: string;
     token: string;
-    isEncrypted: boolean;
   };
   isInitialized: boolean;
-  encryptionPassword: string | null;
 }
 
 const STORAGE_KEYS = {
-  R2_CONFIG: 'secure-r2-config',
-  TURSO_CONFIG: 'secure-turso-config',
-  ENCRYPTION_PASSWORD: 'encryption-password',
+  R2_CONFIG: 'r2-config',
+  TURSO_CONFIG: 'turso-config',
 } as const;
 
 export const useSecureStorage = () => {
   const [state, setState] = useState<SecureStorageState>({
     r2Config: {
       bucket: '',
+      region: 'auto',
       accessKeyId: '',
       secretAccessKey: '',
-      isEncrypted: false,
     },
     tursoConfig: {
       url: '',
       token: '',
-      isEncrypted: false,
     },
     isInitialized: false,
-    encryptionPassword: null,
   });
 
-  // Initialize encryption password
-  useEffect(() => {
+  // Load configurations securely (migrates plaintext if found)
+  const loadConfigurations = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
-    let password = localStorage.getItem(STORAGE_KEYS.ENCRYPTION_PASSWORD);
-    if (!password) {
-      password = generateEncryptionPassword();
-      localStorage.setItem(STORAGE_KEYS.ENCRYPTION_PASSWORD, password);
-    }
-
-    setState(prev => ({
-      ...prev,
-      encryptionPassword: password,
-    }));
-  }, []);
-
-  // Load encrypted configurations
-  const loadConfigurations = useCallback(async () => {
-    if (!state.encryptionPassword || typeof window === 'undefined') return;
-
     try {
+      // Migrate existing plaintext values, if any
+      await Promise.all([
+        secureLocalStorage.migrateIfPlaintext(STORAGE_KEYS.R2_CONFIG),
+        secureLocalStorage.migrateIfPlaintext(STORAGE_KEYS.TURSO_CONFIG),
+      ]);
+
       // Load R2 config
-      const r2Data = localStorage.getItem(STORAGE_KEYS.R2_CONFIG);
+      const r2Data = await secureLocalStorage.getJSON<SecureStorageConfig['r2Config']>(STORAGE_KEYS.R2_CONFIG);
       let r2Config = {
         bucket: '',
+        region: 'auto',
         accessKeyId: '',
         secretAccessKey: '',
-        isEncrypted: false,
       };
 
       if (r2Data) {
-        if (isEncryptedData(r2Data)) {
-          const decrypted = await decryptSensitiveData(r2Data, state.encryptionPassword!);
-          const parsed = JSON.parse(decrypted);
-          r2Config = {
-            ...parsed,
-            isEncrypted: true,
-          };
-        } else {
-          // Migrate old unencrypted data
-          const parsed = JSON.parse(r2Data);
-          r2Config = {
-            ...parsed,
-            isEncrypted: false,
-          };
-        }
+        r2Config = {
+          bucket: r2Data.bucket || '',
+          region: r2Data.region || 'auto',
+          accessKeyId: r2Data.accessKeyId || '',
+          secretAccessKey: r2Data.secretAccessKey || '',
+        };
       }
 
       // Load Turso config
-      const tursoData = localStorage.getItem(STORAGE_KEYS.TURSO_CONFIG);
+      const tursoData = await secureLocalStorage.getJSON<SecureStorageConfig['tursoConfig']>(STORAGE_KEYS.TURSO_CONFIG);
       let tursoConfig = {
         url: '',
         token: '',
-        isEncrypted: false,
       };
 
       if (tursoData) {
-        if (isEncryptedData(tursoData)) {
-          const decrypted = await decryptSensitiveData(tursoData, state.encryptionPassword!);
-          const parsed = JSON.parse(decrypted);
-          tursoConfig = {
-            ...parsed,
-            isEncrypted: true,
-          };
-        } else {
-          // Migrate old unencrypted data
-          const parsed = JSON.parse(tursoData);
-          tursoConfig = {
-            ...parsed,
-            isEncrypted: false,
-          };
-        }
+        tursoConfig = {
+          url: tursoData.url || '',
+          token: tursoData.token || '',
+        };
       }
 
       setState(prev => ({
@@ -139,18 +105,18 @@ export const useSecureStorage = () => {
         isInitialized: true,
       }));
     }
-  }, [state.encryptionPassword]);
+  }, []);
 
-  // Load configurations when password is ready
+  // Load configurations on mount
   useEffect(() => {
-    if (state.encryptionPassword && !state.isInitialized) {
+    if (!state.isInitialized) {
       loadConfigurations();
     }
-  }, [state.encryptionPassword, state.isInitialized, loadConfigurations]);
+  }, [state.isInitialized, loadConfigurations]);
 
-  // Update R2 configuration
+  // Update R2 configuration (secure)
   const updateR2Config = useCallback(async (updates: Partial<SecureStorageConfig['r2Config']>) => {
-    if (!state.encryptionPassword || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
     try {
       const newConfig = {
@@ -158,35 +124,27 @@ export const useSecureStorage = () => {
         ...updates,
       };
 
-      // Encrypt sensitive fields
-      const configToStore = {
+      const toStore = {
         bucket: newConfig.bucket,
+        region: newConfig.region || 'auto',
         accessKeyId: newConfig.accessKeyId,
         secretAccessKey: newConfig.secretAccessKey,
       };
 
-      const encrypted = await encryptSensitiveData(
-        JSON.stringify(configToStore),
-        state.encryptionPassword
-      );
-
-      localStorage.setItem(STORAGE_KEYS.R2_CONFIG, encrypted);
+      await secureLocalStorage.setJSON(STORAGE_KEYS.R2_CONFIG, toStore);
 
       setState(prev => ({
         ...prev,
-        r2Config: {
-          ...newConfig,
-          isEncrypted: true,
-        },
+        r2Config: toStore,
       }));
     } catch (error) {
       console.error('Failed to update R2 config:', error);
     }
-  }, [state.encryptionPassword, state.r2Config]);
+  }, [state.r2Config]);
 
-  // Update Turso configuration
+  // Update Turso configuration (secure)
   const updateTursoConfig = useCallback(async (updates: Partial<SecureStorageConfig['tursoConfig']>) => {
-    if (!state.encryptionPassword || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
     try {
       const newConfig = {
@@ -194,34 +152,26 @@ export const useSecureStorage = () => {
         ...updates,
       };
 
-      // Encrypt sensitive fields
-      const configToStore = {
+      const toStore = {
         url: newConfig.url,
         token: newConfig.token,
       };
 
-      const encrypted = await encryptSensitiveData(
-        JSON.stringify(configToStore),
-        state.encryptionPassword
-      );
-
-      localStorage.setItem(STORAGE_KEYS.TURSO_CONFIG, encrypted);
+      await secureLocalStorage.setJSON(STORAGE_KEYS.TURSO_CONFIG, toStore);
 
       setState(prev => ({
         ...prev,
-        tursoConfig: {
-          ...newConfig,
-          isEncrypted: true,
-        },
+        tursoConfig: toStore,
       }));
     } catch (error) {
       console.error('Failed to update Turso config:', error);
     }
-  }, [state.encryptionPassword, state.tursoConfig]);
+  }, [state.tursoConfig]);
 
   // Get masked values for display
   const getMaskedR2Config = useCallback(() => ({
     bucket: state.r2Config.bucket,
+    region: state.r2Config.region,
     accessKeyId: state.r2Config.accessKeyId ? maskSensitiveData(state.r2Config.accessKeyId, 4) : '',
     secretAccessKey: state.r2Config.secretAccessKey ? maskSensitiveData(state.r2Config.secretAccessKey, 4) : '',
   }), [state.r2Config]);
@@ -234,6 +184,7 @@ export const useSecureStorage = () => {
   // Get plain values for API calls (only when needed)
   const getPlainR2Config = useCallback(() => ({
     bucket: state.r2Config.bucket,
+    region: state.r2Config.region,
     accessKeyId: state.r2Config.accessKeyId,
     secretAccessKey: state.r2Config.secretAccessKey,
   }), [state.r2Config]);
@@ -249,20 +200,20 @@ export const useSecureStorage = () => {
 
     localStorage.removeItem(STORAGE_KEYS.R2_CONFIG);
     localStorage.removeItem(STORAGE_KEYS.TURSO_CONFIG);
-    localStorage.removeItem(STORAGE_KEYS.ENCRYPTION_PASSWORD);
+  // Remove legacy password if it exists
+  localStorage.removeItem('encryption-password');
 
     setState(prev => ({
       ...prev,
       r2Config: {
         bucket: '',
+        region: 'auto',
         accessKeyId: '',
         secretAccessKey: '',
-        isEncrypted: false,
       },
       tursoConfig: {
         url: '',
         token: '',
-        isEncrypted: false,
       },
     }));
   }, []);

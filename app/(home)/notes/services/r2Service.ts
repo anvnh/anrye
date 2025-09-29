@@ -1,4 +1,6 @@
 import { StorageService } from '../types/storage';
+import { isEncryptedData, generateEncryptionPassword, decryptSensitiveData } from '../utils/security/encryption';
+import { secureLocalStorage } from '../utils/security/secureLocalStorage';
 
 interface R2Config {
   bucket: string;
@@ -11,17 +13,30 @@ class R2Service implements StorageService {
   private config: R2Config | null = null;
   private baseUrl: string = '';
 
-  constructor() {
-    this.loadConfig();
-  }
+  constructor() {}
 
-  private loadConfig() {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('r2-config');
-      if (stored) {
+  private async loadConfig(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('r2-config');
+    if (!stored) return;
+    try {
+      if (isEncryptedData(stored)) {
+        // Decrypt using deterministic password per device
+        const password = generateEncryptionPassword();
+        const decrypted = await decryptSensitiveData(stored, password);
+        this.config = JSON.parse(decrypted);
+      } else {
+        // Plaintext legacy: parse and migrate to encrypted
         this.config = JSON.parse(stored);
-        this.baseUrl = `https://${this.config?.bucket}.${this.config?.region}.r2.cloudflarestorage.com`;
+        await secureLocalStorage.setJSON('r2-config', this.config);
       }
+      if (this.config) {
+        if (!this.config.region) this.config.region = 'auto';
+        this.baseUrl = `https://${this.config.bucket}.${this.config.region}.r2.cloudflarestorage.com`;
+      }
+    } catch {
+      this.config = null;
+      this.baseUrl = '';
     }
   }
 
@@ -138,11 +153,18 @@ class R2Service implements StorageService {
   }
 
   private async ensureConfigured(): Promise<void> {
+    // Refresh latest config from localStorage in case it was updated recently
+    await this.loadConfig();
     if (!this.config) {
       throw new Error('R2 is not configured. Please set up your R2 credentials in settings.');
     }
 
-    if (!this.config.bucket || !this.config.region || !this.config.accessKeyId || !this.config.secretAccessKey) {
+    // Default region to 'auto' if missing
+    if (!this.config.region) {
+      this.config.region = 'auto';
+    }
+
+    if (!this.config.bucket || !this.config.accessKeyId || !this.config.secretAccessKey) {
       throw new Error('R2 configuration is incomplete. Please check your settings.');
     }
   }
