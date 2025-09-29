@@ -15,6 +15,15 @@ export function isGoogleClientIdConfigured(): boolean {
   return !!(clientId && clientId.trim() !== '');
 }
 
+// Helper function to ensure URL has a protocol
+function ensureProtocol(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // Default to https for production
+  return `https://${url}`;
+}
+
 // Determine a stable base URL for OAuth flows.
 // Priority:
 // 1. Explicit OAUTH_BASE_URL (no trailing slash)
@@ -23,13 +32,7 @@ export function isGoogleClientIdConfigured(): boolean {
 export function getBaseUrl(req?: Request): string {
   const configured = (process.env.OAUTH_BASE_URL || '').trim().replace(/\/$/, '');
   if (configured) {
-    // Ensure the configured URL has a protocol
-    if (configured.startsWith('http://') || configured.startsWith('https://')) {
-      return configured;
-    } else {
-      // Default to https for production
-      return `https://${configured}`;
-    }
+    return ensureProtocol(configured);
   }
   if (req) {
     try {
@@ -48,9 +51,7 @@ export function needsBaseRedirect(req: Request): { redirect: boolean; target?: s
   if (!configuredRaw) return { redirect: false };
   
   // Ensure configured URL has protocol
-  const configuredUrl = configuredRaw.startsWith('http://') || configuredRaw.startsWith('https://') 
-    ? configuredRaw 
-    : `https://${configuredRaw}`;
+  const configuredUrl = ensureProtocol(configuredRaw);
     
   let configured: URL | null = null;
   try {
@@ -60,10 +61,7 @@ export function needsBaseRedirect(req: Request): { redirect: boolean; target?: s
   }
   try {
     const current = new URL(req.url);
-    // If hosts match exactly (ignore protocol), no redirect
     if (current.host === configured.host) return { redirect: false };
-    // Only attempt redirect for Netlify preview style domains (hash--site)
-    // This should only redirect FROM preview domains TO the configured domain
     if (current.host.includes('--')) {
       return { redirect: true, target: `${configured.origin}${current.pathname}${current.search}` };
     }
