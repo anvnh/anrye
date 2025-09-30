@@ -143,12 +143,19 @@ export default function RootLayout({
                       const tempTokens = localStorage.getItem('google_drive_tokens_temp');
                       if (tempTokens) {
                         try {
-                          const tokens = JSON.parse(tempTokens);
-                          if (tokens && tokens.access_token) {
-                            return true;
+                          // Validate that the data looks like JSON before parsing
+                          const trimmed = tempTokens.trim();
+                          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                            const tokens = JSON.parse(tempTokens);
+                            if (tokens && tokens.access_token) {
+                              return true;
+                            }
+                          } else {
+                            console.warn('PWA: Temp tokens data is not valid JSON format, removing');
+                            localStorage.removeItem('google_drive_tokens_temp');
                           }
                         } catch (parseError) {
-                          console.warn('PWA: Invalid temp tokens format, removing:', parseError);
+                          console.warn('PWA: Invalid temp tokens format, removing:', parseError.message);
                           localStorage.removeItem('google_drive_tokens_temp');
                         }
                       }
@@ -157,18 +164,25 @@ export default function RootLayout({
                       const tokenRaw = localStorage.getItem('google_drive_token');
                       if (tokenRaw) {
                         try {
-                          const tokenData = JSON.parse(tokenRaw);
-                          if (tokenData && tokenData.access_token) {
-                            const now = Date.now();
-                            const isExpired = tokenData.expires_at && tokenData.expires_at < now;
-                            const hasRefreshToken = tokenData.refresh_token && tokenData.refresh_expires_at && tokenData.refresh_expires_at > now;
-                            
-                            if (!isExpired || hasRefreshToken) {
-                              return true;
+                          // Validate that the data looks like JSON before parsing
+                          const trimmed = tokenRaw.trim();
+                          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                            const tokenData = JSON.parse(tokenRaw);
+                            if (tokenData && tokenData.access_token) {
+                              const now = Date.now();
+                              const isExpired = tokenData.expires_at && tokenData.expires_at < now;
+                              const hasRefreshToken = tokenData.refresh_token && tokenData.refresh_expires_at && tokenData.refresh_expires_at > now;
+                              
+                              if (!isExpired || hasRefreshToken) {
+                                return true;
+                              }
                             }
+                          } else {
+                            console.warn('PWA: Token data is not valid JSON format, removing');
+                            localStorage.removeItem('google_drive_token');
                           }
                         } catch (parseError) {
-                          console.warn('PWA: Invalid token format, removing:', parseError);
+                          console.warn('PWA: Invalid token format, removing:', parseError.message);
                           localStorage.removeItem('google_drive_token');
                         }
                       }

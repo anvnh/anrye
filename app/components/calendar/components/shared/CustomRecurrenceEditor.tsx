@@ -152,8 +152,8 @@ export function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
     return rule;
   }
 
-  const dayChips = ['Su','Mo','Tu','We','Th','Fr','Sa'].map((short, idx) => {
-    const d = ['SU','MO','TU','WE','TH','FR','SA'][idx];
+  const dayChips = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((short, idx) => {
+    const d = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][idx];
     return (
       <button
         key={d}
@@ -163,7 +163,7 @@ export function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
           "px-3 py-2 rounded-full text-xs border-none",
           days.includes(d) ? 'bg-blue-900/40 text-white' : (notesTheme === 'light' ? 'bg-white text-black border-gray-300' : 'bg-main text-white border-gray-600')
         )}
-        title={["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][idx]}
+        title={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][idx]}
       >
         {short}
       </button>
@@ -182,12 +182,15 @@ export function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
           value={interval}
           onChange={(e) => setInterval(Number(e.target.value))}
           className={cn(
-            "border-gray-600 [&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none",
+            "border-gray-600 [&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none border-none",
             notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'
           )}
         />
         <select
-          className={`rounded px-2 py-2 text-sm ${notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'}`}
+          className={cn(
+            "rounded px-2 py-2 text-sm z-100 border-none",
+            notesTheme === 'light' ? 'bg-white text-black' : 'bg-main text-white'
+          )}
           value={freq}
           onChange={(e) => setFreq(e.target.value as any)}
         >
@@ -253,12 +256,22 @@ export function CustomRecurrenceEditor(props: CustomRecurrenceEditorProps) {
       </div>
 
       <div className="mt-3 flex justify-end gap-2">
-        <Button variant="ghost" type="button" onClick={onCancel} className={cn(
-          notesTheme === 'light' ? 'text-black/75' : ''
-        )}>Cancel</Button>
-        <Button type="button" onClick={() => onDone(buildRule())} className={cn(
-          notesTheme === 'light' ? 'light-bg-calendar-button text-black/75' : 'bg-calendar-button text-white'
-        )}>Done</Button>
+        <Button
+          variant="ghost"
+          type="button"
+          onClick={onCancel}
+          className={cn(
+            notesTheme === 'light' ? 'text-black/75' : ''
+          )}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          onClick={() => onDone(buildRule())}
+          variant={notesTheme === 'light' ? 'light-outline' : 'dark-outline'}
+        >
+          Done
+        </Button>
       </div>
     </div>
   );

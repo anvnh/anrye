@@ -42,23 +42,30 @@ export function useAuthState(options: UseAuthStateOptions = {}) {
       const tempTokens = localStorage.getItem('google_drive_tokens_temp');
       if (tempTokens) {
         try {
-          const tokens = JSON.parse(tempTokens);
-          if (tokens.access_token) {
-            // Process temporary tokens
-            const { driveService } = await import('../../(home)/notes/services/googleDrive');
-            const success = await driveService.signIn();
-            setIsAuthenticated(!!success);
-            setIsLoading(false);
-            setIsInitialized(true);
-            
-            if (success) {
-              onAuthSuccess?.();
-            } else {
-              onAuthFailure?.();
+          // Validate JSON format before parsing
+          const trimmed = tempTokens.trim();
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            const tokens = JSON.parse(tempTokens);
+            if (tokens.access_token) {
+              // Process temporary tokens
+              const { driveService } = await import('../../(home)/notes/services/googleDrive');
+              const success = await driveService.signIn();
+              setIsAuthenticated(!!success);
+              setIsLoading(false);
+              setIsInitialized(true);
+              
+              if (success) {
+                onAuthSuccess?.();
+              } else {
+                onAuthFailure?.();
+              }
+              
+              localStorage.removeItem('google_drive_tokens_temp');
+              return;
             }
-            
+          } else {
+            console.warn('Temp tokens data is not valid JSON format, removing');
             localStorage.removeItem('google_drive_tokens_temp');
-            return;
           }
         } catch (error) {
           console.error('Error processing temp tokens:', error);

@@ -61,8 +61,6 @@ function MyComponent() {
     requestPermission,
     showNotification,
     showCalendarNotification,
-    showNoteNotification,
-    showSyncNotification
   } = useNotifications();
 
   // Use notification functions...
@@ -128,29 +126,6 @@ await showCalendarNotification(
 );
 ```
 
-### Note Update Notification
-
-```typescript
-const { showNoteNotification } = useNotifications();
-
-// Show note update notification
-await showNoteNotification(
-  'My Important Note',
-  'updated' // action: 'created' | 'updated' | 'shared'
-);
-```
-
-### Sync Status Notification
-
-```typescript
-const { showSyncNotification } = useNotifications();
-
-// Show sync success
-await showSyncNotification('success', 'Data synced successfully');
-
-// Show sync error
-await showSyncNotification('error', 'Sync failed. Please check connection.');
-```
 
 ### Scheduled Reminder
 
