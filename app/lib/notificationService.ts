@@ -204,57 +204,6 @@ export class NotificationService {
     });
   }
 
-  public async showNoteNotification(
-    noteTitle: string,
-    action: 'created' | 'updated' | 'shared' = 'updated'
-  ): Promise<Notification | null> {
-    const actionText = {
-      created: 'created',
-      updated: 'updated',
-      shared: 'shared with you',
-    }[action];
-
-    return this.showNotification({
-      title: `Note ${actionText}`,
-      body: `"${noteTitle}" has been ${actionText}`,
-      icon: '/icons/icon-192x192.png',
-      tag: 'note-update',
-      data: {
-        noteTitle,
-        action,
-        type: 'note',
-      },
-    });
-  }
-
-  public async showSyncNotification(
-    status: 'success' | 'error' | 'in-progress',
-    message?: string
-  ): Promise<Notification | null> {
-    const titles = {
-      success: 'Sync Complete',
-      error: 'Sync Failed',
-      'in-progress': 'Syncing...',
-    };
-
-    const bodies = {
-      success: message || 'Your data has been synced successfully',
-      error: message || 'Failed to sync your data. Please check your connection.',
-      'in-progress': message || 'Syncing your data...',
-    };
-
-    return this.showNotification({
-      title: titles[status],
-      body: bodies[status],
-      icon: '/icons/icon-192x192.png',
-      tag: 'sync-status',
-      requireInteraction: status === 'error',
-      data: {
-        status,
-        type: 'sync',
-      },
-    });
-  }
 
   public isSupported(): boolean {
     return typeof window !== 'undefined' && 'Notification' in window;

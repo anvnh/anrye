@@ -12,8 +12,6 @@ export interface UseNotificationsReturn {
   showPersistentNotification: (options: NotificationOptions) => Promise<Notification | null>;
   showReminderNotification: (title: string, body: string, reminderTime: Date) => Promise<number>;
   showCalendarNotification: (eventTitle: string, eventTime: Date, isReminder?: boolean) => Promise<Notification | null>;
-  showNoteNotification: (noteTitle: string, action?: 'created' | 'updated' | 'shared') => Promise<Notification | null>;
-  showSyncNotification: (status: 'success' | 'error' | 'in-progress', message?: string) => Promise<Notification | null>;
   scheduleNotification: (options: NotificationOptions, delay: number) => Promise<number>;
   cancelScheduledNotification: (timeoutId: number) => void;
   registerServiceWorker: () => Promise<ServiceWorkerRegistration | null>;
@@ -66,19 +64,6 @@ export function useNotifications(): UseNotificationsReturn {
     return notificationService.showCalendarNotification(eventTitle, eventTime, isReminder);
   }, []);
 
-  const showNoteNotification = useCallback(async (
-    noteTitle: string,
-    action: 'created' | 'updated' | 'shared' = 'updated'
-  ): Promise<Notification | null> => {
-    return notificationService.showNoteNotification(noteTitle, action);
-  }, []);
-
-  const showSyncNotification = useCallback(async (
-    status: 'success' | 'error' | 'in-progress',
-    message?: string
-  ): Promise<Notification | null> => {
-    return notificationService.showSyncNotification(status, message);
-  }, []);
 
   const scheduleNotification = useCallback(async (
     options: NotificationOptions,
@@ -110,8 +95,6 @@ export function useNotifications(): UseNotificationsReturn {
     showPersistentNotification,
     showReminderNotification,
     showCalendarNotification,
-    showNoteNotification,
-    showSyncNotification,
     scheduleNotification,
     cancelScheduledNotification,
     registerServiceWorker,

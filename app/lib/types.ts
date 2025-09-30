@@ -31,7 +31,7 @@ interface DriveFile {
 
 // Notification types
 export interface NotificationData {
-  type: 'calendar' | 'note' | 'sync' | 'reminder' | 'general';
+  type: 'calendar' | 'reminder';
   id?: string;
   url?: string;
   timestamp?: number;
@@ -61,8 +61,6 @@ export interface NotificationAction {
 export interface NotificationPreferences {
   enabled: boolean;
   calendarEvents: boolean;
-  noteUpdates: boolean;
-  syncStatus: boolean;
   reminders: boolean;
   pushNotifications: boolean;
 }

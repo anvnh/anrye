@@ -17,29 +17,6 @@ export async function notifyCalendarEvent(
   }
 }
 
-// Notes integration
-export async function notifyNoteUpdate(
-  noteTitle: string,
-  action: 'created' | 'updated' | 'shared' = 'updated'
-): Promise<void> {
-  try {
-    await notificationService.showNoteNotification(noteTitle, action);
-  } catch (error) {
-    console.error('Failed to show note notification:', error);
-  }
-}
-
-// Sync integration
-export async function notifySyncStatus(
-  status: 'success' | 'error' | 'in-progress',
-  message?: string
-): Promise<void> {
-  try {
-    await notificationService.showSyncNotification(status, message);
-  } catch (error) {
-    console.error('Failed to show sync notification:', error);
-  }
-}
 
 // Reminder integration
 export async function scheduleReminder(

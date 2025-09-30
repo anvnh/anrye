@@ -10,6 +10,13 @@ export interface CalendarEvent {
   recurrence?: string[]; // RFC5545 RRULE lines, e.g. ["RRULE:FREQ=DAILY"]
   recurringEventId?: string; // master recurring event id if this is an instance
   originalStartTime?: string; // ISO datetime of the instance original start
+  reminders?: {
+    useDefault: boolean;
+    overrides?: Array<{
+      method: 'email' | 'popup';
+      minutes: number;
+    }>;
+  };
 }
 
 type GoogleCalendarEvent = {
@@ -22,6 +29,13 @@ type GoogleCalendarEvent = {
   recurrence?: string[];
   recurringEventId?: string;
   originalStartTime?: { dateTime?: string; date?: string; timeZone?: string };
+  reminders?: {
+    useDefault: boolean;
+    overrides?: Array<{
+      method: 'email' | 'popup';
+      minutes: number;
+    }>;
+  };
 };
 
 function toISO(date: Date): string {
@@ -37,7 +51,7 @@ function getLocalTimeZone(): string {
   }
 }
 
-async function getCalendarBearer(): Promise<string> {
+export async function getCalendarBearer(): Promise<string> {
   const r = await fetch("/api/auth/google/calendar/token", { method: "POST" });
   if (!r.ok) throw new Error("NO_CALENDAR_TOKEN");
   const j = await r.json();
@@ -57,15 +71,18 @@ function mapEvent(e: GoogleCalendarEvent): CalendarEvent | null {
     summary: e.summary || 'Untitled',
     description: e.description,
     start: startISO,
-  end: endISO,
-  colorId: e.colorId,
-  recurrence: e.recurrence,
-  recurringEventId: e.recurringEventId,
-  originalStartTime: e.originalStartTime?.dateTime || (e.originalStartTime?.date ? new Date(e.originalStartTime.date).toISOString() : undefined),
+    end: endISO,
+    colorId: e.colorId,
+    recurrence: e.recurrence,
+    recurringEventId: e.recurringEventId,
+    originalStartTime: e.originalStartTime?.dateTime || (e.originalStartTime?.date ? new Date(e.originalStartTime.date).toISOString() : undefined),
+    reminders: e.reminders,
   };
 }
 
 async function calendarFetch(input: string, init?: RequestInit): Promise<Response> {
+  // For client-side calls, we'll use our API routes instead of direct Google API calls
+  // This function is kept for backward compatibility but will be replaced
   const token = await ensureBearer();
   const doFetch = (t: string) => fetch(input, {
     ...init,
@@ -96,14 +113,17 @@ export async function listEvents(timeMin: Date, timeMax: Date): Promise<Calendar
     timeMax: toISO(timeMax),
     maxResults: '2500',
   });
-  const r = await calendarFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`);
+  
+  // Use our API route instead of direct Google API call
+  const r = await fetch(`/api/calendar/events?${params.toString()}`);
   if (!r.ok) throw new Error('CALENDAR_LIST_FAILED');
   const j = await r.json();
   return (j.items || []).map(mapEvent).filter(Boolean) as CalendarEvent[];
 }
 
 export async function getEvent(eventId: string): Promise<CalendarEvent> {
-  const r = await calendarFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`);
+  // Use our API route instead of direct Google API call
+  const r = await fetch(`/api/calendar/events/${encodeURIComponent(eventId)}`);
   if (!r.ok) throw new Error('CALENDAR_GET_FAILED');
   const j = await r.json();
   const mapped = mapEvent(j);
@@ -118,6 +138,13 @@ export async function createEvent(payload: {
   end: Date;
   colorId?: string;
   recurrence?: string[] | string;
+  reminders?: {
+    useDefault: boolean;
+    overrides?: Array<{
+      method: 'email' | 'popup';
+      minutes: number;
+    }>;
+  };
 }): Promise<CalendarEvent> {
   const tz = getLocalTimeZone();
   const normalizeRecurrence = (rec?: string[] | string) => {
@@ -137,9 +164,14 @@ export async function createEvent(payload: {
     end: { dateTime: toISO(payload.end), timeZone: tz },
     ...(payload.colorId ? { colorId: payload.colorId } : {}),
     ...(normalizeRecurrence(payload.recurrence) ? { recurrence: normalizeRecurrence(payload.recurrence) } : {}),
+    ...(payload.reminders ? { reminders: payload.reminders } : {}),
   };
-  const r = await calendarFetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+  // Use our API route instead of direct Google API call
+  const r = await fetch('/api/calendar/events', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
   if (!r.ok) {
@@ -168,6 +200,13 @@ export async function updateEvent(eventId: string, payload: {
   end?: Date;
   colorId?: string;
   recurrence?: string[] | string | null; // pass null to clear
+  reminders?: {
+    useDefault: boolean;
+    overrides?: Array<{
+      method: 'email' | 'popup';
+      minutes: number;
+    }>;
+  } | null; // pass null to clear
 }): Promise<CalendarEvent> {
   const tz = getLocalTimeZone();
   const body: any = {};
@@ -186,9 +225,17 @@ export async function updateEvent(eventId: string, payload: {
         .map(r => (r.toUpperCase().startsWith('RRULE') ? r.toUpperCase().startsWith('RRULE:') ? r : `RRULE:${r}` : r));
     }
   }
+  if (payload.reminders !== undefined) {
+    if (payload.reminders === null) body.reminders = { useDefault: true };
+    else body.reminders = payload.reminders;
+  }
 
-  const r = await calendarFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+  // Use our API route instead of direct Google API call
+  const r = await fetch(`/api/calendar/events/${encodeURIComponent(eventId)}`, {
     method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
   if (!r.ok) {
@@ -210,7 +257,8 @@ export async function updateEvent(eventId: string, payload: {
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {
-  const r = await calendarFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+  // Use our API route instead of direct Google API call
+  const r = await fetch(`/api/calendar/events/${encodeURIComponent(eventId)}`, {
     method: 'DELETE',
   });
   if (!r.ok) throw new Error('CALENDAR_DELETE_FAILED');
