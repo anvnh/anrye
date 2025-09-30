@@ -147,7 +147,7 @@ export default function NotificationSettings() {
             Notification Settings
           </CardTitle>
           <CardDescription>
-            Configure how and when you receive notifications from AnRye.
+            Configure how and when you receive notifications from AnRye Notes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { Shield, Lock, FileText, Users, Mail, Calendar, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service - AnRye',
-  description: 'Terms of Service for AnRye - Your secure note-taking and learning platform',
+  title: 'Terms of Service - AnRye Notes',
+  description: 'Terms of Service for AnRye Notes - Your secure note-taking and learning platform',
 };
 
 export default function TermsOfService() {
@@ -75,10 +75,10 @@ export default function TermsOfService() {
             </h2>
             <div className="prose prose-gray max-w-none">
               <p className="text-gray-300 leading-relaxed">
-                Welcome to AnRye ("we," "our," or "us"). These Terms of Service ("Terms") govern your use of our note-taking and learning platform, including all features, content, and services available through our website and applications.
+                Welcome to AnRye Notes ("we," "our," or "us"). These Terms of Service ("Terms") govern your use of our note-taking and learning platform, including all features, content, and services available through our website and applications.
               </p>
               <p className="text-gray-300 leading-relaxed mt-4">
-                By accessing or using AnRye, you agree to be bound by these Terms. If you do not agree to these Terms, please do not use our services.
+                By accessing or using AnRye Notes, you agree to be bound by these Terms. If you do not agree to these Terms, please do not use our services.
               </p>
             </div>
           </section>
@@ -113,7 +113,7 @@ export default function TermsOfService() {
             </h2>
             <div className="space-y-4">
               <p className="text-gray-300 leading-relaxed">
-                AnRye provides a comprehensive note-taking and learning platform with the following features:
+                AnRye Notes provides a comprehensive note-taking and learning platform with the following features:
               </p>
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-main p-4 rounded-lg border border-gray-600">
@@ -247,7 +247,7 @@ export default function TermsOfService() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-300 mb-2">Our Content</h3>
                   <p className="text-gray-400 leading-relaxed">
-                    The AnRye platform, including its design, code, and original content, is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, or distribute our proprietary content without permission.
+                    The AnRye Notes platform, including its design, code, and original content, is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, or distribute our proprietary content without permission.
                   </p>
                 </div>
                 <div>
@@ -328,7 +328,7 @@ export default function TermsOfService() {
             </h2>
             <div className="space-y-4">
               <p className="text-gray-300 leading-relaxed">
-                To the maximum extent permitted by law, AnRye shall not be liable for any indirect, incidental, special, consequential, or punitive damages.
+                To the maximum extent permitted by law, AnRye Notes shall not be liable for any indirect, incidental, special, consequential, or punitive damages.
               </p>
               <div className="bg-main p-4 rounded-lg border border-gray-600">
                 <h3 className="font-semibold text-gray-300 mb-2">Liability Limits</h3>
@@ -445,9 +445,9 @@ export default function TermsOfService() {
           {/* Footer */}
           <div className="border-t border-gray-600 pt-8 mt-8">
             <div className="text-center text-gray-400">
-              <p className="mb-2">Thank you for using AnRye. We appreciate your trust in our platform.</p>
+              <p className="mb-2">Thank you for using AnRye Notes. We appreciate your trust in our platform.</p>
               <Link href="/" className="text-blue-400 hover:text-blue-300 font-medium">
-                ← Back to AnRye
+                ← Back to AnRye Notes
               </Link>
             </div>
           </div>
