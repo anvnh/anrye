@@ -65,7 +65,7 @@ export default function LoveTimerHoverCard() {
 			<HoverCardTrigger asChild>
 				<div className="cursor-pointer transition-all duration-300">
 					<h1 className="text-4xl md:text-6xl font-bold mb-6 transition-colors">
-						Welcome to AnRye
+						Welcome to AnRye Notes
 					</h1>
 					<p className="text-xl md:text-2xl mb-8 opacity-90 transition-colors">
 						Personal website with utilities and notes

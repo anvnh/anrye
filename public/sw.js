@@ -128,7 +128,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'AnRye Notification', options)
+    self.registration.showNotification(data.title || 'AnRye Notes Notification', options)
   );
 });
 

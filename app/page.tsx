@@ -11,7 +11,7 @@ function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <h1 className="font-bold mb-6 text-4xl md:text-6xl leading-tight md:leading-none transition-colors">
-            Welcome to AnRye
+            Welcome to AnRye Notes
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-90 transition-colors">
             Website that saves your notes and personal documents
@@ -36,7 +36,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
               <div className="text-center md:text-left">
-                <p className="text-gray-300">© 2024 AnRye. All rights reserved.</p>
+                <p className="text-gray-300">© 2024 AnRye Notes. All rights reserved.</p>
               </div>
               <div className="flex items-center space-x-6">
                 <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">Privacy Policy</Link>

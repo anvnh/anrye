@@ -49,7 +49,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="text-2xl font-bold text-primary">
-              AnRye
+              AnRye Notes
             </Link>
           </div>
 

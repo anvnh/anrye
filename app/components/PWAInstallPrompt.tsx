@@ -78,7 +78,7 @@ export default function PWAInstallPrompt() {
 		<div className="fixed bottom-4 right-4 z-50 bg-main border border-gray-700 rounded-lg shadow-xl p-4 max-w-sm">
 			<div className="flex items-start gap-3">
 				<div className="flex-1">
-					<h3 className="font-semibold text-white mb-1">Install AnRye</h3>
+					<h3 className="font-semibold text-white mb-1">Install AnRye Notes</h3>
 					<p className="text-sm text-gray-300 mb-3">
 						Install this app on your device for quick and easy access when you're on the go.
 					</p>
