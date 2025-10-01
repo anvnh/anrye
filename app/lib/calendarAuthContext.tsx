@@ -26,16 +26,12 @@ export function CalendarAuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(data.tokenOk);
         
         if (data.tokenOk) {
-          // Fetch user info from Google
+          // Fetch user info from our server-side endpoint to avoid CORS issues
           try {
-            const tokenResponse = await fetch('/api/auth/google/calendar/token', { method: 'POST' });
-            if (tokenResponse.ok) {
-              const tokenData = await tokenResponse.json();
-              const userResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenData.access_token}`);
-              if (userResponse.ok) {
-                const userData = await userResponse.json();
-                setUserInfo({ name: userData.name, email: userData.email });
-              }
+            const userResponse = await fetch('/api/auth/google/calendar/userinfo');
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              setUserInfo({ name: userData.name, email: userData.email });
             }
           } catch (error) {
             console.error('Failed to fetch user info:', error);

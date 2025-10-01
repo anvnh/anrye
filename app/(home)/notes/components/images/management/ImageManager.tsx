@@ -87,9 +87,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
         console.warn('No access token available for image preview - authentication may have expired');
         return;
       }
-      const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${image.driveFileId}?alt=media`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resp = await fetch(`/api/google/drive/file?fileId=${image.driveFileId}`);
       if (!resp.ok) return;
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);

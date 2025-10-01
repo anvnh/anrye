@@ -206,9 +206,7 @@ class ImageLoadingManager {
         return;
       }
 
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
+      const response = await fetch(`/api/google/drive/file?fileId=${fileId}`);
 
       if (response.ok) {
         const blob = await response.blob();

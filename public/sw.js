@@ -79,13 +79,21 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // Fallback to cache
-          return (isLocalhost ? Promise.resolve(undefined) : caches.match(request))
+          if (isLocalhost) {
+            // For localhost, return a proper response instead of undefined
+            if (request.mode === 'navigate') {
+              return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
+            }
+            return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
+          }
+          
+          return caches.match(request)
             .then((response) => {
               // If no cached response and it's a navigation request, show offline page
-              if (!response && request.mode === 'navigate' && !isLocalhost) {
+              if (!response && request.mode === 'navigate') {
                 return caches.match('/offline.html');
               }
-              return response;
+              return response || new Response('Not found', { status: 404, statusText: 'Not Found' });
             });
         })
     );
