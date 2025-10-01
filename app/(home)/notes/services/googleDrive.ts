@@ -644,17 +644,25 @@ class GoogleDriveService {
     return response.body;
   }
 
-  // Bulk get multiple files at once to reduce API calls
+  // Optimized bulk get multiple files with parallel processing
   async getFilesBulk(fileIds: string[]): Promise<{ [fileId: string]: string }> {
     await this.ensureApiLoaded();
     await this.setAccessToken();
     
     const results: { [fileId: string]: string } = {};
     
-    // Process files in batches to avoid overwhelming the API
-    const batchSize = 5;
+    // Process files in larger batches with parallel execution
+    const batchSize = 20; // Increased batch size
+    const batches = [];
     for (let i = 0; i < fileIds.length; i += batchSize) {
-      const batch = fileIds.slice(i, i + batchSize);
+      batches.push(fileIds.slice(i, i + batchSize));
+    }
+    
+    // Process all batches in parallel with staggered starts
+    const batchPromises = batches.map(async (batch, batchIndex) => {
+      // Stagger batch starts to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, batchIndex * 25));
+      
       const batchPromises = batch.map(async (fileId) => {
         try {
           const content = await this.getFile(fileId);
@@ -666,13 +674,9 @@ class GoogleDriveService {
       });
       
       await Promise.all(batchPromises);
-      
-      // Add small delay between batches
-      if (i + batchSize < fileIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
+    });
     
+    await Promise.all(batchPromises);
     return results;
   }
 
@@ -796,9 +800,9 @@ class GoogleDriveService {
 
     const response = await window.gapi.client.drive.files.list({
       q: query,
-      fields: 'files(id,name,mimeType,parents,createdTime,modifiedTime)',
-      orderBy: 'name',
-      pageSize: 1000 // Increase page size to reduce API calls
+      fields: 'files(id,name,mimeType,parents,createdTime,modifiedTime,size)', // Added size for better sorting
+      orderBy: 'modifiedTime desc,name', // Sort by modification time first, then name
+      pageSize: 1000 // Large page size to reduce API calls
     } as any);
 
     return response.result.files || [];
