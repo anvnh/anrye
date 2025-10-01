@@ -47,7 +47,6 @@ export interface NoteSidebarProps {
   notes: Note[];
   folders: Folder[];
   selectedNote: Note | null;
-  isSignedIn: boolean;
   isLoading: boolean;
   syncProgress: number;
   sidebarWidth: number;
@@ -82,8 +81,6 @@ export interface NoteSidebarProps {
   onToggleImagesSection: () => void;
   onForceSync?: () => void;
   onClearCacheAndSync?: () => void;
-  onSignIn?: () => void;
-  onSignOut?: () => void;
   onEncryptNote?: (noteId: string, encryptedData: any) => void;
   onDecryptNote?: (noteId: string, decryptedContent: string) => void;
   onDuplicateNote?: (note: Note) => void;

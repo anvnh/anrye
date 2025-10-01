@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +53,15 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
   } = useSecureStorage();
 
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Automatically show advanced settings when switching to R2-Turso
+  useEffect(() => {
+    if (currentProvider === 'r2-turso') {
+      setShowAdvanced(true);
+    } else if (currentProvider === 'google-drive') {
+      setShowAdvanced(false);
+    }
+  }, [currentProvider]);
 
   const handleProviderSwitch = async (provider: StorageProvider) => {
     if (provider === currentProvider) return;
@@ -177,20 +186,22 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
             Choose where to store your notes and images
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          disabled={!isSecureStorageInitialized}
-          className={cn(
-            "text-sm text-muted-foreground",
-            notesTheme === 'light' ? 'text-black' : 'text-white'
-          )}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          {showAdvanced ? 'Hide' : 'Show'} Advanced
-          {!isSecureStorageInitialized && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-        </Button>
+        {currentProvider === 'r2-turso' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            disabled={!isSecureStorageInitialized}
+            className={cn(
+              "text-sm text-muted-foreground",
+              notesTheme === 'light' ? 'text-black' : 'text-white'
+            )}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            {showAdvanced ? 'Hide' : 'Show'} Advanced
+            {!isSecureStorageInitialized && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+          </Button>
+        )}
       </div>
 
       {/* Success Alert */}
@@ -291,7 +302,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         })}
       </div>
 
-      {showAdvanced && (
+      {showAdvanced && currentProvider === 'r2-turso' && (
         <div className="space-y-6">
           <Separator 
             className={cn(

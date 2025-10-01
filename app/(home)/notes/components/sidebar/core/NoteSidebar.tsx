@@ -11,6 +11,7 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { NoteSidebarProps, Note, Folder } from '../../types';
+import { useStorageSettings } from '../../../hooks/settings/useStorageSettings';
 import { MobileItemMenu } from '../../forms/MobileFileOperations';
 import { NoteEncryptionDialog, EncryptionStatusBadge } from '../../modals/NoteEncryption';
 import MoveDrawer from '../../modals/MoveDrawer';
@@ -31,7 +32,6 @@ export default function NoteSidebar({
   notes,
   folders,
   selectedNote,
-  isSignedIn,
   isLoading,
   syncProgress,
   sidebarWidth,
@@ -61,13 +61,12 @@ export default function NoteSidebar({
   onToggleImagesSection,
   onForceSync,
   onClearCacheAndSync,
-  onSignIn,
-  onSignOut,
   onEncryptNote,
   onDecryptNote,
   onDuplicateNote,
   notesTheme,
 }: NoteSidebarProps) {
+  const { currentProvider } = useStorageSettings();
 
   // Add state for mobile menu collapsible
   const [isMobileMenuExpanded, setIsMobileMenuExpanded] = useState(false);
@@ -708,24 +707,6 @@ export default function NoteSidebar({
   // Get current selected path for FAB
   const currentPath = folders.find(f => f.path === selectedNote?.path)?.path || '';
 
-  const handleSwitchDriveAccount = async () => {
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('has-synced-drive');
-        localStorage.removeItem('has-synced-with-drive');
-        localStorage.removeItem('folders-cache');
-        localStorage.removeItem('notes-cache');
-        localStorage.removeItem('notes-new');
-        localStorage.removeItem('folders-new');
-      }
-      if (onSignOut) {
-        await onSignOut();
-      }
-      if (onSignIn) {
-        await onSignIn();
-      }
-    } catch { }
-  };
 
   return (
     <>
@@ -813,69 +794,31 @@ export default function NoteSidebar({
                   >
                     <Network size={18} />
                   </button>
-                  {/* Drive Button (Dropdown) */}
-                  {isSignedIn ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className="
-                          flex items-center gap-2 px-2 py-1.5 text-xs font-medium 
-                          transition-all duration-200 text-gray-300 hover:text-white 
-                          hover:bg-gray-700/60 rounded-2xl"
-                        >
-                          <Cog size={18} />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className='bg-main border-gray-700 text-white'>
-                        <DropdownMenuItem onClick={handleSwitchDriveAccount}>
-                          Switch Drive account
+                  {/* Sync Button (Dropdown) */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="
+                        flex items-center gap-2 px-2 py-1.5 text-xs font-medium 
+                        transition-all duration-200 text-gray-300 hover:text-white 
+                        hover:bg-gray-700/60 rounded-2xl"
+                      >
+                        <Cog size={18} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className='bg-main border-gray-700 text-white'>
+                      {onForceSync && (
+                        <DropdownMenuItem onClick={onForceSync}>
+                          Sync now
                         </DropdownMenuItem>
-
-                        <DropdownMenuSeparator className='bg-gray-600' />
-
-                        {onForceSync && (
-                          <DropdownMenuItem onClick={onForceSync}>
-                            Sync now
-                          </DropdownMenuItem>
-                        )}
-                        {onClearCacheAndSync && (
-                          <DropdownMenuItem onClick={onClearCacheAndSync}>
-                            Clear cache and sync
-                          </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuSeparator className='bg-gray-600' />
-
-                        {/* Button to refresth the page, similar to F5 */}
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (typeof window !== 'undefined') {
-                              window.location.reload();
-                            }
-                          }}
-                        >
-                          Refresh the page
+                      )}
+                      {onClearCacheAndSync && (
+                        <DropdownMenuItem onClick={onClearCacheAndSync}>
+                          Clear cache and sync
                         </DropdownMenuItem>
-
-                        <DropdownMenuSeparator className='bg-gray-600' />
-
-                        <DropdownMenuItem onClick={onSignOut}>
-                          Disconnect
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <button
-                      onClick={onSignIn}
-                      disabled={isLoading}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all duration-200 text-gray-400 hover:text-gray-300 hover:bg-gray-700/60 disabled:opacity-50 rounded-2xl"
-                      title="Sign in to Google Drive"
-                    >
-                      <span>
-                        {isLoading ? 'Connecting...' : 'Connect to Drive'}
-                      </span>
-                    </button>
-                  )}
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                 </div>
               </div>
@@ -918,11 +861,6 @@ export default function NoteSidebar({
                 )}
               </div>
 
-              {!isSignedIn && (
-                <div className="text-xs text-yellow-400/80 mt-2 p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/20">
-                  💡 Sign in to Google Drive to sync notes
-                </div>
-              )}
 
               {isLoading ? (
                 <div className="mt-3">
@@ -1032,12 +970,14 @@ export default function NoteSidebar({
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1" style={{ height: 'calc(100vh - 170px)' }}>
               {/* Image and sort section */}
               <div className='flex w-full items-center justify-between mb-4'>
-                {/* Images Section */}
-                <ImagesSection
-                  isSignedIn={isSignedIn}
-                  isExpanded={isImagesSectionExpanded}
-                  onToggleExpanded={onToggleImagesSection}
-                />
+                {/* Images Section - Only show for Google Drive */}
+                {currentProvider === 'google-drive' && (
+                  <ImagesSection
+                    isSignedIn={true}
+                    isExpanded={isImagesSectionExpanded}
+                    onToggleExpanded={onToggleImagesSection}
+                  />
+                )}
 
                 {/* Sort control */}
                 <div className="px-4 pb-2">

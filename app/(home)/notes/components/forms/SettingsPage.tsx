@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings2Icon } from 'lucide-react';
+import { Settings2Icon, LogOut, User, RefreshCw } from 'lucide-react';
 import { StorageSwitcher } from './StorageSwitcher';
 import { useStorageSettings } from '../../hooks/settings/useStorageSettings';
+import { useDrive } from '../../../../lib/driveContext';
+import { driveService } from '../../services/googleDrive';
 import { cn } from '@/lib/utils';
 import NotificationSettings from '../../../../components/NotificationSettings';
 
@@ -49,8 +51,68 @@ export function SettingsPage({
   setTabSize,
 }: SettingsPageProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [driveUserInfo, setDriveUserInfo] = useState<{ name: string; email: string; picture: string } | null>(null);
+  const [isLoadingUserInfo, setIsLoadingUserInfo] = useState(false);
 
   const { currentProvider, storageStatus } = useStorageSettings();
+  const { isSignedIn, signIn, signOut } = useDrive();
+
+  // Load Google Drive user info when signed in
+  useEffect(() => {
+    const loadDriveUserInfo = async () => {
+      if (currentProvider === 'google-drive' && isSignedIn) {
+        setIsLoadingUserInfo(true);
+        try {
+          const userData = await driveService.getUserInfo();
+          setDriveUserInfo(userData);
+        } catch (error) {
+          console.error('Failed to load Google Drive user info:', error);
+          setDriveUserInfo(null);
+        } finally {
+          setIsLoadingUserInfo(false);
+        }
+      } else {
+        setDriveUserInfo(null);
+      }
+    };
+
+    loadDriveUserInfo();
+  }, [currentProvider, isSignedIn]);
+
+  const handleSwitchDriveAccount = async () => {
+    try {
+      // Clear sync flags and local caches so we load Drive data fresh for the new account
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('has-synced-drive');
+        localStorage.removeItem('has-synced-with-drive');
+        localStorage.removeItem('folders-cache');
+        localStorage.removeItem('notes-cache');
+        localStorage.removeItem('notes-new');
+        localStorage.removeItem('folders-new');
+      }
+      await signOut();
+      await signIn();
+    } catch (error) {
+      console.error('Failed to switch Drive account:', error);
+    }
+  };
+
+  const handleSignInToDrive = async () => {
+    try {
+      await signIn();
+    } catch (error) {
+      console.error('Failed to sign in to Google Drive:', error);
+    }
+  };
+
+  const handleSignOutFromDrive = async () => {
+    try {
+      await signOut();
+      setDriveUserInfo(null);
+    } catch (error) {
+      console.error('Failed to sign out from Google Drive:', error);
+    }
+  };
 
   const fontOptions = [
     { value: 'inherit', label: 'Default' },
@@ -308,6 +370,134 @@ export function SettingsPage({
           
           <TabsContent value="storage" className="space-y-6">
             <StorageSwitcher />
+            
+            {/* Google Drive Account Management */}
+            {currentProvider === 'google-drive' && (
+              <div className="space-y-4">
+                <h3 className={cn(
+                  "text-lg font-semibold",
+                  notesTheme === 'light' ? 'text-black' : 'text-white'
+                )}>
+                  Google Drive Account
+                </h3>
+                
+                <div className={cn(
+                  "p-4 rounded-lg border",
+                  notesTheme === 'light' ? 'bg-white border-gray-200' : 'bg-secondary border-gray-700'
+                )}>
+                  {isSignedIn ? (
+                    <div className="space-y-4">
+                      {/* Current Account Info */}
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                          {driveUserInfo?.picture ? (
+                            <img
+                              src={driveUserInfo.picture}
+                              alt="Profile"
+                              className="w-10 h-10 rounded-full"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          {isLoadingUserInfo ? (
+                            <div className="flex items-center space-x-2">
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              <span className={cn(
+                                "text-sm",
+                                notesTheme === 'light' ? 'text-gray-600' : 'text-gray-300'
+                              )}>
+                                Loading account info...
+                              </span>
+                            </div>
+                          ) : driveUserInfo ? (
+                            <div>
+                              <p className={cn(
+                                "font-medium",
+                                notesTheme === 'light' ? 'text-black' : 'text-white'
+                              )}>
+                                {driveUserInfo.name}
+                              </p>
+                              <p className={cn(
+                                "text-sm",
+                                notesTheme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                              )}>
+                                {driveUserInfo.email}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className={cn(
+                                "font-medium",
+                                notesTheme === 'light' ? 'text-black' : 'text-white'
+                              )}>
+                                Signed in to Google Drive
+                              </p>
+                              <p className={cn(
+                                "text-sm",
+                                notesTheme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                              )}>
+                                Account information unavailable
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Account Actions */}
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={handleSwitchDriveAccount}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center space-x-2"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Switch Account</span>
+                        </Button>
+                        <Button
+                          onClick={handleSignOutFromDrive}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Disconnect</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-4">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+                        <User className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <p className={cn(
+                          "font-medium mb-2",
+                          notesTheme === 'light' ? 'text-black' : 'text-white'
+                        )}>
+                          Not signed in to Google Drive
+                        </p>
+                        <p className={cn(
+                          "text-sm mb-4",
+                          notesTheme === 'light' ? 'text-gray-600' : 'text-gray-400'
+                        )}>
+                          Sign in to sync your notes with Google Drive
+                        </p>
+                        <Button
+                          onClick={handleSignInToDrive}
+                          className="flex items-center space-x-2"
+                        >
+                          <User className="w-4 h-4" />
+                          <span>Sign in to Google Drive</span>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="notifications" className="space-y-6">
