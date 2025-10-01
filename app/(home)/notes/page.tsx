@@ -22,6 +22,7 @@ import {
   useFontSettings,
   useThemeSettings,
   useDriveSync,
+  useUniversalSync,
   useNoteOperations,
   useFolderOperations,
   useDragAndDrop,
@@ -243,9 +244,12 @@ export default function NotesPage() {
     isInitialized,
     setIsInitialized,
     syncWithDrive,
+  } = useDriveSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
+
+  const {
     forceSync,
     clearCacheAndSync,
-  } = useDriveSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
+  } = useUniversalSync(notes, setNotes, folders, setFolders, setIsLoading, setSyncProgress);
 
   const { currentProvider } = useStorageSettings();
 
@@ -826,7 +830,6 @@ export default function NotesPage() {
           notes={notes}
           folders={folders}
           selectedNote={selectedNote}
-          isSignedIn={isSignedIn}
           isLoading={isLoading}
           syncProgress={syncProgress}
           sidebarWidth={sidebarWidth}
@@ -856,13 +859,6 @@ export default function NotesPage() {
           onToggleImagesSection={() => setIsImagesSectionExpanded(!isImagesSectionExpanded)}
           onForceSync={forceSync}
           onClearCacheAndSync={clearCacheAndSync}
-          onSignIn={() => {
-            const origin = encodeURIComponent(
-              typeof window !== "undefined" ? window.location.pathname : "/"
-            );
-            window.location.href = `/api/auth/google/drive?origin=${origin}`;
-          }}
-          onSignOut={signOut}
           onEncryptNote={handleEncryptNote}
           onDecryptNote={handleDecryptNote}
           onDuplicateNote={duplicateNote}

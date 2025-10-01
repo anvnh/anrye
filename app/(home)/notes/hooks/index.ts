@@ -2,6 +2,7 @@ export { useNotesState } from './core/useNotesState';
 export { useFontSettings } from './settings/useFontSettings';
 export { useThemeSettings } from './ui/useThemeSettings';
 export { useDriveSync } from './features/useDriveSync';
+export { useUniversalSync } from './features/useUniversalSync';
 export { useNoteOperations } from './core/useNoteOperations';
 export { useFolderOperations } from './core/useFolderOperations';
 export { useDragAndDrop } from './interactions/useMoveOperations';

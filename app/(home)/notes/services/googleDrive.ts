@@ -799,7 +799,7 @@ class GoogleDriveService {
       fields: 'files(id,name,mimeType,parents,createdTime,modifiedTime)',
       orderBy: 'name',
       pageSize: 1000 // Increase page size to reduce API calls
-    });
+    } as any);
 
     return response.result.files || [];
   }
@@ -1098,6 +1098,32 @@ class GoogleDriveService {
       }
     }
     return this.accessToken;
+  }
+
+  async getUserInfo(): Promise<{ name: string; email: string; picture: string; id: string } | null> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
+
+      const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
+      
+      if (!response.ok) {
+        return null;
+      }
+
+      const userData = await response.json();
+      return {
+        name: userData.name,
+        email: userData.email,
+        picture: userData.picture,
+        id: userData.id
+      };
+    } catch (error) {
+      console.error('Failed to get user info:', error);
+      return null;
+    }
   }
 }
 
