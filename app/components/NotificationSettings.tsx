@@ -290,7 +290,6 @@ export default function NotificationSettings() {
               <Button
                 onClick={() => {
                   // This would be implemented in the parent component
-                  console.log('Test notification clicked');
                 }}
                 variant="outline"
                 size="sm"

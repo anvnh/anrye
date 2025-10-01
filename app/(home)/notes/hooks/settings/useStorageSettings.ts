@@ -249,17 +249,6 @@ export const useStorageSettings = () => {
           }
         }
 
-        // Debug logging to help identify the issue
-        console.log('R2 Config loaded:', { 
-          bucket: r2Data?.bucket ? 'present' : 'missing',
-          accessKeyId: r2Data?.accessKeyId ? 'present' : 'missing',
-          secretAccessKey: r2Data?.secretAccessKey ? 'present' : 'missing',
-          region: r2Data?.region || 'auto'
-        });
-        console.log('Turso Config loaded:', {
-          url: tursoData?.url ? 'present' : 'missing',
-          token: tursoData?.token ? 'present' : 'missing'
-        });
 
         // Test R2 + Turso connection
         if (!r2Data?.bucket || !r2Data?.accessKeyId || !r2Data?.secretAccessKey) {

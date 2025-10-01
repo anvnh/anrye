@@ -36,16 +36,11 @@ class TursoService {
       const configData = await secureLocalStorage.getJSON<{ url: string; token: string }>('turso-config');
       
       if (!configData) {
-        console.log('Turso: No config found in secure storage');
         return;
       }
 
       if (configData && typeof configData === 'object' && configData.url && configData.token) {
         this.config = configData;
-        console.log('Turso: Loaded config from secure storage:', { 
-          url: this.config?.url ? 'present' : 'missing',
-          token: this.config?.token ? 'present' : 'missing'
-        });
       } else {
         console.warn('Turso: Invalid config format in secure storage');
         this.config = null;

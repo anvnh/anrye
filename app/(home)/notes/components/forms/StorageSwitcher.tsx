@@ -125,21 +125,16 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN (optional REGION, default auto)');
       }
 
-      console.log('Uploading R2 config:', { bucket: bucketName, region, accessKeyId: accessKeyId ? 'present' : 'missing', secretAccessKey: secretAccessKey ? 'present' : 'missing' });
       await updateR2Config({
         bucket: bucketName,
         region,
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
       });
-
-      console.log('Uploading Turso config:', { url: databaseUrl, token: authToken ? 'present' : 'missing' });
       await updateTursoConfig({
         url: databaseUrl,
         token: authToken,
       });
-
-      console.log('Configuration upload completed successfully');
 
       // Small delay to ensure configuration is fully persisted
       await new Promise(resolve => setTimeout(resolve, 100));
