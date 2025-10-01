@@ -65,7 +65,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
 
   const handleProviderSwitch = async (provider: StorageProvider) => {
     if (provider === currentProvider) return;
-    
+
     await switchProvider(provider);
   };
 
@@ -99,33 +99,33 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         const trimmedLine = line.trim();
         if (trimmedLine.startsWith('BUCKET_NAME=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          bucketName = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          bucketName = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('ACCESS_KEY_ID=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          accessKeyId = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          accessKeyId = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('SECRET_ACCESS_KEY=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          secretAccessKey = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          secretAccessKey = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('REGION=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          region = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          region = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '') || 'auto';
         } else if (trimmedLine.startsWith('DATABASE_URL=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          databaseUrl = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          databaseUrl = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('AUTH_TOKEN=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
-          authToken = value.startsWith('"') && value.endsWith('"') 
-            ? value.slice(1, -1) 
+          authToken = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         }
       }
@@ -229,11 +229,11 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           const isTesting = isProviderTesting(provider);
 
           return (
-            <Card 
-              key={provider} 
+            <Card
+              key={provider}
               className={cn(
                 "cursor-pointer transition-all duration-200 border-none",
-                isCurrent 
+                isCurrent
                   ? (notesTheme === 'light' ? 'bg-black text-white' : 'bg-gray-300 text-black')
                   : (notesTheme === 'light' ? 'bg-white text-black' : 'bg-secondary text-white'),
                 'hover:shadow-md'
@@ -253,7 +253,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                     <CardTitle className="text-base">{config.displayName}</CardTitle>
                     <CardDescription className={cn(
                       "text-sm",
-                      isCurrent 
+                      isCurrent
                         ? (notesTheme === 'light' ? 'text-gray-300' : 'text-gray-600')
                         : (notesTheme === 'light' ? 'text-gray-600' : 'text-gray-400')
                     )}>
@@ -262,7 +262,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="pt-0">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -277,7 +277,7 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                         variant="outline"
                         size="sm"
                         className={cn(
-                          isCurrent 
+                          isCurrent
                             ? (notesTheme === 'light' ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-gray-200 text-gray-800 border-gray-300 hover:bg-gray-300')
                             : (notesTheme === 'light' ? 'bg-gray-200 text-gray-800 border-gray-300 hover:bg-gray-300' : 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600')
                         )}
@@ -304,13 +304,13 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
 
       {showAdvanced && currentProvider === 'r2-turso' && (
         <div className="space-y-6">
-          <Separator 
+          <Separator
             className={cn(
               "bg-gray-200",
               notesTheme === 'light' ? 'bg-gray-200' : 'bg-gray-700'
             )}
           />
-          
+
           <div>
             <h4 className={cn(
               "text-md font-medium mb-4 flex items-center",
@@ -319,40 +319,8 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
               <Cloud className="h-4 w-4 mr-2" />
               Cloudflare R2 Configuration
             </h4>
-            
-            <div className="mb-6 p-4 border-2 border-dashed border-gray-700 rounded-lg">
-              <label htmlFor="config-file-upload" className="flex flex-col items-center justify-center w-full cursor-pointer">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                  <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> configuration file
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Upload a .txt file with BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN
-                  </p>
-                </div>
-                <input 
-                  id="config-file-upload" 
-                  type="file" 
-                  className="hidden" 
-                  accept=".txt"
-                  onChange={handleFileUpload}
-                  disabled={isUploadingFile}
-                />
-              </label>
-              {isUploadingFile && (
-                <div className="flex items-center justify-center mt-2">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-gray-600">Processing file...</span>
-                </div>
-              )}
-              {fileUploadError && (
-                <Alert variant="destructive" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{fileUploadError}</AlertDescription>
-                </Alert>
-              )}
-            </div>
+
+
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -453,10 +421,49 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
               "text-sm",
               notesTheme === 'light' ? 'text-white' : 'text-white'
             )}>
-              <strong>Security Note:</strong> Your credentials are now encrypted and stored locally in your browser. 
+              <strong>Security Note:</strong> Your credentials are now encrypted and stored locally in your browser.
               Keep your device secure and don't share credentials.
             </AlertDescription>
           </Alert>
+
+          <div className='mb-2 text-gray-500'>
+            <span className='font-semibold text-sm'>
+              You can also upload a configuration file to automatically fill the fields.
+            </span>
+          </div>
+          <div className="mb-6 p-4 border-2 border-dashed border-gray-700 rounded-lg">
+            <label htmlFor="config-file-upload" className="flex flex-col items-center justify-center w-full cursor-pointer">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <Upload className="w-8 h-8 mb-4 text-gray-500" />
+                <p className="mb-2 text-sm text-gray-500">
+                  <span className="font-semibold">Click to upload</span> configuration file
+                </p>
+                <p className="text-xs text-gray-500">
+                  Upload a .txt file with BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN
+                </p>
+              </div>
+              <input
+                id="config-file-upload"
+                type="file"
+                className="hidden"
+                accept=".txt"
+                onChange={handleFileUpload}
+                disabled={isUploadingFile}
+              />
+            </label>
+            {isUploadingFile && (
+              <div className="flex items-center justify-center mt-2">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-gray-600">Processing file...</span>
+              </div>
+            )}
+            {fileUploadError && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{fileUploadError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
         </div>
       )}
     </div>

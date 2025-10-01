@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import type { Note } from "../types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getNoteGraph } from "../../utils/core/noteGraph";
@@ -28,6 +28,28 @@ export default function GraphDialog({
 }) {
   const data = useMemo(() => getNoteGraph(notes, selectedNoteId), [notes, selectedNoteId]);
   const ref = useRef<any>(null);
+  const hasInitialZoom = useRef(false);
+
+  // Only zoom to fit once when the dialog opens and graph is ready
+  useEffect(() => {
+    if (isOpen && ref.current && !hasInitialZoom.current) {
+      const timer = setTimeout(() => {
+        if (ref.current?.zoomToFit) {
+          ref.current.zoomToFit(400, 50);
+          hasInitialZoom.current = true;
+        }
+      }, 1000); // Wait for the graph to stabilize
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // Reset zoom flag when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      hasInitialZoom.current = false;
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -46,7 +68,6 @@ export default function GraphDialog({
             linkSource="source"
             linkTarget="target"
             cooldownTicks={100}
-            onEngineStop={() => (ref.current as any)?.zoomToFit?.(400, 50)}
             linkWidth={2}
             linkColor="#64748b"
             nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
