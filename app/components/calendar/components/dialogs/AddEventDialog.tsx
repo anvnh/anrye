@@ -7,13 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useDisclosure, useThemeSettings } from "@/app/(home)/notes/hooks";
 import { useCalendar } from "../../contexts/CalendarContext";
 import { useReminderNotifications } from "@/app/lib/hooks/useReminderNotifications";
+import { useEventTimeLogic } from "../../hooks/useEventTimeLogic";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { TimeInput } from "@/components/ui/time-input";
-import { SingleDayPicker } from "@/components/ui/single-day-picker";
-import { Label } from "@/components/ui/label";
 import { Form, FormField, FormLabel, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -21,10 +19,10 @@ import { Dialog, DialogHeader, DialogClose, DialogContent, DialogTrigger, Dialog
 import { CustomRecurrenceEditor, rruleWeekly, summarizeRRule } from "../shared/CustomRecurrenceEditor";
 import { ColorPicker } from "../shared/ColorPicker";
 import { ReminderSelector } from "../shared/ReminderSelector";
+import { DateTimeInputs } from "../shared/DateTimeInputs";
 
 import { eventSchema } from "../../schemas";
 
-import type { TimeValue } from "react-aria-components";
 import type { TEventFormData } from "../../schemas";
 import { cn } from "@/lib/utils";
 import { createEvent as createGCalEvent, CalendarEvent as GCalEvent } from "@/app/lib/googleCalendar";
@@ -86,6 +84,15 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
         : { endDate: typeof startDate !== "undefined" ? startDate : undefined, endTime: undefined }),
     },
   });
+
+  // Use shared time logic hook
+  const {
+    endTimeModified,
+    setEndTimeModified,
+    handleStartDateChange,
+    handleStartTimeChange,
+    handleEndTimeChange,
+  } = useEventTimeLogic({ form });
 
   function mapColorNameToColorId(color: string | undefined): string | undefined {
     if (!color) return undefined;
@@ -169,6 +176,7 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
     }
   };
 
+
   useEffect(() => {
     if (typeof startDate !== "undefined" && typeof startTime !== "undefined") {
       const base = new Date(startDate);
@@ -183,6 +191,8 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
         endDate: new Date(end.getFullYear(), end.getMonth(), end.getDate()),
         endTime: { hour: end.getHours(), minute: end.getMinutes() },
       });
+      // Reset the modification flag when form is reset
+      setEndTimeModified(false);
     } else {
       form.reset({
         title: form.getValues("title"),
@@ -193,6 +203,7 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
         endDate: startDate,
         endTime: undefined,
       });
+      setEndTimeModified(false);
     }
   }, [startDate, startTime, form.reset]);
 
@@ -247,96 +258,13 @@ export function AddEventDialog({ children, startDate, startTime, open, onOpenCha
                 )}
               />
 
-              <div className="flex items-start gap-2">
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field, fieldState }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <SingleDayPicker
-                          id="startDate"
-                          value={field.value}
-                          className={cn(
-                            notesTheme === "light" ? "bg-white" : "bg-calendar-button"
-                          )}
-                          onSelect={date => {
-                            field.onChange(date as Date);
-                            const currentStartTime = form.getValues("startTime");
-                            if (currentStartTime) {
-                              const base = new Date(date as Date);
-                              base.setHours(currentStartTime.hour, currentStartTime.minute, 0, 0);
-                              const end = new Date(base.getTime() + 30 * 60 * 1000);
-                              form.setValue("endTime", { hour: end.getHours(), minute: end.getMinutes() }, { shouldValidate: true });
-                              form.setValue("endDate", new Date(end.getFullYear(), end.getMonth(), end.getDate()), { shouldValidate: true });
-                            } else {
-                              form.setValue("endDate", date as Date, { shouldValidate: true });
-                            }
-                          }}
-                          placeholder="Select a date"
-                          data-invalid={fieldState.invalid}
-                        />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="startTime"
-                  render={({ field, fieldState }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <TimeInput
-                          className="[&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none"
-                          value={field.value as TimeValue}
-                          onChange={value => {
-                            field.onChange(value);
-                            const time = value as unknown as { hour: number; minute: number } | undefined;
-                            if (time) {
-                              const currentStartDate = form.getValues("startDate");
-                              if (currentStartDate) {
-                                const base = new Date(currentStartDate);
-                                base.setHours(time.hour, time.minute, 0, 0);
-                                const end = new Date(base.getTime() + 30 * 60 * 1000);
-                                form.setValue("endTime", { hour: end.getHours(), minute: end.getMinutes() }, { shouldValidate: true });
-                                form.setValue("endDate", new Date(end.getFullYear(), end.getMonth(), end.getDate()), { shouldValidate: true });
-                              }
-                            }
-                          }}
-                          hourCycle={12}
-                          data-invalid={fieldState.invalid}
-                        />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endTime"
-                  render={({ field, fieldState }) => (
-                    <FormItem className="flex-1">
-                      <FormControl>
-                        <TimeInput
-                          className={cn(
-                            "border-gray-600",
-                            "[&_[data-focus-within]]:ring-0 [&_[data-focus-within]]:outline-none"
-                          )}
-                          value={field.value as TimeValue}
-                          onChange={field.onChange} hourCycle={12} data-invalid={fieldState.invalid}
-                        />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <DateTimeInputs
+                form={form}
+                notesTheme={notesTheme}
+                onStartDateChange={handleStartDateChange}
+                onStartTimeChange={handleStartTimeChange}
+                onEndTimeChange={handleEndTimeChange}
+              />
 
               <FormField
                 control={form.control}
