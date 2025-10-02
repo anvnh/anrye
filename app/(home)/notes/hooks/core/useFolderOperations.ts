@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
@@ -9,7 +9,7 @@ export const useFolderOperations = (
   notes: Note[],
   setNotes: (notes: Note[]) => void,
   folders: Folder[],
-  setFolders: (folders: Folder[]) => void,
+  setFolders: React.Dispatch<React.SetStateAction<Folder[]>>,
   selectedPath: string,
   setIsLoading: (loading: boolean) => void,
   setSyncProgress: (progress: number) => void
@@ -186,8 +186,8 @@ export const useFolderOperations = (
   }, [folders, isSignedIn, currentProvider, setIsLoading, setSyncProgress, setFolders]);
 
   const toggleFolder = useCallback((folderId: string) => {
-    setFolders(prevFolders => 
-      prevFolders.map(folder =>
+    setFolders((prevFolders: Folder[]) => 
+      prevFolders.map((folder: Folder) =>
         folder.id === folderId
           ? { ...folder, expanded: !folder.expanded }
           : folder

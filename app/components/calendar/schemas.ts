@@ -19,6 +19,13 @@ export const eventSchema = z.object({
     val => typeof val === "string" && ["blue", "green", "red", "yellow", "purple", "orange", "gray"].includes(val as string),
     "Color is required"
   ),
+  reminders: z.object({
+    useDefault: z.boolean(),
+    overrides: z.array(z.object({
+      method: z.enum(['email', 'popup']),
+      minutes: z.number().min(0).max(40320), // Max 4 weeks in minutes
+    })).optional(),
+  }).optional(),
 });
 
 export type TEventFormData = z.infer<typeof eventSchema>;

@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
 import { Note, Folder } from '../../components/types';
-import { notifySyncStatus } from '../../../../lib/notificationHelpers';
 
 // Lazy load the drive service
 const loadDriveService = async () => {
@@ -12,7 +11,7 @@ const loadDriveService = async () => {
   return null;
 };
 
-// Utility functions for optimization
+// Advanced utility functions for optimization
 const chunkArray = <T>(array: T[], size: number): T[][] => {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -21,12 +20,145 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   return chunks;
 };
 
-const BATCH_SIZE = 5; // Reduced batch size to prevent rate limiting
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache
-const MAX_CONCURRENT_REQUESTS = 3; // Limit concurrent API requests
-const REQUEST_DELAY = 100; // 100ms delay between batches
-const CACHE_VERSION = '1.0.0'; // Cache version for migration
-const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB max cache size
+// Priority queue implementation for important files
+class PriorityQueue<T> {
+  private items: Array<{item: T, priority: number}> = [];
+  
+  enqueue(item: T, priority: number): void {
+    const queueElement = { item, priority };
+    let added = false;
+    
+    for (let i = 0; i < this.items.length; i++) {
+      if (queueElement.priority > this.items[i].priority) {
+        this.items.splice(i, 0, queueElement);
+        added = true;
+        break;
+      }
+    }
+    
+    if (!added) {
+      this.items.push(queueElement);
+    }
+  }
+  
+  dequeue(): T | undefined {
+    return this.items.shift()?.item;
+  }
+  
+  isEmpty(): boolean {
+    return this.items.length === 0;
+  }
+  
+  size(): number {
+    return this.items.length;
+  }
+}
+
+// LRU Cache implementation for better memory management
+class LRUCache<K, V> {
+  private capacity: number;
+  private cache = new Map<K, V>();
+  
+  constructor(capacity: number) {
+    this.capacity = capacity;
+  }
+  
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+  
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.capacity) {
+      // Remove least recently used (first item)
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+  
+  has(key: K): boolean {
+    return this.cache.has(key);
+  }
+  
+  clear(): void {
+    this.cache.clear();
+  }
+  
+  size(): number {
+    return this.cache.size;
+  }
+  
+  keys(): IterableIterator<K> {
+    return this.cache.keys();
+  }
+  
+  entries(): IterableIterator<[K, V]> {
+    return this.cache.entries();
+  }
+  
+  delete(key: K): boolean {
+    return this.cache.delete(key);
+  }
+}
+
+// Advanced parallel processing with worker pool
+class WorkerPool {
+  private workers: Array<() => Promise<any>> = [];
+  private activeWorkers = 0;
+  private queue: Array<() => Promise<any>> = [];
+  
+  async execute<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const wrappedTask = async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeWorkers--;
+          this.processQueue();
+        }
+      };
+      
+      if (this.activeWorkers < MAX_CONCURRENT_REQUESTS) {
+        this.activeWorkers++;
+        wrappedTask();
+      } else {
+        this.queue.push(wrappedTask);
+      }
+    });
+  }
+  
+  private processQueue(): void {
+    if (this.queue.length > 0 && this.activeWorkers < MAX_CONCURRENT_REQUESTS) {
+      const task = this.queue.shift();
+      if (task) {
+        this.activeWorkers++;
+        task();
+      }
+    }
+  }
+}
+
+// Optimized settings for maximum speed
+const BATCH_SIZE = 50; // Increased batch size for faster processing
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache (longer for better performance)
+const MAX_CONCURRENT_REQUESTS = 15; // Increased concurrent requests
+const REQUEST_DELAY = 25; // Reduced delay between batches
+const CACHE_VERSION = '2.0.0'; // Cache version for migration
+const MAX_CACHE_SIZE = 200 * 1024 * 1024; // 200MB max cache size
+const PREFETCH_BATCH_SIZE = 100; // Large batch for prefetching
+const PRIORITY_QUEUE_SIZE = 20; // Priority queue for important files
+const PARALLEL_FOLDER_BATCHES = 5; // Process multiple folder batches in parallel
 
 // Type definitions for Drive files
 interface DriveFile {
@@ -53,9 +185,12 @@ export const useDriveSync = (
   const [notesLoadedCount, setNotesLoadedCount] = useState(0);
   const [totalNotesCount, setTotalNotesCount] = useState(0);
   
-  // Cache management
-  const cacheRef = useRef<Map<string, { data: any, timestamp: number }>>(new Map());
+  // Advanced cache management with LRU and priority queues
+  const cacheRef = useRef<LRUCache<string, { data: any, timestamp: number }>>(new LRUCache(1000));
   const loadingPromisesRef = useRef<Map<string, Promise<any>>>(new Map());
+  const priorityQueueRef = useRef<PriorityQueue<{fileId: string, priority: number}>>(new PriorityQueue());
+  const workerPoolRef = useRef<WorkerPool>(new WorkerPool());
+  const prefetchCacheRef = useRef<LRUCache<string, any>>(new LRUCache(500));
   
   // Initialize cache from localStorage on mount
   useEffect(() => {
@@ -69,15 +204,23 @@ export const useDriveSync = (
   const requestQueueRef = useRef<Array<() => Promise<any>>>([]);
   const activeRequestsRef = useRef<number>(0);
 
-  // Persistent cache management functions
+  // Optimized cache management with LRU and smart prefetching
   const getCachedData = (key: string) => {
-    // First check in-memory cache
+    // First check in-memory LRU cache
     const memoryCached = cacheRef.current.get(key);
     if (memoryCached && Date.now() - memoryCached.timestamp < CACHE_TTL) {
       return memoryCached.data;
     }
 
-    // Check persistent cache
+    // Check prefetch cache for recently accessed items
+    const prefetchCached = prefetchCacheRef.current.get(key);
+    if (prefetchCached && Date.now() - prefetchCached.timestamp < CACHE_TTL) {
+      // Move to main cache for faster future access
+      cacheRef.current.set(key, prefetchCached);
+      return prefetchCached.data;
+    }
+
+    // Check persistent cache with optimized parsing
     try {
       const persistentKey = `drive_cache_${key}`;
       const cached = localStorage.getItem(persistentKey);
@@ -92,8 +235,9 @@ export const useDriveSync = (
         
         // Check if cache is still valid
         if (Date.now() - parsedCache.timestamp < CACHE_TTL) {
-          // Load into memory cache for faster access
-          cacheRef.current.set(key, { data: parsedCache.data, timestamp: parsedCache.timestamp });
+          // Load into LRU cache for faster access
+          const cacheData = { data: parsedCache.data, timestamp: parsedCache.timestamp };
+          cacheRef.current.set(key, cacheData);
           return parsedCache.data;
         } else {
           // Remove expired cache
@@ -104,10 +248,6 @@ export const useDriveSync = (
       console.error('Failed to read from persistent cache:', error);
     }
 
-    // Remove expired memory cache entry
-    if (memoryCached) {
-      cacheRef.current.delete(key);
-    }
     return null;
   };
 
@@ -232,18 +372,57 @@ export const useDriveSync = (
     }
   };
 
-  // Prefetch folder contents for better UX
-  const prefetchFolder = async (folderId: string, driveService: any) => {
+  // Advanced prefetching with priority and parallel processing
+  const prefetchFolder = async (folderId: string, driveService: any, priority: number = 1) => {
     const cacheKey = `files_${folderId}`;
     if (getCachedData(cacheKey)) {
       return; // Already cached
     }
 
+    // Add to priority queue for intelligent loading
+    priorityQueueRef.current.enqueue({ fileId: folderId, priority }, priority);
+
     try {
-      const files = await queueRequest(() => driveService.listFiles(folderId));
+      const files = await workerPoolRef.current.execute(() => driveService.listFiles(folderId)) as DriveFile[];
       setCachedData(cacheKey, files);
+      
+      // Prefetch subfolders in parallel
+      const subfolders = files.filter((file: DriveFile) => 
+        file.mimeType === 'application/vnd.google-apps.folder' && file.name !== 'Images'
+      );
+      
+      // Process subfolders in parallel batches
+      const subfolderBatches = chunkArray(subfolders, PARALLEL_FOLDER_BATCHES);
+      subfolderBatches.forEach(batch => {
+        batch.forEach((folder: DriveFile) => {
+          prefetchFolder(folder.id, driveService, priority + 1);
+        });
+      });
     } catch (error) {
       console.error('Failed to prefetch folder:', error);
+    }
+  };
+
+  // Smart prefetching based on user behavior patterns
+  const smartPrefetch = async (folderId: string, driveService: any) => {
+    const cacheKey = `files_${folderId}`;
+    const cached = getCachedData(cacheKey);
+    
+    if (cached) {
+      // Prefetch subfolders that are likely to be accessed
+      const folders = cached.filter((file: DriveFile) => 
+        file.mimeType === 'application/vnd.google-apps.folder'
+      ) as DriveFile[];
+      
+      // Prioritize recently modified folders
+      const sortedFolders = folders.sort((a: DriveFile, b: DriveFile) => 
+        new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
+      );
+      
+      // Prefetch top 3 most recently modified folders
+      sortedFolders.slice(0, 3).forEach((folder: DriveFile) => {
+        prefetchFolder(folder.id, driveService, 2);
+      });
     }
   };
 
@@ -418,31 +597,40 @@ export const useDriveSync = (
       // Wait for folders to complete first
       await Promise.all(folderPromises);
 
-      // Only load notes if requested (progressive loading)
+      // Only load notes if requested (progressive loading with parallel processing)
       if (loadNotes) {
         setIsLoadingNotes(true);
         setTotalNotesCount(noteFiles.length);
         setNotesLoadedCount(0);
         
-        // Use bulk loading for better performance
-        const noteBatches = chunkArray<DriveFile>(noteFiles, BATCH_SIZE);
+        // Sort files by priority (recently modified first)
+        const sortedNoteFiles = noteFiles.sort((a: DriveFile, b: DriveFile) => 
+          new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
+        );
         
-        for (let i = 0; i < noteBatches.length; i++) {
-          const batch = noteBatches[i];
+        // Use larger batches for parallel processing
+        const noteBatches = chunkArray<DriveFile>(sortedNoteFiles, BATCH_SIZE);
+        
+        // Process multiple batches in parallel using worker pool
+        const batchPromises = noteBatches.map(async (batch, batchIndex) => {
+          // Stagger batch starts to avoid overwhelming the API
+          await new Promise(resolve => setTimeout(resolve, batchIndex * 50));
           
           // Check if already loading any files in this batch
           const alreadyLoading = batch.some(file => loadingPromisesRef.current.has(`loading_${file.id}`));
           if (alreadyLoading) {
-            continue;
+            return;
           }
 
-          const loadPromise = queueRequest(async () => {
+          const loadPromise = workerPoolRef.current.execute(async () => {
             try {
               // Get all file IDs for bulk loading
               const fileIds = batch.map(file => file.id);
               const contents = await driveService.getFilesBulk(fileIds);
               
               // Process each file in the batch
+              const processedNotes: Note[] = [];
+              
               batch.forEach((file: DriveFile) => {
                 const notePath = parentPath;
                 const noteTitle = file.name.endsWith('.md') ? file.name.replace('.md', '') : file.name;
@@ -473,52 +661,50 @@ The content will then be available for viewing and editing normally.`;
                   // Not JSON, treat as regular content
                 }
 
-                setNotes(prevNotes => {
-                  const existingNote = prevNotes.find(n => n.driveFileId === file.id);
-                  const existingByTitlePath = prevNotes.find(n => n.title === noteTitle && n.path === notePath);
+                const newNote: Note = {
+                  id: Date.now().toString() + Math.random(),
+                  title: noteTitle,
+                  content: noteContent,
+                  path: notePath,
+                  driveFileId: file.id,
+                  createdAt: file.createdTime,
+                  updatedAt: file.modifiedTime,
+                  isEncrypted,
+                  encryptedData
+                };
+                
+                processedNotes.push(newNote);
+              });
 
-                  if (!existingNote && !existingByTitlePath) {
-                    const newNote: Note = {
-                      id: Date.now().toString() + Math.random(),
-                      title: noteTitle,
-                      content: noteContent,
-                      path: notePath,
-                      driveFileId: file.id,
-                      createdAt: file.createdTime,
-                      updatedAt: file.modifiedTime,
-                      isEncrypted,
-                      encryptedData
-                    };
-                    return [...prevNotes, newNote];
-                  } else if (existingByTitlePath && !existingByTitlePath.driveFileId) {
-                    return prevNotes.map(n => 
-                      n === existingByTitlePath ? { ...n, driveFileId: file.id } : n
-                    );
-                  } else if (existingNote) {
-                    const needsUpdate = existingNote.content !== noteContent || 
-                                       existingNote.title !== noteTitle ||
-                                       existingNote.isEncrypted !== isEncrypted;
+              // Batch update state for better performance
+              setNotes(prevNotes => {
+                const existingNotes = new Map(prevNotes.map(n => [n.driveFileId || n.title + n.path, n]));
+                const newNotes = [...prevNotes];
+                
+                processedNotes.forEach(note => {
+                  const existingNote = existingNotes.get(note.driveFileId || note.title + note.path);
+                  if (!existingNote) {
+                    newNotes.push(note);
+                  } else {
+                    // Update existing note if needed
+                    const needsUpdate = existingNote.content !== note.content || 
+                                       existingNote.title !== note.title ||
+                                       existingNote.isEncrypted !== note.isEncrypted;
                     if (needsUpdate) {
-                      return prevNotes.map(n => 
-                        n.driveFileId === file.id 
-                          ? { 
-                              ...n, 
-                              title: noteTitle,
-                              content: noteContent,
-                              updatedAt: file.modifiedTime,
-                              isEncrypted,
-                              encryptedData
-                            } 
-                          : n
-                      );
+                      const index = newNotes.findIndex(n => n === existingNote);
+                      if (index !== -1) {
+                        newNotes[index] = { ...note, id: existingNote.id };
+                      }
                     }
                   }
-                  return prevNotes;
                 });
                 
-                // Update loading progress
-                setNotesLoadedCount(prev => prev + 1);
+                return newNotes;
               });
+              
+              // Update loading progress
+              setNotesLoadedCount(prev => prev + batch.length);
+              
             } catch (error) {
               console.error('Failed to load batch content:', error);
             }
@@ -535,12 +721,10 @@ The content will then be available for viewing and editing normally.`;
           batch.forEach(file => {
             loadingPromisesRef.current.delete(`loading_${file.id}`);
           });
-          
-          // Add delay between batches to prevent rate limiting
-          if (i < noteBatches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, REQUEST_DELAY));
-          }
-        }
+        });
+        
+        // Wait for all batches to complete
+        await Promise.all(batchPromises);
         
         setIsLoadingNotes(false);
       }
@@ -550,17 +734,19 @@ The content will then be available for viewing and editing normally.`;
     }
   };
 
+  // Ultra-fast sync with all optimizations
   const syncWithDrive = useCallback(async () => {
     try {
       setIsLoading(true);
-      setSyncProgress(10);
+      setSyncProgress(5);
       
       const driveModule = await loadDriveService();
       if (!driveModule) return;
       
+      setSyncProgress(10);
       const notesFolderId = await driveModule.driveService.findOrCreateNotesFolder();
 
-      setSyncProgress(30);
+      setSyncProgress(20);
       // Update root folder with Drive ID if not already set
       setFolders(prev => {
         const rootFolder = prev.find(f => f.id === 'root');
@@ -574,40 +760,30 @@ The content will then be available for viewing and editing normally.`;
         return prev;
       });
 
-      setSyncProgress(50);
+      setSyncProgress(30);
       // Only load from Drive if we haven't synced yet
       if (!hasSyncedWithDrive) {
-        // First load folders only (fast UI update)
-        await loadFromDrive(notesFolderId, '', driveModule.driveService, false);
-        setSyncProgress(70);
+        // Start smart prefetching immediately
+        smartPrefetch(notesFolderId, driveModule.driveService);
         
-        // Then load notes in background (progressive loading)
-        loadFromDrive(notesFolderId, '', driveModule.driveService, true)
-          .then(() => {
-            setSyncProgress(90);
-            setHasSyncedWithDrive(true);
-          })
-          .catch(error => {
-            console.error('Background note loading failed:', error);
-            setSyncProgress(90);
-            setHasSyncedWithDrive(true);
-          });
+        // Load folders first (fast UI update)
+        await loadFromDrive(notesFolderId, '', driveModule.driveService, false);
+        setSyncProgress(60);
+        
+        // Load notes with parallel processing (much faster)
+        await loadFromDrive(notesFolderId, '', driveModule.driveService, true);
+        setSyncProgress(90);
+        setHasSyncedWithDrive(true);
       } else {
         setSyncProgress(100);
       }
       setSyncProgress(100);
       
-      // Notify about successful sync
-      await notifySyncStatus('success', 'Google Drive sync completed successfully');
     } catch (error) {
       console.error('Failed to sync with Drive:', error);
       
-      // Notify about sync error
-      await notifySyncStatus('error', 'Google Drive sync failed');
-      
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
-        
         try {
           await forceReAuthenticate();
           // Retry sync once after re-authentication
@@ -670,8 +846,6 @@ The content will then be available for viewing and editing normally.`;
           }
         }
         keysToRemove.forEach(key => localStorage.removeItem(key));
-        
-        console.log('Cleared data cache (preserved authentication tokens)');
       }
       
       // Clear in-memory cache
@@ -828,7 +1002,6 @@ The content will then be available for viewing and editing normally.`;
       setSyncProgress(100);
       
       // Notify about successful cache clear and sync
-      await notifySyncStatus('success', 'Cache cleared and fresh sync completed');
       
       // console.log('Cache cleared and fresh sync completed successfully');
       
@@ -836,7 +1009,6 @@ The content will then be available for viewing and editing normally.`;
       console.error('Clear cache and sync failed:', error);
       
       // Notify about sync error
-      await notifySyncStatus('error', 'Cache clear and sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {
@@ -967,13 +1139,11 @@ The content will then be available for viewing and editing normally.`;
       setSyncProgress(100);
       
       // Notify about successful force sync
-      await notifySyncStatus('success', 'Force sync completed successfully');
       
     } catch (error) {
       console.error('Force sync failed:', error);
       
       // Notify about sync error
-      await notifySyncStatus('error', 'Force sync failed');
       
       // Check if it's a GAPI error that needs reset
       if (error instanceof Error && error.message.includes('gapi.client.drive is undefined')) {

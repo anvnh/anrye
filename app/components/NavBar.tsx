@@ -49,7 +49,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="text-2xl font-bold text-primary">
-              AnRye
+              AnRye Notes
             </Link>
           </div>
 
@@ -77,44 +77,6 @@ export default function Navbar() {
             >
               Notes
             </Link>
-
-            {/* Google Drive Status */}
-            <div className="flex items-center">
-              {isSignedIn ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-green-400 hover:text-green-300 hover:bg-gray-700 transition-colors"
-                      title="Google Drive connected"
-                    >
-                      <Cloud size={16} />
-                      <span>Drive</span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleSwitchDriveAccount}>
-                      Switch Drive account
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut}>
-                      Disconnect
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <button
-                  onClick={signIn}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-gray-400 hover:text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-50"
-                  title="Sign in to Google Drive"
-                >
-                  <CloudOff size={16} />
-                  <span className="text-sm">
-                    {isLoading ? 'Connecting...' : 'Drive'}
-                  </span>
-                </button>
-              )}
-            </div>
 
             {/* User Info and Logout */}
             {isAuthenticated && user && (

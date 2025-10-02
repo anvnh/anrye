@@ -20,6 +20,14 @@ export interface IEvent {
   recurrence?: string[];
   recurringEventId?: string;
   originalStartTime?: string;
+  // Reminders metadata (optional, present when sourced from Google Calendar API)
+  reminders?: {
+    useDefault: boolean;
+    overrides?: Array<{
+      method: 'email' | 'popup';
+      minutes: number;
+    }>;
+  };
 }
 
 export interface ICalendarCell {

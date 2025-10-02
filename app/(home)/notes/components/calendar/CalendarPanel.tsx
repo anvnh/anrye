@@ -9,6 +9,8 @@ import { useThemeSettings } from '../../hooks';
 import type { TCalendarView } from '../../../../components/calendar/types';
 import { startOfWeek, endOfWeek } from 'date-fns';
 import { notifyCalendarEvent } from '../../../../lib/notificationHelpers';
+import { useReminderNotifications } from '@/app/lib/hooks/useReminderNotifications';
+import { NotificationPermissionBanner } from '../../../../components/calendar/components/shared/NotificationPermissionBanner';
 
 interface CalendarPanelProps {
   onPrev?: () => void;
@@ -27,6 +29,7 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
 }) => {
   const { notesTheme } = useThemeSettings();
   const { isAuthenticated } = useCalendarAuth();
+  const { scheduleEventReminders, cancelEventReminders, updateEventReminders } = useReminderNotifications();
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [view, setView] = React.useState<TCalendarView>('week');
@@ -202,6 +205,8 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
       recurrence: event.recurrence,
       recurringEventId: event.recurringEventId,
       originalStartTime: event.originalStartTime,
+      // Reminders field
+      reminders: event.reminders,
     }));
   };
 
@@ -250,6 +255,14 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
         // Get events for the calculated range (always fresh for week view)
         const data = await getEventsForRange(startDate, endDate, view === 'week');
         setEvents(data);
+        
+        // Schedule reminders for all events with custom reminders
+        const convertedEvents = convertEvents(data);
+        convertedEvents.forEach(event => {
+          if (event.reminders && !event.reminders.useDefault) {
+            scheduleEventReminders(event);
+          }
+        });
         
         // Notify about upcoming events (only for today's events)
         const today = new Date();
@@ -322,6 +335,9 @@ const CalendarPanelContent: React.FC<CalendarPanelProps> = ({
 
   return (
     <CalendarProvider events={convertedEvents}>
+        {/* Notification Permission Banner */}
+        <NotificationPermissionBanner notesTheme={notesTheme} />
+        
         {/* Calendar Container */}
         <ClientContainer view={view} onViewChange={handleViewChange} loading={loading} onDateChange={handleDateChange} onClose={onClose} />
     </CalendarProvider>

@@ -8,8 +8,6 @@ export async function POST(request: NextRequest) {
     // 2. Handle offline data synchronization
     // 3. Update local storage/cache
 
-    console.log('Background sync requested');
-
     // Simulate sync process
     await new Promise(resolve => setTimeout(resolve, 1000));
 
