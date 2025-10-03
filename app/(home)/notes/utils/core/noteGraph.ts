@@ -12,25 +12,32 @@ export type GraphLink = {
   target: string;
 };
 
-const extractWikilinks = (content: string): string[] => {
+const extractWikilinks = (content: string): { title: string; id?: string }[] => {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g;
-  const uniqueTitles = new Set<string>();
+  const unique = new Map<string, { title: string; id?: string }>();
   let match: RegExpExecArray | null;
 
   while ((match = wikilinkRegex.exec(content)) !== null) {
-    const linkText = match[1].trim();
-    if (linkText) {
-      uniqueTitles.add(linkText.toLowerCase());
+    const inner = (match[1] || '').trim();
+    if (!inner) continue;
+    const idMatch = inner.match(/#id:([A-Za-z0-9_-]+)/i);
+    const titleOnly = inner.replace(/#id:[A-Za-z0-9_-]+/i, '').trim();
+    const key = (titleOnly + '|' + (idMatch?.[1] || '')).toLowerCase();
+    if (!unique.has(key)) {
+      unique.set(key, { title: titleOnly, id: idMatch?.[1] });
     }
   }
 
-  return Array.from(uniqueTitles);
+  return Array.from(unique.values());
 };
 
 export function getNoteGraph(notes: Note[], selectedId?: string): { nodes: GraphNode[]; links: GraphLink[] } {
-  const titleToId = new Map<string, string>();
+  const titleToIds = new Map<string, string[]>();
   for (const note of notes) {
-    titleToId.set((note.title || "").toLowerCase(), note.id);
+    const key = (note.title || "").toLowerCase();
+    const arr = titleToIds.get(key) || [];
+    arr.push(note.id);
+    titleToIds.set(key, arr);
   }
 
   const nodes: GraphNode[] = notes.map(note => ({
@@ -43,11 +50,21 @@ export function getNoteGraph(notes: Note[], selectedId?: string): { nodes: Graph
   const links: GraphLink[] = [];
   for (const note of notes) {
     const outgoing = extractWikilinks(note.content || "");
-    for (const linkTitle of outgoing) {
-      const targetId = titleToId.get(linkTitle);
-      if (targetId && targetId !== note.id) {
-        links.push({ source: note.id, target: targetId });
+    for (const entry of outgoing) {
+      if (entry.id) {
+        if (entry.id !== note.id && notes.some(n => n.id === entry.id)) {
+          links.push({ source: note.id, target: entry.id });
+        }
+        continue;
       }
+      const candidates = titleToIds.get((entry.title || '').toLowerCase()) || [];
+      if (candidates.length === 1) {
+        const targetId = candidates[0];
+        if (targetId && targetId !== note.id) {
+          links.push({ source: note.id, target: targetId });
+        }
+      }
+      // If ambiguous (>=2), skip until ID is specified to avoid random linking
     }
   }
 

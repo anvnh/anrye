@@ -41,6 +41,8 @@ export const useStorageSettings = () => {
     region: 'auto',
     accessKeyId: '',
     secretAccessKey: '',
+    accountId: '',
+    publicUrl: '',
   }));
 
   const [tursoConfig, setTursoConfig] = useState(() => ({
@@ -62,7 +64,7 @@ export const useStorageSettings = () => {
         secureLocalStorage.getJSON<typeof tursoConfig>(TURSO_CONFIG_KEY),
       ]);
 
-      setR2Config(r2 || { bucket: '', region: 'auto', accessKeyId: '', secretAccessKey: '' });
+      setR2Config(r2 || { bucket: '', region: 'auto', accessKeyId: '', secretAccessKey: '', accountId: '', publicUrl: '' });
       setTursoConfig(turso || { url: '', token: '' });
       setIsConfigLoaded(true);
       setIsInitialLoad(false);
@@ -81,7 +83,8 @@ export const useStorageSettings = () => {
     'r2-turso': {
       provider: 'r2-turso',
       isConfigured: isConfigLoaded && Boolean(
-        r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey &&
+        r2Config.bucket && r2Config.accessKeyId && r2Config.secretAccessKey && 
+        r2Config.accountId && r2Config.publicUrl &&
         tursoConfig.url && tursoConfig.token
       ),
       displayName: 'Cloudflare R2 + Turso',
@@ -266,10 +269,14 @@ export const useStorageSettings = () => {
           throw new Error(`Turso configuration incomplete. Missing: ${missingFields.join(', ')}`);
         }
 
-        // Test Turso connection
-        await tursoService.connect();
+        // Test R2 and Turso connections with step-by-step feedback
+        setSuccessAlert({
+          show: true,
+          message: 'Testing R2 connection...'
+        });
 
-        const testResponse = await fetch('/api/storage/r2/test', {
+        // Test R2 connection first
+        const r2TestResponse = await fetch('/api/storage/r2/test', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -279,13 +286,49 @@ export const useStorageSettings = () => {
             region: r2Data.region || 'auto',
             accessKeyId: r2Data.accessKeyId,
             secretAccessKey: r2Data.secretAccessKey,
+            accountId: r2Data.accountId,
           }),
         });
 
-        if (!testResponse.ok) {
-          const errorData = await testResponse.json();
-          throw new Error(errorData.error || 'R2 connection failed');
+        // Check R2 connection result
+        if (!r2TestResponse.ok) {
+          const r2ErrorData = await r2TestResponse.json();
+          throw new Error(`R2 connection failed: ${r2ErrorData.error || 'Please check your R2 configuration'}`);
         }
+
+        setSuccessAlert({
+          show: true,
+          message: 'R2 connected successfully! Testing Turso connection...'
+        });
+
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Test Turso connection second
+        const tursoTestResponse = await fetch('/api/storage/turso/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: tursoData.url,
+            token: tursoData.token,
+          }),
+        });
+
+        // Check Turso connection result
+        if (!tursoTestResponse.ok) {
+          const tursoErrorData = await tursoTestResponse.json();
+          throw new Error(`Turso connection failed: ${tursoErrorData.error || 'Please check your Turso configuration'}`);
+        }
+
+        setSuccessAlert({
+          show: true,
+          message: 'Turso connected successfully! Finalizing setup...'
+        });
+
+        // Small delay before final message
+        await new Promise(resolve => setTimeout(resolve, 600));
       }
 
       // If we reach here, the test was successful
@@ -297,7 +340,9 @@ export const useStorageSettings = () => {
 
       setSuccessAlert({
         show: true,
-        message: `Connection test successful for ${provider === 'google-drive' ? 'Google Drive' : 'R2 + Turso'}`
+        message: provider === 'google-drive' 
+          ? 'Connection test successful for Google Drive'
+          : 'All connections successful!'
       });
       
       setTimeout(() => {

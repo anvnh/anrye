@@ -12,6 +12,8 @@ interface WikilinkAutocompleteProps {
   onSelect: (note: Note) => void;
   onClose: () => void;
   query: string;
+  positionMode?: 'fixed' | 'absolute';
+  onHoverIndexChange?: (index: number) => void;
 }
 
 const WikilinkAutocomplete: React.FC<WikilinkAutocompleteProps> = ({
@@ -21,9 +23,24 @@ const WikilinkAutocomplete: React.FC<WikilinkAutocompleteProps> = ({
   position,
   onSelect,
   onClose,
-  query
+  query,
+  positionMode = 'fixed',
+  onHoverIndexChange,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep the active item visible while navigating
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = containerRef.current?.querySelector(
+      `[data-suggestion-index="${selectedIndex}"]`
+    ) as HTMLElement | null;
+    if (el) {
+      try {
+        el.scrollIntoView({ block: 'nearest' });
+      } catch {}
+    }
+  }, [isOpen, selectedIndex, suggestions.length]);
 
   // Close on escape key
   useEffect(() => {
@@ -84,11 +101,10 @@ const WikilinkAutocomplete: React.FC<WikilinkAutocompleteProps> = ({
     <div
       ref={containerRef}
       data-wikilink-autocomplete
-      className="fixed z-50 bg-secondary border border-gray-600/50 rounded-lg shadow-2xl max-w-sm w-72 max-h-64 overflow-y-auto backdrop-blur-md"
+      className={`${positionMode === 'fixed' ? 'fixed' : 'absolute'} z-50 bg-secondary border border-gray-600/50 rounded-lg shadow-2xl max-w-sm w-72 max-h-64 overflow-y-auto backdrop-blur-md pointer-events-auto`}
       style={{
         top: position.top,
         left: position.left,
-        backgroundColor: '#31363F',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)'
       }}
       onMouseDown={(e) => {
@@ -104,18 +120,15 @@ const WikilinkAutocomplete: React.FC<WikilinkAutocompleteProps> = ({
         {suggestions.map((note, index) => (
           <div
             key={note.id}
+            data-suggestion-index={index}
             className={`flex items-start gap-3 p-3 mx-1 rounded-lg cursor-pointer transition-all duration-200 border ${
               index === selectedIndex
-                ? 'bg-blue-600/15 border-blue-400/40 shadow-lg'
+                ? 'bg-blue-600/5 border-blue-400/40 shadow-lg'
                 : 'hover:bg-gray-700/30 border-transparent hover:border-gray-600/30'
             }`}
             onClick={() => onSelect(note)}
             onMouseEnter={() => {
-              // Update selected index on hover
-              if (index !== selectedIndex) {
-                // This would need to be passed as a prop to update the state
-                // For now, just visual feedback
-              }
+              if (index !== selectedIndex) onHoverIndexChange?.(index);
             }}
           >
             <FileText 
@@ -131,32 +144,21 @@ const WikilinkAutocomplete: React.FC<WikilinkAutocompleteProps> = ({
               style={{ color: index === selectedIndex ? '#bfdbfe' : '#EEEEEE' }}>
                 {highlightMatch(note.title, query)}
               </div>
-              {note.path && (
-                <div className="text-xs text-gray-500 mt-1 truncate opacity-75">
-                  {note.path}
+              <div className="flex items-center gap-2 mt-1">
+                {note.path && (
+                  <div className="text-xs text-gray-500 truncate opacity-75">
+                    {note.path}
+                  </div>
+                )}
+                <div className="text-xs text-gray-600 font-mono opacity-60">
+                  {note.id}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         ))}
       </div>
       
-      <div className="border-t border-gray-600/30 p-3 bg-main/50" style={{ backgroundColor: '#222831aa' }}>
-        <div className="text-xs text-gray-400 flex items-center justify-between">
-          <span className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-gray-700/50 rounded text-gray-300 font-mono text-xs">↑↓</span>
-            navigate
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-gray-700/50 rounded text-gray-300 font-mono text-xs">Enter</span>
-            select
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-gray-700/50 rounded text-gray-300 font-mono text-xs">Esc</span>
-            close
-          </span>
-        </div>
-      </div>
     </div>
   );
 };

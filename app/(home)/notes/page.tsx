@@ -437,8 +437,8 @@ export default function NotesPage() {
           const parsedNotes = JSON.parse(localNotes);
           const parsedFolders = JSON.parse(localFolders);
 
-          // Filter out root folder and migrate folders
-          const foldersToMigrate = parsedFolders.filter((f: any) => f.id !== 'root');
+          // Filter out root and any Google Drive-sourced folders (those with driveFolderId)
+          const foldersToMigrate = parsedFolders.filter((f: any) => f.id !== 'root' && !f.driveFolderId);
           for (const folder of foldersToMigrate) {
             await tursoService.saveFolder({
               id: folder.id,
@@ -448,8 +448,9 @@ export default function NotesPage() {
           }
 
           setSyncProgress(70);
-          // Migrate notes
-          for (const note of parsedNotes) {
+          // Migrate only local notes (skip Google Drive-sourced notes with driveFileId)
+          const notesToMigrate = parsedNotes.filter((n: any) => !n.driveFileId);
+          for (const note of notesToMigrate) {
             await tursoService.saveNote({
               id: note.id,
               title: note.title,

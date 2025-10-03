@@ -809,12 +809,12 @@ export default function NoteSidebar({
                     <DropdownMenuContent align="end" className='bg-main border-gray-700 text-white'>
                       {onForceSync && (
                         <DropdownMenuItem onClick={onForceSync}>
-                          Sync now
+                          {currentProvider === 'google-drive' ? 'Sync with Google Drive' : 'Sync with Turso + R2'}
                         </DropdownMenuItem>
                       )}
                       {onClearCacheAndSync && (
                         <DropdownMenuItem onClick={onClearCacheAndSync}>
-                          Clear cache and sync
+                          {currentProvider === 'google-drive' ? 'Clear cache and sync (Drive)' : 'Clear cache and sync (Turso + R2)'}
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>

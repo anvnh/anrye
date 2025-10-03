@@ -11,6 +11,7 @@ interface OptimizedImageProps {
   onLoad?: () => void;
   onError?: () => void;
   priority?: number;
+  crossOrigin?: "anonymous" | "use-credentials" | "";
   onUrlLoaded?: (url: string) => void;
 }
 
@@ -25,6 +26,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   onLoad,
   onError,
   priority = 0,
+  crossOrigin,
   onUrlLoaded
 }) => {
   // Extract file ID for Google Drive images
@@ -163,6 +165,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
       className={`optimized-image ${isLoaded ? 'loaded' : 'loading'} ${className}`}
       width={width}
       height={height}
+      crossOrigin={crossOrigin}
       onLoad={handleImageLoad}
       onError={handleImageError}
       onClick={onClick}
@@ -177,6 +180,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
     prevProps.width === nextProps.width &&
     prevProps.height === nextProps.height &&
     prevProps.priority === nextProps.priority &&
+    prevProps.crossOrigin === nextProps.crossOrigin &&
     prevProps.onClick === nextProps.onClick &&
     prevProps.onLoad === nextProps.onLoad &&
     prevProps.onError === nextProps.onError &&

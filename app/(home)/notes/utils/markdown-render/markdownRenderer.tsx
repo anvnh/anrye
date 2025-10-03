@@ -145,21 +145,72 @@ const remarkCallouts = () => {
 
 
 // Function to preprocess content and convert wikilinks to markdown with data attributes
+// Supports optional ID annotation in wikilinks: [[Title#id:<noteId>]]
+// When multiple notes share a title, marks the link as ambiguous and includes candidates
 const preprocessWikilinks = (content: string, notes: Note[] = []): string => {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g;
 
-  return content.replace(wikilinkRegex, (match, linkText) => {
-    // Find the corresponding note
-    const targetNote = notes.find(note =>
-      note.title.toLowerCase() === linkText.toLowerCase()
-    );
+  return content.replace(
+    wikilinkRegex,
+    (match: string, linkInner: string, offset: number) => {
+      let titleText = (linkInner || '').trim();
+      let explicitId: string | null = null;
 
-    const exists = targetNote ? 'true' : 'false';
-    const noteId = targetNote?.id || '';
+      // Extract optional explicit ID annotation
+      const idMatch = titleText.match(/#id:([A-Za-z0-9_-]+)/i);
+      if (idMatch) {
+        explicitId = idMatch[1];
+        titleText = titleText.replace(/#id:[A-Za-z0-9_-]+/i, '').trim();
+      }
 
-    // Use a special markdown link format that we can detect and transform
-    return `[${linkText}](wikilink:${noteId}:${exists})`;
-  });
+      // Find candidate notes by title (case-insensitive)
+      const lowerTitle = titleText.toLowerCase();
+      const candidates = notes.filter(n => (n.title || '').toLowerCase() === lowerTitle);
+
+      let noteId = '';
+      let exists = 'false';
+      let ambiguous = 'false';
+
+      if (explicitId) {
+        const byId = notes.find(n => n.id === explicitId);
+        if (byId) {
+          noteId = byId.id;
+          exists = 'true';
+        } else if (candidates.length === 1) {
+          // Fallback to unique title if provided ID is not found
+          noteId = candidates[0].id;
+          exists = 'true';
+        } else if (candidates.length > 1) {
+          exists = 'true';
+          ambiguous = 'true';
+        }
+      } else {
+        if (candidates.length === 1) {
+          noteId = candidates[0].id;
+          exists = 'true';
+        } else if (candidates.length > 1) {
+          exists = 'true';
+          ambiguous = 'true';
+        }
+      }
+
+      // Build query params to carry metadata for UI resolution and precise rewrite
+      const qs = new URLSearchParams();
+      qs.set('title', titleText);
+      if (explicitId) qs.set('explicitId', explicitId);
+      if (ambiguous === 'true' && candidates.length > 0) {
+        qs.set('ambiguous', '1');
+        qs.set('candidates', candidates.map(c => c.id).join(','));
+      }
+      // Position info relative to current content string
+      qs.set('pos', String(offset));
+      qs.set('len', String(match.length));
+
+      // Use a special markdown link format that we can detect and transform
+      // Format: wikilink:<id>:<exists>?<query>
+      return `[${titleText}](wikilink:${noteId}:${exists}?${qs.toString()})`;
+    }
+  );
 };
 
 // Callout component that matches Obsidian's styling
@@ -679,25 +730,75 @@ export const MemoizedMarkdown = memo<MarkdownRendererProps>(({
           a: ({ children, href, ...props }) => {
             // Check if this is a wikilink
             if (href && href.startsWith('wikilink:')) {
-              const [, noteId, exists] = href.split(':');
-              const isExisting = exists === 'true';
-              const noteTitle = Array.isArray(children) ? children.join('') : String(children || '');
+              const hrefStr = String(href);
+              const afterPrefix = hrefStr.slice('wikilink:'.length);
+              const qIdx = afterPrefix.indexOf('?');
+              const core = qIdx >= 0 ? afterPrefix.slice(0, qIdx) : afterPrefix;
+              const queryStr = qIdx >= 0 ? afterPrefix.slice(qIdx + 1) : '';
+              const [noteIdRaw, existsRaw] = core.split(':');
+              const isExistingEncoded = existsRaw === 'true' && !!noteIdRaw;
+              const params = new URLSearchParams(queryStr);
+              const paramTitle = params.get('title') || '';
+              const explicitIdParam = params.get('explicitId') || '';
+              const posInBlock = Number(params.get('pos') || '0');
+              const matchLen = Number(params.get('len') || '0');
+              const noteTitle = paramTitle || (Array.isArray(children) ? children.join('') : String(children || ''));
+
+              // 1) encoded id; 2) explicitId param; 3) unique title at runtime
+              let resolvedId = noteIdRaw || explicitIdParam;
+              if (!resolvedId && notes && noteTitle) {
+                const matches = (notes || []).filter(n => (n.title || '').toLowerCase() === (noteTitle || '').toLowerCase());
+                if (matches.length === 1) resolvedId = matches[0].id;
+              }
+
+              const getAbsoluteIndexFromLine = (text: string, line: number): number => {
+                if (!Number.isFinite(line) || line <= 0) return 0;
+                let idx = 0;
+                let ln = 0;
+                while (ln < line && idx < text.length) {
+                  const nl = text.indexOf('\n', idx);
+                  if (nl === -1) return text.length;
+                  idx = nl + 1;
+                  ln++;
+                }
+                return idx;
+              };
+
+              const handleResolve = (chosenId: string) => {
+                try {
+                  if (!setEditContent || !currentContent) return;
+                  const absBase = getAbsoluteIndexFromLine(currentContent, lineOffset || 0);
+                  const absPos = absBase + (Number.isFinite(posInBlock) ? posInBlock : 0);
+                  const before = currentContent.slice(0, absPos);
+                  const after = currentContent.slice(absPos + (Number.isFinite(matchLen) ? matchLen : 0));
+                  const replacement = `[[${noteTitle}#id:${chosenId}]]`;
+                  const newContent = before + replacement + after;
+                  setEditContent(newContent);
+                  if (onNavigateToNote) onNavigateToNote(chosenId);
+                } catch { /* noop */ }
+              };
+
+              const gotoOrOpen = (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (resolvedId && onNavigateToNote) onNavigateToNote(resolvedId);
+              };
+
+              const isExisting = !!resolvedId || isExistingEncoded;
+              const styleClass = isExisting
+                ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30'
+                : 'text-gray-500 hover:text-gray-400 hover:bg-gray-500/10 border border-gray-500/30 border-dashed';
 
               return (
-                <span
-                  className={`wikilink cursor-pointer px-1 py-0.5 rounded ${isExisting
-                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 border border-blue-400/30'
-                    : 'text-gray-500 hover:text-gray-400 hover:bg-gray-500/10 border border-gray-500/30 border-dashed'
-                    } transition-all duration-200`}
-                  title={isExisting ? `Go to "${noteTitle}"` : `Note "${noteTitle}" doesn't exist`}
-                  onClick={() => {
-                    if (isExisting && noteId && onNavigateToNote) {
-                      onNavigateToNote(noteId);
-                    }
-                  }}
-                  {...props}
-                >
-                  {children}
+                <span className="relative inline-block">
+                  <span
+                    className={`wikilink cursor-pointer px-1 py-0.5 rounded ${styleClass} transition-all duration-200`}
+                    title={isExisting ? `Go to "${noteTitle}"` : `Note "${noteTitle}" doesn't exist`}
+                    onClick={gotoOrOpen}
+                    {...props}
+                  >
+                    {children}
+                  </span>
                 </span>
               );
             }

@@ -14,73 +14,71 @@ export interface BacklinkInfo {
  */
 export const findBacklinks = (targetNote: Note, allNotes: Note[]): BacklinkInfo[] => {
   const backlinks: BacklinkInfo[] = [];
-  const targetTitle = targetNote.title;
-  
-  const escapedTitle = escapeRegExp(targetTitle);
-  const wikilinkPattern = new RegExp(`\\[\\[${escapedTitle}\\]\\]`, 'gi');
-  
-  allNotes.forEach(note => {
+  const targetId = targetNote.id;
+  const targetTitleLower = (targetNote.title || '').toLowerCase();
+
+  allNotes.forEach((note) => {
     if (note.id === targetNote.id) return; // Skip self-references
-    
+
     const occurrences: Array<{ line: number; context: string; position: number }> = [];
-    const lines = note.content.split('\n');
-    
+    const lines = (note.content || '').split('\n');
+
     lines.forEach((line, lineIndex) => {
-      wikilinkPattern.lastIndex = 0; // Reset regex state
+      const linkRegex = /\[\[([^\]]+)\]\]/g;
       let match: RegExpExecArray | null;
-      while ((match = wikilinkPattern.exec(line)) !== null) {
+      while ((match = linkRegex.exec(line)) !== null) {
+        const inner = (match[1] || '').trim();
+        if (!inner) continue;
+
+        const idMatch = inner.match(/#id:([A-Za-z0-9_-]+)/i);
+        const titleOnly = inner.replace(/#id:[A-Za-z0-9_-]+/i, '').trim();
+
+        const isTarget = idMatch
+          ? idMatch[1] === targetId
+          : titleOnly.toLowerCase() === targetTitleLower;
+
+        if (!isTarget) continue;
+
         // Extract context around the match (up to 100 characters before and after)
         const start = Math.max(0, match.index - 50);
         const end = Math.min(line.length, match.index + match[0].length + 50);
         const context = line.slice(start, end);
-        
-        // Check if this exact occurrence already exists (avoid duplicates)
-        const isDuplicate = occurrences.some(existing => 
-          existing.line === lineIndex + 1 && 
-          existing.position === match!.index
+
+        const isDuplicate = occurrences.some(
+          (existing) => existing.line === lineIndex + 1 && existing.position === match!.index
         );
-        
         if (!isDuplicate) {
-          occurrences.push({
-            line: lineIndex + 1,
-            context: context.trim(),
-            position: match.index
-          });
-        }
-        
-        // Prevent infinite loop with global regex
-        if (wikilinkPattern.lastIndex === match.index) {
-          wikilinkPattern.lastIndex++;
+          occurrences.push({ line: lineIndex + 1, context: context.trim(), position: match.index });
         }
       }
     });
-    
+
     if (occurrences.length > 0) {
-      backlinks.push({
-        note,
-        occurrences
-      });
+      backlinks.push({ note, occurrences });
     }
   });
-  
+
   return backlinks;
 };
 
 /**
  * Extract all wikilinks from a note's content
  */
+// Extract wikilinks, supporting optional #id: suffix. Returns array of { title, id? } encoded as "title#id:<id>" when id present.
 export const extractWikilinks = (content: string): string[] => {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g;
   const links: string[] = [];
-  let match;
-  
+  let match: RegExpExecArray | null;
+
   while ((match = wikilinkRegex.exec(content)) !== null) {
-    const linkText = match[1].trim();
-    if (linkText && !links.includes(linkText)) {
-      links.push(linkText);
-    }
+    const inner = (match[1] || '').trim();
+    if (!inner) continue;
+    const idMatch = inner.match(/#id:([A-Za-z0-9_-]+)/i);
+    const titleOnly = inner.replace(/#id:[A-Za-z0-9_-]+/i, '').trim();
+    const encoded = idMatch ? `${titleOnly}#id:${idMatch[1]}` : titleOnly;
+    if (!links.includes(encoded)) links.push(encoded);
   }
-  
+
   return links;
 };
 
@@ -90,16 +88,25 @@ export const extractWikilinks = (content: string): string[] => {
 export const findOutgoingLinks = (sourceNote: Note, allNotes: Note[]): Note[] => {
   const wikilinks = extractWikilinks(sourceNote.content);
   const linkedNotes: Note[] = [];
-  
-  wikilinks.forEach(linkText => {
-    const targetNote = allNotes.find(note => 
-      note.title.toLowerCase() === linkText.toLowerCase()
-    );
-    if (targetNote) {
-      linkedNotes.push(targetNote);
+
+  wikilinks.forEach(link => {
+    const idSuffix = link.match(/#id:([A-Za-z0-9_-]+)/i);
+    const titleOnly = link.replace(/#id:[A-Za-z0-9_-]+/i, '').trim();
+    let target: Note | undefined;
+
+    if (idSuffix) {
+      target = allNotes.find(n => n.id === idSuffix[1]);
+    } else {
+      const sameTitle = allNotes.filter(n => (n.title || '').toLowerCase() === titleOnly.toLowerCase());
+      if (sameTitle.length === 1) target = sameTitle[0];
+      // If ambiguous by title, do not assume; leave unresolved until ID is added
+    }
+
+    if (target && !linkedNotes.some(n => n.id === target!.id)) {
+      linkedNotes.push(target);
     }
   });
-  
+
   return linkedNotes;
 };
 

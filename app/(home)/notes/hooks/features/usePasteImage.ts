@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useDrive } from '../../../../lib/driveContext';
 import { driveService } from '../../services/googleDrive';
+import { r2Service } from '../../services/r2Service';
+import { useStorageSettings } from '../settings/useStorageSettings';
 import { Note } from '../../components/types';
 
 interface UsePasteImageProps {
@@ -23,38 +25,50 @@ export const usePasteImage = ({
   getTargetTextarea
 }: UsePasteImageProps) => {
   const { isSignedIn } = useDrive();
+  const { currentProvider, storageStatus } = useStorageSettings();
 
   const uploadPastedImage = useCallback(async (imageFile: File): Promise<{
     filename: string;
     imageUrl: string;
     markdownLink: string;
   } | null> => {
-    if (!selectedNote || !isSignedIn) {
-      console.warn('Cannot upload image: No selected note or not signed in');
+    // Check if we have a valid storage configuration
+    if (!selectedNote) {
       return null;
+    }
+
+    if (currentProvider === 'google-drive' && !isSignedIn) {
+      return null;
+    }
+
+    if (currentProvider === 'r2-turso' && !storageStatus.isConnected) {
+      // Check the R2 service directly
+      try {
+        const isR2Auth = await r2Service.isAuthenticated();
+        if (!isR2Auth) {
+          return null;
+        }
+        // Continue with upload despite storageStatus saying not connected
+      } catch (error) {
+        return null;
+      }
     }
 
     try {
       setIsLoading(true);
       setSyncProgress(10);
 
-      // Get the Images folder ID - this will create the folder if it doesn't exist
-      const imagesFolderId = await driveService.findOrCreateImagesFolder();
-
-      setSyncProgress(30);
-
       // Generate unique filename with timestamp
       const timestamp = Date.now();
       const extension = imageFile.name.split('.')?.pop()?.toLowerCase() || 'png';
       const defaultFilename = `image-${timestamp}.${extension}`;
 
-      // Allow caller to prompt user for a custom name
+      // Allow rename only for Google Drive. For R2, skip rename dialog for faster UX.
       let finalFilename = defaultFilename;
-      if (onBeforeUpload) {
+      if (currentProvider === 'google-drive' && onBeforeUpload) {
         try {
           const maybeNew = await onBeforeUpload(defaultFilename, imageFile);
           if (maybeNew && typeof maybeNew === 'string') {
-            // Ensure extension is preserved
             const provided = maybeNew.trim();
             if (provided) {
               finalFilename = provided.endsWith(`.${extension}`)
@@ -62,20 +76,35 @@ export const usePasteImage = ({
                 : `${provided}.${extension}`;
             }
           }
-        } catch (_) {
-          // Ignore and keep default filename
-        }
+        } catch (_) {}
       }
 
-      setSyncProgress(50);
+      setSyncProgress(30);
 
-      // Upload image to Google Drive in the Images folder
-      const imageFileId = await driveService.uploadImage(finalFilename, imageFile, imagesFolderId);
+      let imageFileId: string;
+      let imageUrl: string;
+
+      if (currentProvider === 'google-drive') {
+        // Upload to Google Drive
+        const imagesFolderId = await driveService.findOrCreateImagesFolder();
+        setSyncProgress(50);
+        
+        imageFileId = await driveService.uploadImage(finalFilename, imageFile, imagesFolderId);
+        imageUrl = `https://drive.google.com/uc?id=${imageFileId}`;
+      } else if (currentProvider === 'r2-turso') {
+        // Upload to Cloudflare R2
+        setSyncProgress(50);
+        
+        imageFileId = await r2Service.uploadImage(finalFilename, imageFile, selectedNote.id);
+        // Construct both possible URL styles to maximize compatibility with your bucket visibility
+        const primary = r2Service.getImageUrl(imageFileId);
+        imageUrl = primary;
+      } else {
+        throw new Error(`Unsupported storage provider: ${currentProvider}`);
+      }
 
       setSyncProgress(80);
 
-      // Create shareable URL for the image - use direct access format
-      const imageUrl = `https://drive.google.com/uc?id=${imageFileId}`;
       const markdownLink = `![${finalFilename}](${imageUrl})`;
 
       setSyncProgress(100);
@@ -102,7 +131,7 @@ export const usePasteImage = ({
         setIsLoading(false);
       }, 700);
     }
-  }, [selectedNote, isSignedIn, setIsLoading, setSyncProgress]);
+  }, [selectedNote, isSignedIn, currentProvider, storageStatus.isConnected, setIsLoading, setSyncProgress]);
 
   const handlePasteImage = useCallback(async (event: ClipboardEvent): Promise<boolean> => {
     const items = event.clipboardData?.items;

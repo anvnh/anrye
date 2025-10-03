@@ -8,6 +8,8 @@ interface SecureStorageConfig {
     region: string;
     accessKeyId: string;
     secretAccessKey: string;
+    accountId?: string;
+    publicUrl?: string; // R2 public dev URL like https://pub-xxxxx.r2.dev
   };
   tursoConfig: {
     url: string;
@@ -21,6 +23,8 @@ interface SecureStorageState {
     region: string;
     accessKeyId: string;
     secretAccessKey: string;
+    accountId: string;
+    publicUrl: string;
   };
   tursoConfig: {
     url: string;
@@ -41,6 +45,8 @@ export const useSecureStorage = () => {
       region: 'auto',
       accessKeyId: '',
       secretAccessKey: '',
+      accountId: '',
+      publicUrl: '',
     },
     tursoConfig: {
       url: '',
@@ -67,6 +73,8 @@ export const useSecureStorage = () => {
         region: 'auto',
         accessKeyId: '',
         secretAccessKey: '',
+        accountId: '',
+        publicUrl: '',
       };
 
       if (r2Data) {
@@ -75,6 +83,8 @@ export const useSecureStorage = () => {
           region: r2Data.region || 'auto',
           accessKeyId: r2Data.accessKeyId || '',
           secretAccessKey: r2Data.secretAccessKey || '',
+          accountId: r2Data.accountId || '',
+          publicUrl: r2Data.publicUrl || '',
         };
       }
 
@@ -129,6 +139,8 @@ export const useSecureStorage = () => {
         region: newConfig.region || 'auto',
         accessKeyId: newConfig.accessKeyId,
         secretAccessKey: newConfig.secretAccessKey,
+        accountId: newConfig.accountId || '',
+        publicUrl: newConfig.publicUrl || '',
       };
 
       await secureLocalStorage.setJSON(STORAGE_KEYS.R2_CONFIG, toStore);
@@ -174,6 +186,8 @@ export const useSecureStorage = () => {
     region: state.r2Config.region,
     accessKeyId: state.r2Config.accessKeyId ? maskSensitiveData(state.r2Config.accessKeyId, 4) : '',
     secretAccessKey: state.r2Config.secretAccessKey ? maskSensitiveData(state.r2Config.secretAccessKey, 4) : '',
+    accountId: state.r2Config.accountId || '',
+    publicUrl: state.r2Config.publicUrl || '',
   }), [state.r2Config]);
 
   const getMaskedTursoConfig = useCallback(() => ({
@@ -187,6 +201,8 @@ export const useSecureStorage = () => {
     region: state.r2Config.region,
     accessKeyId: state.r2Config.accessKeyId,
     secretAccessKey: state.r2Config.secretAccessKey,
+    accountId: state.r2Config.accountId,
+    publicUrl: state.r2Config.publicUrl,
   }), [state.r2Config]);
 
   const getPlainTursoConfig = useCallback(() => ({
@@ -210,6 +226,8 @@ export const useSecureStorage = () => {
         region: 'auto',
         accessKeyId: '',
         secretAccessKey: '',
+        accountId: '',
+        publicUrl: '',
       },
       tursoConfig: {
         url: '',
