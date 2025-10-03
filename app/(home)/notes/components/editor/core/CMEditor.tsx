@@ -1,14 +1,23 @@
-'use client';
+"use client";
 
-import React, { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { EditorState, Extension, Compartment } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentLess, indentMore } from '@codemirror/commands';
-import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
-import { oneDark } from '@codemirror/theme-one-dark';
-import { indentWithTab } from '@codemirror/commands';
-import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
-import { createAIAutocompleteExtension, AIService } from '../../ai/AIAutocomplete';
+import React, { useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { EditorState, Extension, Compartment, Prec } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentLess,
+  indentMore,
+} from "@codemirror/commands";
+import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { indentWithTab } from "@codemirror/commands";
+import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import {
+  createAIAutocompleteExtension,
+  AIService,
+} from "../../ai/AIAutocomplete";
 
 export interface CMEditorApi {
   focus: () => void;
@@ -40,29 +49,51 @@ type CMEditorProps = {
   onPasteImage?: (file: File) => Promise<string | null>;
   onSelectionChange?: (line: number) => void;
   onCursorMove?: () => void;
-  onAITrigger?: (pos: { x: number; y: number }, triggerPosition?: { from: number; to: number }) => void;
+  onAITrigger?: (
+    pos: { x: number; y: number },
+    triggerPosition?: { from: number; to: number }
+  ) => void;
+  onWikilinkContextChange?: (ctx: {
+    open: boolean;
+    query: string;
+    pos: { from: number; to: number };
+    coords: { x: number; y: number };
+  }) => void;
+  // Optional handlers used when wikilink popup is open
+  wikilinkNavigation?: {
+    isOpen: () => boolean;
+    moveUp: () => void;
+    moveDown: () => void;
+    confirm: () => void;
+    close: () => void;
+  };
 };
 
 const baseExtensions: Extension[] = [
   history(),
   // Keymap order matters; we will prepend our custom list keymap and markdownKeymap at state creation
-  keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...completionKeymap]),
+  keymap.of([
+    indentWithTab,
+    ...defaultKeymap,
+    ...historyKeymap,
+    ...completionKeymap,
+  ]),
   autocompletion(),
   markdown(),
   oneDark,
-  EditorView.lineWrapping
+  EditorView.lineWrapping,
 ];
 
 function createListKeymap(tabSize: number) {
-  const indentSpaces = ' '.repeat(Math.max(1, tabSize));
+  const indentSpaces = " ".repeat(Math.max(1, tabSize));
   const listRegex = /^(\s*)(>[> ]*|[*+-]\s|(\d+)([.)]))/;
   return [
     {
-      key: 'Tab',
+      key: "Tab",
       run: (view: EditorView) => {
         const { state } = view;
         const ranges = state.selection.ranges;
-        const multiple = ranges.length > 1 || ranges.some(r => !r.empty);
+        const multiple = ranges.length > 1 || ranges.some((r) => !r.empty);
         if (multiple) return indentMore(view);
         const pos = state.selection.main.head;
         const line = state.doc.lineAt(pos);
@@ -70,21 +101,30 @@ function createListKeymap(tabSize: number) {
         const match = listRegex.exec(text);
         if (match) {
           const currentIndentStr = match[1];
-          const currentIndent = currentIndentStr.replace(/\t/g, ' '.repeat(tabSize)).length;
+          const currentIndent = currentIndentStr.replace(
+            /\t/g,
+            " ".repeat(tabSize)
+          ).length;
           const delta = tabSize;
           const insertPos = line.from + currentIndentStr.length;
-          view.dispatch({ changes: { from: insertPos, to: insertPos, insert: ' '.repeat(delta) } });
+          view.dispatch({
+            changes: {
+              from: insertPos,
+              to: insertPos,
+              insert: " ".repeat(delta),
+            },
+          });
           return true;
         }
         return indentMore(view);
-      }
+      },
     },
     {
-      key: 'Shift-Tab',
+      key: "Shift-Tab",
       run: (view: EditorView) => {
         const { state } = view;
         const ranges = state.selection.ranges;
-        const multiple = ranges.length > 1 || ranges.some(r => !r.empty);
+        const multiple = ranges.length > 1 || ranges.some((r) => !r.empty);
         if (multiple) return indentLess(view);
         const pos = state.selection.main.head;
         const line = state.doc.lineAt(pos);
@@ -92,52 +132,83 @@ function createListKeymap(tabSize: number) {
         // Remove one tab or up to tabSize spaces from start, but only within indentation
         let removeCount = 0;
         const leading = text.match(/^(\s*)/);
-        const leadingStr = leading ? leading[1] : '';
-        const currentIndent = leadingStr.replace(/\t/g, ' '.repeat(tabSize)).length;
+        const leadingStr = leading ? leading[1] : "";
+        const currentIndent = leadingStr.replace(
+          /\t/g,
+          " ".repeat(tabSize)
+        ).length;
         if (currentIndent > 0) {
           removeCount = Math.min(tabSize, currentIndent);
         }
         if (removeCount > 0) {
-          view.dispatch({ changes: { from: line.from, to: line.from + removeCount } });
+          view.dispatch({
+            changes: { from: line.from, to: line.from + removeCount },
+          });
           return true;
         }
         return indentLess(view);
-      }
-    }
+      },
+    },
   ];
 }
 
-export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>(function CMEditor(
-  { value, onChange, tabSize = 2, fontSize = '16px', className, onReady, onPasteImage, onSelectionChange, onCursorMove, onAITrigger },
+export const CMEditor = React.forwardRef<
+  CMEditorApi | undefined,
+  CMEditorProps
+>(function CMEditor(
+  {
+    value,
+    onChange,
+    tabSize = 2,
+    fontSize = "16px",
+    className,
+    onReady,
+    onPasteImage,
+    onSelectionChange,
+    onCursorMove,
+    onAITrigger,
+    onWikilinkContextChange,
+    wikilinkNavigation,
+  },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeCompartmentRef = useRef<Compartment | null>(null);
   const tabCompartmentRef = useRef<Compartment | null>(null);
+  // Keep latest wikilink navigation handlers without recreating keymap
+  const wikilinkNavRef = useRef<typeof wikilinkNavigation | undefined>(undefined);
+  useEffect(() => {
+    wikilinkNavRef.current = wikilinkNavigation;
+  }, [wikilinkNavigation]);
 
   // Memoize tab size and font size style
-  const styleExt = useMemo(() => EditorView.theme({
-    // Root .cm-editor element
-    '&': {
-      fontSize,
-      height: '100%',
-      backgroundColor: 'transparent'
-    },
-    '.cm-content': {
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-      backgroundColor: 'transparent'
-    },
-    // Ensure internal scroller can actually scroll within the fixed height
-    '.cm-scroller': {
-      overflow: 'auto',
-      height: '100%',
-      backgroundColor: 'transparent'
-    },
-    '.cm-gutters': {
-      backgroundColor: 'transparent'
-    }
-  }), [fontSize]);
+  const styleExt = useMemo(
+    () =>
+      EditorView.theme({
+        // Root .cm-editor element
+        "&": {
+          fontSize,
+          height: "100%",
+          backgroundColor: "transparent",
+        },
+        ".cm-content": {
+          fontFamily:
+            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          backgroundColor: "transparent",
+        },
+        // Ensure internal scroller can actually scroll within the fixed height
+        ".cm-scroller": {
+          overflow: "auto",
+          height: "100%",
+          backgroundColor: "transparent",
+        },
+        ".cm-gutters": {
+          backgroundColor: "transparent",
+        },
+      }),
+    [fontSize]
+  );
 
   const tabExt = useMemo(() => EditorState.tabSize.of(tabSize), [tabSize]);
 
@@ -158,19 +229,104 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         ...baseExtensions,
         // Add AI autocomplete extension
         createAIAutocompleteExtension({
-          onAIRequest: AIService.requestCompletion
+          onAIRequest: AIService.requestCompletion,
         }),
         // Ctrl+/ to open floating AI input
-        keymap.of([{
-          key: 'Mod-/',
-          run: (view: EditorView) => {
-            if (!onAITrigger) return false;
-            const coords = view.coordsAtPos(view.state.selection.main.head);
-            if (!coords) return false;
-            onAITrigger({ x: coords.left, y: coords.top });
-            return true;
-          }
-        }]),
+        Prec.highest(
+          keymap.of([
+            {
+              key: "Ctrl-/",
+              run: (view: EditorView) => {
+                if (!onAITrigger) return false;
+                const coords = view.coordsAtPos(view.state.selection.main.head);
+                if (!coords) return false;
+                onAITrigger({ x: coords.left, y: coords.top });
+                return true;
+              },
+            },
+            // Wikilink popup navigation when open
+            {
+              key: "ArrowDown",
+              run: () => {
+                const nav = wikilinkNavRef.current;
+                if (nav?.isOpen?.()) {
+                  nav.moveDown();
+                  return true;
+                }
+                return false;
+              },
+            },
+            {
+              key: "ArrowUp",
+              run: () => {
+                const nav = wikilinkNavRef.current;
+                if (nav?.isOpen?.()) {
+                  nav.moveUp();
+                  return true;
+                }
+                return false;
+              },
+            },
+            {
+              key: "Enter",
+              run: () => {
+                const nav = wikilinkNavRef.current;
+                if (nav?.isOpen?.()) {
+                  nav.confirm();
+                  return true;
+                }
+                return false;
+              },
+            },
+            {
+              key: "Escape",
+              run: () => {
+                const nav = wikilinkNavRef.current;
+                if (nav?.isOpen?.()) {
+                  nav.close();
+                  return true;
+                }
+                return false;
+              },
+            },
+            {
+              key: "Ctrl-Space",
+              run: (view: EditorView) => {
+                if (!onWikilinkContextChange) return false;
+                const pos = view.state.selection.main.head;
+                const fullText = view.state.doc.toString();
+                const before = fullText.slice(0, pos);
+                const after = fullText.slice(pos);
+                const lastOpen = before.lastIndexOf("[[");
+                if (lastOpen !== -1) {
+                  const between = before.slice(lastOpen + 2);
+                  if (
+                    !between.includes("]]") &&
+                    !between.includes("\n") &&
+                    between.length <= 50
+                  ) {
+                    const query = between;
+                    const nextCloseRel = after.indexOf("]]");
+                    const spanTo =
+                      nextCloseRel !== -1 ? pos + nextCloseRel + 2 : pos;
+                    const coords = view.coordsAtPos(pos);
+                    onWikilinkContextChange({
+                      open: true,
+                      query,
+                      pos: { from: lastOpen, to: spanTo },
+                      coords: {
+                        x: coords?.left ?? 0,
+                        y: coords?.bottom ?? coords?.top ?? 0,
+                      },
+                    });
+                    return true;
+                  }
+                }
+                return false;
+              },
+            },
+          ])
+        ),
         themeCompartmentRef.current.of(styleExt),
         tabCompartmentRef.current.of(tabExt),
         EditorView.updateListener.of((update) => {
@@ -184,7 +340,10 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
                 if (/\/ai\s$/.test(before)) {
                   const coords = (update.view as any)?.coordsAtPos?.(pos);
                   const triggerPosition = { from: pos - 4, to: pos };
-                  onAITrigger({ x: coords?.left ?? 0, y: coords?.top ?? 0 }, triggerPosition);
+                  onAITrigger(
+                    { x: coords?.left ?? 0, y: coords?.top ?? 0 },
+                    triggerPosition
+                  );
                   // Don't remove the "/ai " text here - let the AIFloatingInput handle replacement
                 }
               } catch {}
@@ -193,18 +352,68 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
           }
           if (update.selectionSet || update.focusChanged) {
             try {
-              const line = update.state.doc.lineAt(update.state.selection.main.from).number - 1;
+              const line =
+                update.state.doc.lineAt(update.state.selection.main.from)
+                  .number - 1;
               onSelectionChange?.(line);
               onCursorMove?.();
-            } catch { }
+            } catch {}
           }
+          try {
+            // Detect wikilink typing context [[...]] and report to host for autocomplete popup
+            const pos = update.state.selection.main.head;
+            const fullText = update.state.doc.toString();
+            const before = fullText.slice(0, pos);
+            const after = fullText.slice(pos);
+            const lastOpen = before.lastIndexOf("[[");
+            let ctxOpen = false;
+            let query = "";
+            let spanFrom = 0;
+            let spanTo = 0;
+            if (lastOpen !== -1) {
+              const between = before.slice(lastOpen + 2);
+              // Ensure not closed before cursor and not spanning multiple lines
+              if (
+                !between.includes("]]") &&
+                !between.includes("\n") &&
+                between.length <= 50
+              ) {
+                ctxOpen = true;
+                query = between;
+                spanFrom = lastOpen;
+                const nextCloseRel = after.indexOf("]]");
+                spanTo = nextCloseRel !== -1 ? pos + nextCloseRel + 2 : pos;
+              }
+            }
+            const coords = (update.view as any)?.coordsAtPos?.(pos);
+            if (onWikilinkContextChange) {
+              if (ctxOpen) {
+                onWikilinkContextChange({
+                  open: true,
+                  query,
+                  pos: { from: spanFrom, to: spanTo },
+                  coords: {
+                    x: coords?.left ?? 0,
+                    y: coords?.bottom ?? coords?.top ?? 0,
+                  },
+                });
+              } else {
+                onWikilinkContextChange({
+                  open: false,
+                  query: "",
+                  pos: { from: 0, to: 0 },
+                  coords: { x: 0, y: 0 },
+                });
+              }
+            }
+          } catch {}
         }),
-      ]
+      ],
     });
 
     const view = new EditorView({
       state,
-      parent: hostRef.current
+      parent: hostRef.current,
     });
     viewRef.current = view;
 
@@ -214,64 +423,100 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       if (!onPasteImage) return;
       const items = event.clipboardData?.items;
       if (!items) return;
+
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        if (it.type.startsWith('image/')) {
+        if (it.type.startsWith("image/")) {
           event.preventDefault();
           const file = it.getAsFile();
           if (!file) continue;
+
           try {
             const link = await onPasteImage(file);
             if (link) {
               view.dispatch({
-                changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: `\n${link}\n` }
+                changes: {
+                  from: view.state.selection.main.from,
+                  to: view.state.selection.main.to,
+                  insert: `\n${link}\n`,
+                },
               });
             }
-          } catch (_) { }
+          } catch (error) {
+            // Silent fail
+          }
           break;
         }
       }
     };
-    contentDOM.addEventListener('paste', handlePaste);
+    contentDOM.addEventListener("paste", handlePaste);
 
     // Expose API
     const api: CMEditorApi = {
       focus: () => view.focus(),
       insertTextAtSelection: (text: string) => {
-        view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
+        view.dispatch({
+          changes: {
+            from: view.state.selection.main.from,
+            to: view.state.selection.main.to,
+            insert: text,
+          },
+        });
         view.focus();
       },
       setDocText: (text: string) => {
         const current = view.state.doc.toString();
-        view.dispatch({ changes: { from: 0, to: current.length, insert: text } });
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: text },
+        });
         view.focus();
       },
       wrapSelection: (prefix: string, suffix: string = prefix) => {
         const sel = view.state.selection.main;
         const selected = view.state.doc.sliceString(sel.from, sel.to);
-        const isWrapped = selected.startsWith(prefix) && selected.endsWith(suffix);
-        const replacement = isWrapped ? selected.slice(prefix.length, selected.length - suffix.length) : `${prefix}${selected}${suffix}`;
-        view.dispatch({ changes: { from: sel.from, to: sel.to, insert: replacement }, selection: { anchor: sel.from + (isWrapped ? 0 : prefix.length), head: sel.from + (isWrapped ? selected.length : selected.length + prefix.length) } });
+        const isWrapped =
+          selected.startsWith(prefix) && selected.endsWith(suffix);
+        const replacement = isWrapped
+          ? selected.slice(prefix.length, selected.length - suffix.length)
+          : `${prefix}${selected}${suffix}`;
+        view.dispatch({
+          changes: { from: sel.from, to: sel.to, insert: replacement },
+          selection: {
+            anchor: sel.from + (isWrapped ? 0 : prefix.length),
+            head:
+              sel.from +
+              (isWrapped ? selected.length : selected.length + prefix.length),
+          },
+        });
         view.focus();
       },
       toggleHeadingAtLine: (level: number) => {
         const { state } = view;
         const line = state.doc.lineAt(state.selection.main.from);
-        const heading = '#'.repeat(level) + ' ';
+        const heading = "#".repeat(level) + " ";
         const current = state.doc.sliceString(line.from, line.to);
-        let newLine = '';
+        let newLine = "";
         if (current.startsWith(heading)) {
           newLine = current.slice(heading.length);
         } else if (/^#+\s+/.test(current)) {
-          newLine = heading + current.replace(/^#+\s+/, '');
+          newLine = heading + current.replace(/^#+\s+/, "");
         } else {
           newLine = heading + current;
         }
-        view.dispatch({ changes: { from: line.from, to: line.to, insert: newLine }, selection: { anchor: Math.min(line.from + newLine.length, state.doc.length) } });
+        view.dispatch({
+          changes: { from: line.from, to: line.to, insert: newLine },
+          selection: {
+            anchor: Math.min(line.from + newLine.length, state.doc.length),
+          },
+        });
         view.focus();
       },
-      undo: () => { (EditorView as any).undo?.() || document.execCommand('undo'); },
-      redo: () => { (EditorView as any).redo?.() || document.execCommand('redo'); },
+      undo: () => {
+        (EditorView as any).undo?.() || document.execCommand("undo");
+      },
+      redo: () => {
+        (EditorView as any).redo?.() || document.execCommand("redo");
+      },
       getSelectionLine: () => {
         const { state } = view;
         const line = state.doc.lineAt(state.selection.main.from);
@@ -285,14 +530,20 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       getLineText: (lineNumberZeroBased: number) => {
         const { state } = view;
         // CM uses 1-based line numbering
-        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const ln = Math.max(
+          1,
+          Math.min(state.doc.lines, lineNumberZeroBased + 1)
+        );
         const line = state.doc.line(ln);
         return state.doc.sliceString(line.from, line.to);
       },
       getDocText: () => view.state.doc.toString(),
       getLineStartOffset: (lineNumberZeroBased: number) => {
         const { state } = view;
-        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const ln = Math.max(
+          1,
+          Math.min(state.doc.lines, lineNumberZeroBased + 1)
+        );
         const line = state.doc.line(ln);
         return line.from;
       },
@@ -303,7 +554,10 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       },
       scrollToLine: (lineNumberZeroBased: number, smooth: boolean = true) => {
         const { state } = view;
-        const lineNumber = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const lineNumber = Math.max(
+          1,
+          Math.min(state.doc.lines, lineNumberZeroBased + 1)
+        );
         const line = state.doc.line(lineNumber);
         const coords = view.coordsAtPos(line.from);
         if (coords) {
@@ -311,7 +565,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
           if (scrollDOM) {
             scrollDOM.scrollTo({
               top: coords.top - scrollDOM.clientHeight / 2,
-              behavior: smooth ? 'smooth' : 'auto'
+              behavior: smooth ? "smooth" : "auto",
             });
           }
         }
@@ -323,7 +577,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
     onReady?.(api);
 
     return () => {
-      contentDOM.removeEventListener('paste', handlePaste);
+      contentDOM.removeEventListener("paste", handlePaste);
       view.destroy();
       viewRef.current = null;
     };
@@ -344,7 +598,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       const anchorCol = sel.anchor - anchorLine.from;
       const headCol = sel.head - headLine.from;
 
-      const lines = value.split('\n');
+      const lines = value.split("\n");
       const clampLineIndex = (lineNumberOneBased: number) => {
         return Math.max(1, Math.min(lines.length, lineNumberOneBased)) - 1; // zero-based index
       };
@@ -356,7 +610,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       };
       const computeOffset = (lineNumberOneBased: number, col: number) => {
         const li = clampLineIndex(lineNumberOneBased);
-        const lineText = lines[li] ?? '';
+        const lineText = lines[li] ?? "";
         const newCol = Math.max(0, Math.min(col, lineText.length));
         return lineStartOffset(li) + newCol;
       };
@@ -366,7 +620,7 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
 
       view.dispatch({
         changes: { from: 0, to: current.length, insert: value },
-        selection: { anchor: newAnchor, head: newHead }
+        selection: { anchor: newAnchor, head: newHead },
       });
     }
   }, [value]);
@@ -375,7 +629,9 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
   useEffect(() => {
     const view = viewRef.current;
     if (!view || !themeCompartmentRef.current) return;
-    view.dispatch({ effects: themeCompartmentRef.current.reconfigure(styleExt) });
+    view.dispatch({
+      effects: themeCompartmentRef.current.reconfigure(styleExt),
+    });
   }, [styleExt]);
 
   // Reconfigure tab size live when prop changes
@@ -391,12 +647,20 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
     return {
       focus: () => view.focus(),
       insertTextAtSelection: (text: string) => {
-        view.dispatch({ changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: text } });
+        view.dispatch({
+          changes: {
+            from: view.state.selection.main.from,
+            to: view.state.selection.main.to,
+            insert: text,
+          },
+        });
         view.focus();
       },
       setDocText: (text: string) => {
         const current = view.state.doc.toString();
-        view.dispatch({ changes: { from: 0, to: current.length, insert: text } });
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: text },
+        });
         view.focus();
       },
       wrapSelection: (prefix: string, suffix?: string) => {
@@ -404,28 +668,47 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         const selected = view.state.doc.sliceString(sel.from, sel.to);
         const end = suffix ?? prefix;
         const isWrapped = selected.startsWith(prefix) && selected.endsWith(end);
-        const replacement = isWrapped ? selected.slice(prefix.length, selected.length - end.length) : `${prefix}${selected}${end}`;
-        view.dispatch({ changes: { from: sel.from, to: sel.to, insert: replacement }, selection: { anchor: sel.from + (isWrapped ? 0 : prefix.length), head: sel.from + (isWrapped ? selected.length : selected.length + prefix.length) } });
+        const replacement = isWrapped
+          ? selected.slice(prefix.length, selected.length - end.length)
+          : `${prefix}${selected}${end}`;
+        view.dispatch({
+          changes: { from: sel.from, to: sel.to, insert: replacement },
+          selection: {
+            anchor: sel.from + (isWrapped ? 0 : prefix.length),
+            head:
+              sel.from +
+              (isWrapped ? selected.length : selected.length + prefix.length),
+          },
+        });
         view.focus();
       },
       toggleHeadingAtLine: (level: number) => {
         const { state } = view;
         const line = state.doc.lineAt(state.selection.main.from);
-        const heading = '#'.repeat(level) + ' ';
+        const heading = "#".repeat(level) + " ";
         const current = state.doc.sliceString(line.from, line.to);
-        let newLine = '';
+        let newLine = "";
         if (current.startsWith(heading)) {
           newLine = current.slice(heading.length);
         } else if (/^#+\s+/.test(current)) {
-          newLine = heading + current.replace(/^#+\s+/, '');
+          newLine = heading + current.replace(/^#+\s+/, "");
         } else {
           newLine = heading + current;
         }
-        view.dispatch({ changes: { from: line.from, to: line.to, insert: newLine }, selection: { anchor: Math.min(line.from + newLine.length, state.doc.length) } });
+        view.dispatch({
+          changes: { from: line.from, to: line.to, insert: newLine },
+          selection: {
+            anchor: Math.min(line.from + newLine.length, state.doc.length),
+          },
+        });
         view.focus();
       },
-      undo: () => { (EditorView as any).undo?.() || document.execCommand('undo'); },
-      redo: () => { (EditorView as any).redo?.() || document.execCommand('redo'); },
+      undo: () => {
+        (EditorView as any).undo?.() || document.execCommand("undo");
+      },
+      redo: () => {
+        (EditorView as any).redo?.() || document.execCommand("redo");
+      },
       getSelectionLine: () => {
         const { state } = view;
         const line = state.doc.lineAt(state.selection.main.from);
@@ -438,14 +721,20 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
       getDocLineCount: () => view.state.doc.lines,
       getLineText: (lineNumberZeroBased: number) => {
         const { state } = view;
-        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const ln = Math.max(
+          1,
+          Math.min(state.doc.lines, lineNumberZeroBased + 1)
+        );
         const line = state.doc.line(ln);
         return state.doc.sliceString(line.from, line.to);
       },
       getDocText: () => view.state.doc.toString(),
       getLineStartOffset: (lineNumberZeroBased: number) => {
         const { state } = view;
-        const ln = Math.max(1, Math.min(state.doc.lines, lineNumberZeroBased + 1));
+        const ln = Math.max(
+          1,
+          Math.min(state.doc.lines, lineNumberZeroBased + 1)
+        );
         const line = state.doc.line(ln);
         return line.from;
       },
@@ -460,19 +749,20 @@ export const CMEditor = React.forwardRef<CMEditorApi | undefined, CMEditorProps>
         const lineNumOneBased = Math.max(1, (lineNumberZeroBased | 0) + 1);
         const line = view.state.doc.line(lineNumOneBased);
         view.dispatch({
-          effects: EditorView.scrollIntoView(line.from, { y: 'start' })
+          effects: EditorView.scrollIntoView(line.from, { y: "start" }),
         });
         if (smooth) {
           const scroller = (view as any).scrollDOM as HTMLElement;
-          scroller?.scrollTo({ top: scroller.scrollTop, behavior: 'smooth' });
+          scroller?.scrollTo({ top: scroller.scrollTop, behavior: "smooth" });
         }
       },
-
     } as CMEditorApi;
   });
 
-  const combinedClass = [className, 'raw-content'].filter(Boolean).join(' ');
-  return <div ref={hostRef} className={combinedClass} style={{ height: '100%' }} />;
+  const combinedClass = [className, "raw-content"].filter(Boolean).join(" ");
+  return (
+    <div ref={hostRef} className={combinedClass} style={{ height: "100%" }} />
+  );
 });
 
 export default CMEditor;

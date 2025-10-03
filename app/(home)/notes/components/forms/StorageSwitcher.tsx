@@ -89,9 +89,11 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
       const text = await file.text();
       const lines = text.split('\n');
       let bucketName = '';
+      let accountId = '';
       let accessKeyId = '';
       let region = 'auto';
       let secretAccessKey = '';
+      let publicUrl = '';
       let databaseUrl = '';
       let authToken = '';
 
@@ -102,6 +104,11 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
           bucketName = value.startsWith('"') && value.endsWith('"')
             ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('ACCOUNT_ID=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          accountId = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
+            : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('ACCESS_KEY_ID=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
           accessKeyId = value.startsWith('"') && value.endsWith('"')
@@ -110,6 +117,11 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         } else if (trimmedLine.startsWith('SECRET_ACCESS_KEY=')) {
           const value = trimmedLine.split('=')[1]?.trim() || '';
           secretAccessKey = value.startsWith('"') && value.endsWith('"')
+            ? value.slice(1, -1)
+            : value.replace(/['"]/g, '');
+        } else if (trimmedLine.startsWith('PUBLIC_URL=')) {
+          const value = trimmedLine.split('=')[1]?.trim() || '';
+          publicUrl = value.startsWith('"') && value.endsWith('"')
             ? value.slice(1, -1)
             : value.replace(/['"]/g, '');
         } else if (trimmedLine.startsWith('REGION=')) {
@@ -130,15 +142,17 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
         }
       }
 
-      if (!bucketName || !accessKeyId || !secretAccessKey || !databaseUrl || !authToken) {
-        throw new Error('File must contain all required fields: BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN (optional REGION, default auto)');
+      if (!bucketName || !accountId || !accessKeyId || !secretAccessKey || !publicUrl || !databaseUrl || !authToken) {
+        throw new Error('File must contain all required fields: BUCKET_NAME, ACCOUNT_ID, ACCESS_KEY_ID, SECRET_ACCESS_KEY, PUBLIC_URL, DATABASE_URL, AUTH_TOKEN (optional REGION, default auto)');
       }
 
       await updateR2Config({
         bucket: bucketName,
+        accountId: accountId,
         region,
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
+        publicUrl: publicUrl,
       });
       await updateTursoConfig({
         url: databaseUrl,
@@ -340,6 +354,38 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="r2-account-id" className={cn(
+                  "text-sm font-medium",
+                  notesTheme === 'light' ? 'text-black' : 'text-white'
+                )}>Account ID</Label>
+                <Input
+                  id="r2-account-id"
+                  value={r2Config.accountId || ''}
+                  onChange={(e) => updateR2Config({ accountId: e.target.value })}
+                  placeholder="Cloudflare Account ID"
+                  className={cn(
+                    "border-gray-700",
+                    notesTheme === 'light' ? 'text-black' : 'text-white'
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="r2-public-url" className={cn(
+                  "text-sm font-medium",
+                  notesTheme === 'light' ? 'text-black' : 'text-white'
+                )}>Public Development URL</Label>
+                <Input
+                  id="r2-public-url"
+                  value={r2Config.publicUrl || ''}
+                  onChange={(e) => updateR2Config({ publicUrl: e.target.value })}
+                  placeholder="https://pub-xxxxxxxx.r2.dev"
+                  className={cn(
+                    "border-gray-700",
+                    notesTheme === 'light' ? 'text-black' : 'text-white'
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
                 <SecureInput
                   id="r2-access-key"
                   label="Access Key ID"
@@ -439,7 +485,8 @@ export function StorageSwitcher({ className }: StorageSwitcherProps) {
                   <span className="font-semibold">Click to upload</span> configuration file
                 </p>
                 <p className="text-xs text-gray-500">
-                  Upload a .txt file with BUCKET_NAME, ACCESS_KEY_ID, SECRET_ACCESS_KEY, DATABASE_URL, AUTH_TOKEN
+                  Upload a .txt file with the following required fields:<br/>
+                  <span className="font-mono text-xs">BUCKET_NAME, ACCOUNT_ID, ACCESS_KEY_ID, SECRET_ACCESS_KEY, PUBLIC_URL, DATABASE_URL, AUTH_TOKEN</span>
                 </p>
               </div>
               <input

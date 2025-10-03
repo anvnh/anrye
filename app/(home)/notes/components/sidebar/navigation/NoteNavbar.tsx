@@ -481,10 +481,17 @@ const NoteNavbar: React.FC<NoteNavbarProps> = ({
         </div>
       </div>
       {showLastUpdated && (
-        <p className="text-xs sm:text-sm text-gray-400 mt-1 truncate">
-          <span className="hidden sm:inline">Last updated: </span>
-          {formatLastUpdated(selectedNote.updatedAt)}
-        </p>
+        <div className="flex space-x-4 text-xs sm:text-sm text-gray-400 mt-1">
+          <p className="truncate">
+            <span className="hidden sm:inline">Last updated: </span>
+            {formatLastUpdated(selectedNote.updatedAt)}
+          </p>
+          <span> | </span>
+          <p className="truncate opacity-75">
+            <span className="hidden sm:inline">ID: </span>
+            <span className="font-mono">{selectedNote.id}</span>
+          </p>
+        </div>
       )}
 
       {/* Copy Notification (render in portal to avoid transform/overflow issues) */}

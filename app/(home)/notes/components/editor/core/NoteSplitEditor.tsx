@@ -10,6 +10,11 @@ import { usePasteImage, useTableToolbar } from '../../../hooks';
 import RenameImageDialog from '../../images/editing/RenameImageDialog';
 import CMEditor, { CMEditorApi } from './CMEditor';
 import { AIFloatingInput } from '../../ai/AIFloatingInput';
+import WikilinkAutocomplete from '../features/WikilinkAutocomplete';
+import { suggestNoteLinks } from '../../../utils/navigation/backlinkUtils';
+import { useCMWikilinkPopup } from '../../../hooks/features/useCMWikilinkPopup';
+import { useAIFloating } from '../../../hooks/features/useAIFloating';
+import { useRenameImageModal } from '../../../hooks/features/useRenameImageModal';
 
 
 interface NoteSplitEditorProps {
@@ -91,80 +96,62 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   }, []);
 
   const [renameModal, setRenameModal] = useState<{ open: boolean; defaultName: string } | null>(null);
-  const [aiFloatingOpen, setAiFloatingOpen] = useState(false);
-  const [aiFloatingPosition, setAiFloatingPosition] = useState({ x: 0, y: 0 });
-  const [aiTriggerPosition, setAiTriggerPosition] = useState<{ from: number; to: number } | undefined>(undefined);
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [selectedTextPosition, setSelectedTextPosition] = useState<{ from: number; to: number } | undefined>(undefined);
+  const {
+    aiFloatingOpen,
+    setAiFloatingOpen,
+    aiFloatingPosition,
+    setAiFloatingPosition,
+    aiTriggerPosition,
+    setAiTriggerPosition,
+    selectedText,
+    selectedTextPosition,
+    handleTextSelection,
+    handleAITextInsert,
+    onAITrigger,
+    onRestoreCursor,
+  } = useAIFloating(cmRef, editContent, setEditContent);
+  const { containerRef, wikilinkCtx, relativePopupPos, onWikilinkContextChange, handleWikilinkSelect, closeWikilinkPopup, selectedIndex, setSelectedIndex } = useCMWikilinkPopup({
+    editContent,
+    setEditContent,
+    cmRef,
+  });
   const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   // Initialize table toolbar
   const { isInTable, handleTableAction, handleCursorMove } = useTableToolbar(cmRef);
 
-  // Handle text selection for AI
-  const handleTextSelection = useCallback(() => {
-    const api = cmRef.current;
-    if (api) {
-      const selection = api.getSelectionOffsets();
-      if (selection.from !== selection.to) {
-        // There is a selection
-        const selected = editContent.slice(selection.from, selection.to);
-        setSelectedText(selected);
-        setSelectedTextPosition(selection);
-      } else {
-        // No selection
-        setSelectedText('');
-        setSelectedTextPosition(undefined);
-      }
-    }
-  }, [editContent]);
-
-  // Handle AI text insertion
-  const handleAITextInsert = useCallback((text: string, replacePosition?: { from: number; to: number }) => {
-    const api = cmRef.current;
-    if (api) {
-      if (replacePosition) {
-        // Replace text at specific position
-        api.setSelection(replacePosition.from, replacePosition.to);
-        api.insertTextAtSelection(text);
-      } else {
-        // Insert at current selection
-        api.insertTextAtSelection(text);
-      }
-    } else {
-      if (replacePosition) {
-        // Replace text in the content string
-        const before = editContent.slice(0, replacePosition.from);
-        const after = editContent.slice(replacePosition.to);
-        setEditContent(before + text + after);
-      } else {
-        // Fallback for non-CMEditor case
-        setEditContent(editContent + text);
-      }
-    }
-  }, [editContent, setEditContent]);
+  // AI state and handlers provided by useAIFloating
 
 
 
   // Initialize paste image functionality
+  const { dialogProps, openRenameModal } = useRenameImageModal('__rename_image_cb_split__');
+
   const { handlePasteImage, uploadPastedImage } = usePasteImage({
     notes,
     selectedNote,
     setEditContent,
     setIsLoading,
     setSyncProgress,
-    onBeforeUpload: async (defaultFilename) => {
-      return await new Promise<string | null>((resolve) => {
-        setRenameModal({ open: true, defaultName: defaultFilename });
-        const handle = (newName: string | null) => {
-          setRenameModal(null);
-          resolve(newName);
-        };
-        (window as any).__rename_image_cb_split__ = handle;
-      });
-    },
+    onBeforeUpload: async (defaultFilename) => openRenameModal(defaultFilename),
     getTargetTextarea: () => null
   });
+
+  // Wikilink: memoized suggestions and selectedIndex bounds
+  const wikilinkSuggestions = useMemo(
+    () => suggestNoteLinks(wikilinkCtx.query, notes, 8),
+    [wikilinkCtx.query, notes]
+  );
+  useEffect(() => {
+    if (!wikilinkCtx.open) return;
+    if (wikilinkSuggestions.length === 0) {
+      setSelectedIndex(0);
+      return;
+    }
+    if (selectedIndex < 0 || selectedIndex >= wikilinkSuggestions.length) {
+      setSelectedIndex(0);
+    }
+  }, [wikilinkCtx.open, wikilinkSuggestions.length, selectedIndex, setSelectedIndex]);
 
   // CMEditor will handle paste via onPasteImage
 
@@ -983,21 +970,13 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
   }, [debouncedContent, scrollEditorToStartLine]);
 
   return (
-    <div className="flex h-full w-full relative">
-      {renameModal?.open && (
+    <div className="flex h-full w-full relative" ref={containerRef}>
+      {dialogProps.isOpen && (
         <RenameImageDialog
-          isOpen={renameModal.open}
-          defaultName={renameModal.defaultName}
-          onConfirm={(newName) => {
-            const cb = (window as any).__rename_image_cb_split__ as (n: string | null) => void;
-            if (cb) cb(newName);
-          }}
-          onOpenChange={(open) => {
-            if (!open) {
-              const cb = (window as any).__rename_image_cb_split__ as (n: string | null) => void;
-              if (cb) cb(null);
-            }
-          }}
+          isOpen={dialogProps.isOpen}
+          defaultName={dialogProps.defaultName}
+          onConfirm={dialogProps.onConfirm}
+          onOpenChange={dialogProps.onOpenChange}
         />
       )}
       {/* Raw Editor Side */}
@@ -1037,12 +1016,25 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
               } catch { }
             }}
             onCursorMove={handleCursorMove}
-            onAITrigger={(pos, triggerPosition) => { 
-              // Check for text selection first
-              handleTextSelection();
-              setAiFloatingPosition(pos); 
-              setAiTriggerPosition(triggerPosition);
-              setAiFloatingOpen(true); 
+            onAITrigger={(pos, triggerPosition) => onAITrigger(pos, triggerPosition)}
+            onWikilinkContextChange={onWikilinkContextChange}
+            wikilinkNavigation={{
+              isOpen: () => !!wikilinkCtx.open,
+              moveDown: () => {
+                const total = wikilinkSuggestions.length;
+                if (total === 0) return;
+                setSelectedIndex((prev) => (prev + 1) % total);
+              },
+              moveUp: () => {
+                const total = wikilinkSuggestions.length;
+                if (total === 0) return;
+                setSelectedIndex((prev) => (prev - 1 + total) % total);
+              },
+              confirm: () => {
+                const item = wikilinkSuggestions[selectedIndex];
+                if (item) handleWikilinkSelect(item);
+              },
+              close: () => closeWikilinkPopup(),
             }}
           />
         </div>
@@ -1290,6 +1282,23 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
         </div>
       </div>
       
+      {/* Wikilink Autocomplete Popup (triggered while typing inside [[ ]]) */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 40 }}>
+        <div className="relative w-full h-full pointer-events-none">
+      <WikilinkAutocomplete
+        isOpen={wikilinkCtx.open}
+        suggestions={wikilinkSuggestions}
+        selectedIndex={selectedIndex}
+        position={relativePopupPos}
+        onSelect={(note) => { handleWikilinkSelect(note); }}
+        onClose={() => closeWikilinkPopup()}
+        query={wikilinkCtx.query}
+        positionMode={'absolute'}
+        onHoverIndexChange={(i) => setSelectedIndex(i)}
+      />
+        </div>
+      </div>
+
       {/* AI Floating Input */}
       <AIFloatingInput
         isVisible={aiFloatingOpen}
@@ -1301,12 +1310,7 @@ export const NoteSplitEditor: React.FC<NoteSplitEditorProps> = (
         selectedText={selectedText}
         selectedTextPosition={selectedTextPosition}
         onSelectionChange={handleTextSelection}
-        onRestoreCursor={() => {
-          // Focus the editor and restore cursor position
-          if (cmRef.current) {
-            cmRef.current.focus();
-          }
-        }}
+        onRestoreCursor={onRestoreCursor}
       />
     </div>
   );

@@ -137,12 +137,6 @@ export const SecureInput: React.FC<SecureInputProps> = ({
           )}
         </div>
       </div>
-      
-      {isSensitive && (
-        <p className="text-xs text-gray-500 mt-1">
-          {isFocused ? 'Entering sensitive data' : 'Sensitive data is masked'}
-        </p>
-      )}
     </div>
   );
 };
